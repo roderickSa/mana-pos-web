@@ -1,0 +1,31 @@
+.barra {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  border-top: 1px solid var(--linea);
+  background: var(--superficie-panel);
+  padding: 8px 18px;
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+}
+
+.punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--exito);
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.punto.pendiente {
+  background: var(--linea);
+}
+
+.punto.mal {
+  background: var(--peligro);
+}
+
+.spacer {
+  flex: 1;
+}

@@ -1,0 +1,227 @@
+.panel {
+  flex: 1;
+  min-width: 340px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: transparent;
+}
+
+/* El voucher térmico: papel claro, borde perforado abajo, números mono. */
+.voucher {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie-voucher);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-chico) var(--radio-chico) 0 0;
+  box-shadow: var(--sombra-panel);
+  /* borde perforado inferior */
+  --diente: 12px;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 7px),
+    97.5% 100%,
+    95% calc(100% - 7px),
+    92.5% 100%,
+    90% calc(100% - 7px),
+    87.5% 100%,
+    85% calc(100% - 7px),
+    82.5% 100%,
+    80% calc(100% - 7px),
+    77.5% 100%,
+    75% calc(100% - 7px),
+    72.5% 100%,
+    70% calc(100% - 7px),
+    67.5% 100%,
+    65% calc(100% - 7px),
+    62.5% 100%,
+    60% calc(100% - 7px),
+    57.5% 100%,
+    55% calc(100% - 7px),
+    52.5% 100%,
+    50% calc(100% - 7px),
+    47.5% 100%,
+    45% calc(100% - 7px),
+    42.5% 100%,
+    40% calc(100% - 7px),
+    37.5% 100%,
+    35% calc(100% - 7px),
+    32.5% 100%,
+    30% calc(100% - 7px),
+    27.5% 100%,
+    25% calc(100% - 7px),
+    22.5% 100%,
+    20% calc(100% - 7px),
+    17.5% 100%,
+    15% calc(100% - 7px),
+    12.5% 100%,
+    10% calc(100% - 7px),
+    7.5% 100%,
+    5% calc(100% - 7px),
+    2.5% 100%,
+    0 calc(100% - 7px)
+  );
+  padding-bottom: 14px;
+}
+
+.cabecera {
+  padding: 14px 18px 10px;
+  border-bottom: 1px dashed var(--linea);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.cabecera h2 {
+  font-size: 0.95rem;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tinta-suave);
+  font-weight: 700;
+}
+
+.cabecera span {
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+}
+
+.deshacer {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  min-height: 36px;
+}
+
+.deshacer:hover {
+  border-color: var(--peligro);
+  color: var(--peligro);
+}
+
+.lineas {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.linea {
+  display: grid;
+  grid-template-columns: 1fr auto minmax(36px, auto);
+  gap: 2px 10px;
+  padding: 9px 12px 9px 18px;
+  border-bottom: 1px dashed var(--linea);
+  align-items: center;
+}
+
+.nombre {
+  font-weight: 600;
+  font-size: 0.94rem;
+}
+
+.detalle {
+  grid-column: 1;
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+  font-family: var(--fuente-voucher);
+  font-size: 0.75rem;
+}
+
+.monto {
+  grid-row: 1 / span 2;
+  font-weight: 700;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+}
+
+.quitar {
+  grid-row: 1 / span 2;
+  border: none;
+  background: none;
+  color: var(--peligro);
+  font-size: 0.95rem;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: var(--radio-chico);
+}
+
+.quitar:hover {
+  background: rgba(194, 68, 56, 0.08);
+}
+
+.vacio {
+  color: var(--tinta-suave);
+  font-size: 0.88rem;
+  text-align: center;
+  margin: 28px 16px;
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 18px 4px;
+  border-top: 2px solid var(--tinta);
+  margin: 0 12px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+}
+
+.cobrar {
+  background: var(--mana-ambar);
+  color: var(--mana-ambar-tinta);
+  border: none;
+  border-radius: var(--radio);
+  padding: 18px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: 0 3px 0 rgba(31, 38, 30, 0.18);
+  min-height: 56px;
+}
+
+.cobrar:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: default;
+}
+
+.cobrar:not(:disabled):active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.espera {
+  display: flex;
+  gap: 8px;
+}
+
+.esperaBoton {
+  flex: 1;
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: var(--radio-chico);
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  min-height: 44px;
+}
+
+.esperaBoton:disabled {
+  opacity: 0.45;
+}
+
+.esperaBoton:not(:disabled):hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}

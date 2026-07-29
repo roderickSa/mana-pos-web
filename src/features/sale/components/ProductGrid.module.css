@@ -1,0 +1,155 @@
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+.card {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  border-radius: var(--radio);
+  padding: 12px 12px 10px;
+  text-align: left;
+  color: var(--tinta);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 104px;
+  box-shadow: var(--sombra-suave);
+  transition: border-color 120ms ease;
+}
+
+.card:hover {
+  border-color: var(--mana-verde);
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+.filaAlta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--superficie-app);
+  padding: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.cardBaja {
+  border-color: var(--mana-ambar);
+}
+
+.cardAgotada {
+  border-color: var(--peligro);
+  opacity: 0.85;
+}
+
+.stock {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.stockBajo {
+  color: #8a5a13;
+  background: rgba(232, 161, 61, 0.18);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.stockCero {
+  color: #fff;
+  background: var(--peligro);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.catFruta {
+  color: var(--cat-fruta);
+}
+
+.catAbarrote {
+  color: var(--cat-abarrote);
+}
+
+.catBebida {
+  color: var(--cat-bebida);
+}
+
+.catLimpieza {
+  color: var(--cat-limpieza);
+}
+
+.catPan {
+  color: var(--cat-pan);
+}
+
+.nombre {
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.pie {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.precio {
+  font-size: 0.9rem;
+  color: var(--mana-verde);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.granel {
+  font-size: 0.72rem;
+  color: var(--tinta-suave);
+  background: var(--mana-verde-suave);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-weight: 600;
+}
+
+.vacio {
+  grid-column: 1 / -1;
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
+  margin: 24px 0;
+  text-align: center;
+}
+
+/* Código corto tecleable: visible para que las cajeras se lo aprendan. */
+.codigoCorto {
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-family: var(--fuente-voucher);
+  background: var(--mana-verde-hondo);
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 7px;
+  margin-left: auto;
+  margin-right: 6px;
+}

@@ -1,0 +1,90 @@
+.pantalla {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mana-verde-hondo);
+  outline: none;
+}
+
+.tarjeta {
+  background: var(--superficie-panel);
+  border-radius: 18px;
+  padding: 34px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.marca {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--mana-verde-hondo);
+}
+
+.acento {
+  color: var(--mana-ambar);
+}
+
+.saludo {
+  margin: 0;
+  color: var(--tinta-suave);
+}
+
+.puntos {
+  display: flex;
+  gap: 12px;
+  min-height: 18px;
+}
+
+.punto {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--linea);
+}
+
+.puntoLleno {
+  background: var(--mana-verde);
+  border-color: var(--mana-verde);
+}
+
+.error {
+  margin: 0;
+  color: var(--peligro);
+  font-size: 0.9rem;
+}
+
+.teclado {
+  display: grid;
+  grid-template-columns: repeat(3, 84px);
+  gap: 10px;
+}
+
+.tecla {
+  height: 72px;
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  border-radius: 14px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.tecla:active {
+  background: var(--mana-verde-suave);
+}
+
+.teclaAccion {
+  color: var(--tinta-suave);
+}
+
+.teclaEntrar {
+  background: var(--mana-verde);
+  border-color: var(--mana-verde);
+  color: #fff;
+}

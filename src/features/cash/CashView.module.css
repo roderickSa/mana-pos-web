@@ -1,0 +1,186 @@
+.vista {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.abrirCard {
+  max-width: 480px;
+  margin: 40px auto 0;
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--sombra-panel);
+}
+
+.abrirCard h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.abrirBoton {
+  background: var(--mana-verde);
+  color: #fff;
+  border: none;
+  border-radius: var(--radio);
+  padding: 16px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  min-height: 52px;
+}
+
+.encabezado {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.efectivoCard {
+  background: var(--mana-verde-hondo);
+  color: #f2f5ef;
+  border-radius: var(--radio);
+  padding: 20px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 260px;
+}
+
+.efectivoCard span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.efectivoCard b {
+  font-size: 2.6rem;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.efectivoCard .sub {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.desglose {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+.desglose > div {
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.desglose span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+  font-weight: 700;
+}
+
+.desglose b {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.acciones button {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-weight: 700;
+  min-height: var(--toque-min);
+}
+
+.acciones button:hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
+.cerrar {
+  margin-left: auto;
+  border-color: var(--peligro) !important;
+  color: var(--peligro) !important;
+}
+
+.movimientos {
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 16px 18px;
+  max-width: 640px;
+}
+
+.movimientos h3 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tinta-suave);
+}
+
+.corteResumen {
+  display: flex;
+  gap: 10px;
+}
+
+.corteResumen > div {
+  flex: 1;
+  background: var(--superficie-app);
+  border-radius: var(--radio);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.corteResumen span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+  font-weight: 700;
+}
+
+.corteResumen b {
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.diferenciaOk b {
+  color: var(--mana-verde);
+}
+
+.diferenciaMala b {
+  color: var(--peligro);
+}

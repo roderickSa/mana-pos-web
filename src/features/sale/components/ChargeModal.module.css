@@ -1,0 +1,148 @@
+.cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.etiqueta {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--tinta-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.recibido {
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio-chico);
+  padding: 14px;
+  font-size: 1.6rem;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.recibido:focus {
+  border-color: var(--mana-verde);
+}
+
+.rapidos {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rapido {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-height: 44px;
+}
+
+.rapido:hover {
+  border-color: var(--mana-verde);
+}
+
+.vueltoPreview {
+  font-size: 1.1rem;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.nota {
+  margin: 0;
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancelar {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-weight: 600;
+  min-height: 48px;
+}
+
+.cobrar {
+  background: var(--mana-ambar);
+  color: var(--mana-ambar-tinta);
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  font-weight: 800;
+  font-size: 1rem;
+  min-height: 48px;
+}
+
+.cobrar:disabled {
+  opacity: 0.5;
+}
+
+.ventaOk {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--mana-verde);
+}
+
+/* El vuelto ES el dato: grande, imposible de pasar por alto. */
+.vueltoGrande {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--mana-verde-suave);
+  border-radius: var(--radio);
+  padding: 18px;
+}
+
+.vueltoGrande span {
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.vueltoGrande b {
+  font-size: 3rem;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+  color: var(--mana-verde-hondo);
+  line-height: 1.1;
+}
+
+.billetes {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600 !important;
+}
+
+.aviso {
+  margin: 0;
+  background: rgba(232, 161, 61, 0.16);
+  border: 1px solid var(--mana-ambar);
+  border-radius: var(--radio-chico);
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  color: #8a5a13;
+}

@@ -1,0 +1,23 @@
+.form {
+  width: 100%;
+}
+
+.input {
+  width: 100%;
+  background: var(--superficie-panel);
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 14px 16px;
+  font-size: 1.05rem;
+  font-family: var(--fuente-ui);
+  color: var(--tinta);
+  min-height: var(--toque-min);
+}
+
+.input::placeholder {
+  color: var(--tinta-suave);
+}
+
+.input:focus {
+  border-color: var(--mana-verde);
+}

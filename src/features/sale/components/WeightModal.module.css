@@ -1,0 +1,132 @@
+.fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 38, 30, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal {
+  background: var(--superficie-panel);
+  border-radius: var(--radio);
+  padding: 22px;
+  width: min(440px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--sombra-panel);
+}
+
+.titulo {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--tinta-suave);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+/* Lectura viva de la balanza: un toque agrega la línea con ese peso. */
+.balanzaViva {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--mana-verde-suave);
+  border: 1.5px solid var(--mana-verde);
+  border-radius: var(--radio);
+  padding: 14px;
+  color: var(--mana-verde-hondo);
+  width: 100%;
+}
+
+.balanzaViva b {
+  font-size: 2.2rem;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.balanzaViva span {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.balanzaEtiqueta {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem !important;
+  color: var(--tinta-suave);
+  font-weight: 700 !important;
+}
+
+.input {
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio-chico);
+  padding: 14px;
+  font-size: 1.4rem;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.input:focus {
+  border-color: var(--mana-verde);
+}
+
+.presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-height: 40px;
+}
+
+.preset:hover {
+  border-color: var(--mana-verde);
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cancelar {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-weight: 600;
+  min-height: 44px;
+}
+
+.confirmar {
+  background: var(--mana-verde);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: 700;
+  min-height: 44px;
+}
+
+.confirmar:disabled {
+  opacity: 0.5;
+}

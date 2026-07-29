@@ -1,0 +1,110 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--mana-verde-hondo);
+  color: #f2f5ef;
+  padding: 8px 16px;
+  min-height: 52px;
+}
+
+.marca {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+  margin-right: 6px;
+}
+
+.acento {
+  color: var(--mana-ambar);
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.navBoton {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-height: 38px;
+}
+
+.navActiva {
+  background: #fff;
+  color: var(--mana-verde-hondo);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--mana-ambar);
+  color: var(--mana-verde-hondo);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.aviso {
+  background: var(--mana-ambar);
+  color: var(--mana-ambar-tinta);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.reloj {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.caja {
+  background: var(--mana-ambar);
+  color: var(--mana-ambar-tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.cajaCerrada {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f2f5ef;
+}
+
+.salir {
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.salir:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.chip small {
+  font-weight: 400;
+  opacity: 0.75;
+}

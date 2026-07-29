@@ -1,0 +1,22 @@
+.pagos {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.pago {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: var(--radio-chico);
+  padding: 12px 4px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  min-height: var(--toque-min);
+}
+
+.pago.sel {
+  border-color: var(--mana-verde);
+  background: var(--mana-verde);
+  color: #fff;
+}

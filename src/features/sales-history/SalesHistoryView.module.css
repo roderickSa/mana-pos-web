@@ -1,0 +1,72 @@
+.descargar {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid var(--mana-verde);
+  background: var(--superficie-panel);
+  color: var(--mana-verde);
+  border-radius: 999px;
+  padding: 11px 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  min-height: var(--toque-min);
+}
+
+.descargar:hover {
+  background: var(--mana-verde-suave);
+}
+
+.resumen {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tarjeta {
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  box-shadow: var(--sombra-suave);
+}
+
+.tarjeta span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tinta-suave);
+  font-weight: 700;
+}
+
+.tarjeta b {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.estado {
+  background: var(--mana-verde-suave);
+  color: var(--mana-verde-hondo);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.estadoAnulada {
+  background: rgba(194, 68, 56, 0.12);
+  color: var(--peligro);
+}
+
+.anular {
+  background: var(--peligro);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: 700;
+  min-height: 44px;
+}

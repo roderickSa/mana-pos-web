@@ -1,0 +1,255 @@
+.contenedorTabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.subnav {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px 0;
+}
+
+.subtab {
+  border: 1.5px solid var(--linea);
+  border-bottom: none;
+  background: var(--superficie-app);
+  color: var(--tinta-suave);
+  border-radius: var(--radio-chico) var(--radio-chico) 0 0;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 650;
+  min-height: 44px;
+}
+
+.subtabActiva {
+  background: var(--superficie-panel);
+  color: var(--mana-verde-hondo);
+  border-color: var(--mana-verde);
+}
+
+.vista {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.encabezado {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.buscador {
+  flex: 1;
+  min-width: 240px;
+  background: var(--superficie-panel);
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 13px 16px;
+  font-size: 1rem;
+  color: var(--tinta);
+  min-height: var(--toque-min);
+}
+
+.buscador:focus {
+  border-color: var(--mana-verde);
+}
+
+.alertaBajo {
+  background: rgba(232, 161, 61, 0.16);
+  color: #8a5a13;
+  border: 1px solid var(--mana-ambar);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.importar {
+  border: 1.5px solid var(--mana-verde);
+  background: var(--superficie-panel);
+  color: var(--mana-verde);
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-height: var(--toque-min);
+}
+
+.nuevo {
+  background: var(--mana-verde);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-height: var(--toque-min);
+}
+
+.tablaContenedor {
+  flex: 1;
+  overflow: auto;
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-suave);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.tabla th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tinta-suave);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--linea);
+  position: sticky;
+  top: 0;
+  background: var(--superficie-panel);
+}
+
+.tabla td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--linea);
+  vertical-align: middle;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.productoCelda {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--superficie-app);
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tinta-suave);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.nombre {
+  font-weight: 650;
+}
+
+.sub {
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+}
+
+.inactivo {
+  opacity: 0.55;
+}
+
+.stock {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stockBajo {
+  color: #8a5a13;
+  background: rgba(232, 161, 61, 0.18);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.stockCero {
+  color: #fff;
+  background: var(--peligro);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.margen {
+  font-weight: 700;
+  color: var(--mana-verde);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.margenNegativo {
+  color: var(--peligro);
+}
+
+.acciones {
+  white-space: nowrap;
+}
+
+.acciones button {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-right: 6px;
+  min-height: 38px;
+}
+
+.acciones button:hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
+.vacio {
+  color: var(--tinta-suave);
+  text-align: center;
+  padding: 32px;
+}
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.paginacion button {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-weight: 600;
+  min-height: 42px;
+}
+
+.paginacion button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

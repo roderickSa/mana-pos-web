@@ -1,0 +1,42 @@
+/* Tokens de diseño Maná — única fuente de verdad de color/tipo/espaciado.
+   Para retocar el look, tocar SOLO este archivo. */
+:root {
+  /* Marca */
+  --mana-verde-hondo: #14503a;
+  --mana-verde: #1e6b4e;
+  --mana-verde-suave: #e4efe8;
+  --mana-ambar: #e8a13d;
+  --mana-ambar-tinta: #3a2a0e;
+
+  /* Superficies */
+  --superficie-app: #eff3ec;
+  --superficie-panel: #ffffff;
+  --superficie-voucher: #fdfcf8;
+
+  /* Tinta */
+  --tinta: #1f261e;
+  --tinta-suave: #647062;
+  --linea: #dbe2d8;
+
+  /* Semánticos */
+  --peligro: #c24438;
+  --exito: #3fa463;
+
+  /* Categorías */
+  --cat-fruta: #57a05c;
+  --cat-abarrote: #e8a13d;
+  --cat-bebida: #4a88b5;
+  --cat-limpieza: #8a7fb5;
+  --cat-pan: #b5824a;
+
+  /* Tipografía */
+  --fuente-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-voucher: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+
+  /* Métricas */
+  --radio: 12px;
+  --radio-chico: 8px;
+  --toque-min: 48px;
+  --sombra-suave: 0 1px 3px rgba(31, 38, 30, 0.1);
+  --sombra-panel: 0 6px 24px rgba(31, 38, 30, 0.08);
+}
