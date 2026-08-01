@@ -1,6 +1,7 @@
 import { createSignal, Show, type Component } from 'solid-js';
 
 import { setCount } from '@/shared/api/inventory';
+import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
 import { stockOf, unitLabel } from './product-units';
@@ -25,6 +26,7 @@ export const CountModal: Component<{
           : `diferencia de ${result.difference > 0 ? '+' : ''}${result.difference}`;
       props.onDone(`Stock actualizado: ${label}`);
     } catch {
+      beepError();
       setError('No se pudo actualizar el stock.');
     }
   }

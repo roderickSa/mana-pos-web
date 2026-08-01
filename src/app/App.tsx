@@ -8,8 +8,10 @@ import { CreditView } from '@/features/credit/CreditView';
 import { CashView } from '@/features/cash/CashView';
 import { LoginView } from '@/features/login/LoginView';
 import { SettingsView } from '@/features/settings/SettingsView';
-import { currentUser } from '@/shared/state/session';
-import { createResource } from 'solid-js';
+import { currentUser, endSession } from '@/shared/state/session';
+import { clearPreferences, loadPreferencesFor } from '@/shared/state/preferences';
+import { showNotice } from '@/shared/state/notices';
+import { createEffect, createResource, onCleanup, onMount } from 'solid-js';
 import { StatusBar } from './components/StatusBar';
 import { TopBar, type View } from './components/TopBar';
 import styles from './App.module.css';
@@ -27,6 +29,28 @@ async function isTraining(): Promise<boolean> {
 const App: Component = () => {
   const [view, setView] = createSignal<View>('venta');
   const [training] = createResource(isTraining);
+
+  // Las preferencias (texto grande) siguen al usuario que inició sesión.
+  createEffect(() => {
+    const user = currentUser();
+    if (user === null) {
+      clearPreferences();
+    } else {
+      loadPreferencesFor(user.id);
+    }
+  });
+
+  // F10 = bloquear pantalla: vuelve al login sin perder el ticket en curso
+  // (queda guardado en el navegador hasta que alguien entre con su PIN).
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'F10' && currentUser() !== null) {
+      event.preventDefault();
+      endSession();
+      showNotice('Pantalla bloqueada — el ticket en curso sigue guardado');
+    }
+  }
+  onMount(() => document.addEventListener('keydown', onKeyDown));
+  onCleanup(() => document.removeEventListener('keydown', onKeyDown));
 
   return (
     <Show when={currentUser() !== null} fallback={<LoginView />}>

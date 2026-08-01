@@ -2,6 +2,7 @@ import { createSignal, For, Show, type Component } from 'solid-js';
 
 import { ApiError } from '@/shared/api/client';
 import { loginWithPin } from '@/shared/api/users';
+import { beepError } from '@/shared/lib/sounds';
 import { startSession } from '@/shared/state/session';
 import styles from './LoginView.module.css';
 
@@ -20,6 +21,7 @@ export const LoginView: Component = () => {
       const user = await loginWithPin(pin());
       startSession({ id: user.id, name: user.name, role: user.role });
     } catch (cause) {
+      beepError();
       setPin('');
       setError(
         cause instanceof ApiError && cause.serverMessage !== null

@@ -5,7 +5,7 @@ import {
   getCashStatus,
   openCash,
   registerCashMovement,
-  type CloseResultDto,
+  type CloseResultDto, printLastCloseSummary,
 } from '@/shared/api/cash';
 import { apiErrorMessage } from '@/shared/api/client';
 import { formatSoles, solesInputToCents } from '@/shared/lib/money';
@@ -13,6 +13,7 @@ import { METHOD_LABELS } from '@/shared/lib/labels';
 import { formatDateTime, formatTime } from '@/shared/lib/dates';
 import { bumpCashRefresh, cashRefreshVersion } from '@/shared/state/cash-refresh';
 import { showNotice } from '@/shared/state/notices';
+import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { currentUserName } from '@/shared/state/session';
 import { Modal } from '@/shared/ui/Modal';
 import forms from '@/shared/ui/forms.module.css';
@@ -46,10 +47,12 @@ export const CashView: Component = () => {
     if (cents === null) return;
     try {
       await openCash(shift(), cents, currentUserName());
+      beepSuccess();
       showNotice(`Caja abierta (${shift() === 'morning' ? 'turno mañana' : 'turno tarde'}) con ${formatSoles(cents)} de fondo`);
       bumpCashRefresh();
       void refetch();
     } catch (cause) {
+      beepError();
       showNotice(apiErrorMessage(cause, 'No se pudo abrir la caja.'));
     }
   }
@@ -195,11 +198,13 @@ const MovementModal: Component<{
     if (cents === null || cents <= 0 || concept().trim() === '') return;
     try {
       const result = await registerCashMovement(props.movementKind, cents, concept().trim(), currentUserName());
+      beepSuccess();
       showNotice(
         `${props.movementKind === 'withdrawal' ? 'Retiro' : 'Gasto'} de ${formatSoles(cents)} registrado — quedan ${formatSoles(result.currentCashCents)} en caja`,
       );
       props.onDone();
     } catch (cause) {
+      beepError();
       setError(apiErrorMessage(cause, 'No se pudo registrar.'));
     }
   }
@@ -262,8 +267,10 @@ const CloseModal: Component<{
     if (cents === null) return;
     try {
       const result = await closeCash(cents, currentUserName());
+      beepSuccess();
       props.onClosed(result);
     } catch (cause) {
+      beepError();
       setError(apiErrorMessage(cause, 'No se pudo cerrar la caja.'));
     }
   }
@@ -338,6 +345,20 @@ const ClosedSummaryModal: Component<{ result: CloseResultDto; onClose: () => voi
           .join(' · ') || 'sin ventas'}
       </p>
       <div class={forms.acciones}>
+        <button
+          type="button"
+          class={forms.secundario}
+          onClick={() =>
+            void printLastCloseSummary()
+              .then((result) => showNotice(result.message))
+              .catch((cause) => {
+                beepError();
+                showNotice(apiErrorMessage(cause, 'No se pudo imprimir el resumen.'));
+              })
+          }
+        >
+          🖨 Imprimir resumen
+        </button>
         <button type="button" class={forms.primario} onClick={props.onClose} autofocus>
           Listo
         </button>

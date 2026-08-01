@@ -2,6 +2,7 @@ import { createSignal, Show, type Component } from 'solid-js';
 
 import { updateProduct } from '@/shared/api/products';
 import { formatSoles } from '@/shared/lib/money';
+import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
 import { costOf, priceOf } from './product-units';
@@ -44,6 +45,7 @@ export const PriceModal: Component<{
       });
       props.onDone(`Precio de «${props.product.name}» actualizado a ${formatSoles(newPriceCents())}`);
     } catch {
+      beepError();
       setError('No se pudo actualizar el precio.');
     }
   }

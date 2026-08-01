@@ -45,3 +45,11 @@
 .cerrar:hover {
   background: var(--superficie-app);
 }
+
+@media (pointer: coarse) {
+  .cerrar {
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 1.15rem;
+  }
+}

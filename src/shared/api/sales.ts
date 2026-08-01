@@ -12,13 +12,18 @@ export interface CheckoutResponseDto {
 
 export type PaymentMethod = 'cash' | 'yape' | 'card' | 'credit';
 
-export async function checkoutSale(
+export interface PaymentPart {
+  method: PaymentMethod;
+  amountCents: number;
+  receivedCents?: number | null;
+  customerId?: string | null;
+}
+
+// El backend acepta hasta 4 pagos que sumen el total (multi-tender).
+export async function checkoutSaleWithPayments(
   ticketId: string,
   lines: TicketLine[],
-  method: PaymentMethod,
-  totalCents: number,
-  receivedCents: number | null,
-  customerId: string | null = null,
+  payments: PaymentPart[],
   userName = 'cajera',
 ): Promise<CheckoutResponseDto> {
   const payload = {
@@ -34,15 +39,27 @@ export async function checkoutSale(
         : { saleType: 'unit', productId: line.product.id, quantity: line.quantity },
     ),
     userId: userName,
-    payments: [
-      method === 'cash'
-        ? { method, amountCents: totalCents, receivedCents }
-        : method === 'credit'
-          ? { method, amountCents: totalCents, customerId }
-          : { method, amountCents: totalCents },
-    ],
+    payments,
   };
   return sendJson('POST', '/sales/checkout', payload);
+}
+
+export async function checkoutSale(
+  ticketId: string,
+  lines: TicketLine[],
+  method: PaymentMethod,
+  totalCents: number,
+  receivedCents: number | null,
+  customerId: string | null = null,
+  userName = 'cajera',
+): Promise<CheckoutResponseDto> {
+  const payment: PaymentPart =
+    method === 'cash'
+      ? { method, amountCents: totalCents, receivedCents }
+      : method === 'credit'
+        ? { method, amountCents: totalCents, customerId }
+        : { method, amountCents: totalCents };
+  return checkoutSaleWithPayments(ticketId, lines, [payment], userName);
 }
 
 export interface TicketListItemDto {
@@ -64,6 +81,7 @@ export interface SalesPageDto {
     chargedCount: number;
     chargedTotalCents: number;
     byMethod: Array<{ method: string; amountCents: number }>;
+    voidedByUser: Array<{ user: string; count: number; totalCents: number }>;
   };
 }
 
@@ -95,10 +113,39 @@ export function salesExportUrl(filters: SalesFilters): string {
   return `/sales/tickets/export.csv?${params.toString()}`;
 }
 
-export async function voidTicketRequest(ticketId: string, voidedBy: string): Promise<void> {
-  await sendJson('POST', `/sales/tickets/${ticketId}/void`, { voidedBy });
+export async function voidTicketRequest(
+  ticketId: string,
+  voidedBy: string,
+  reason: string,
+): Promise<void> {
+  await sendJson('POST', `/sales/tickets/${ticketId}/void`, { voidedBy, reason });
 }
 
 export async function reprintTicket(ticketId: string): Promise<{ message: string }> {
   return sendJson('POST', `/sales/tickets/${ticketId}/reprint`);
+}
+
+export interface TicketDetailDto {
+  id: string;
+  number: number;
+  status: string;
+  totalCents: number;
+  userId: string;
+  createdAt: string;
+  chargedAt: string | null;
+  voidedAt: string | null;
+  voidedBy: string | null;
+  voidReason: string | null;
+  lines: Array<{
+    description: string;
+    quantity: number | null;
+    grams: number | null;
+    unitPriceCents: number;
+    totalCents: number;
+  }>;
+  payments: Array<{ method: string; amountCents: number }>;
+}
+
+export async function getTicketDetail(ticketId: string): Promise<TicketDetailDto> {
+  return getJson(`/sales/tickets/${ticketId}`);
 }

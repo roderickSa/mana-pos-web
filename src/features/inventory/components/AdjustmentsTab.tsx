@@ -2,6 +2,7 @@ import { createResource, createSignal, For, Show, type Component } from 'solid-j
 
 import { searchProducts } from '@/shared/api/products';
 import { formatKg } from '@/shared/lib/money';
+import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
@@ -25,6 +26,7 @@ export const AdjustmentsTab: Component = () => {
   );
 
   function closeAndRefresh(message: string): void {
+    beepSuccess();
     setModal({ kind: 'none' });
     showNotice(message);
     void refetch();

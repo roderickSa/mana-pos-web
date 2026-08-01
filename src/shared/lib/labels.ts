@@ -7,6 +7,13 @@ export const METHOD_LABELS: Record<string, string> = {
   credit: 'Fiado',
 };
 
+// Del label táctil (español) al método que entiende la API.
+export const CHARGE_METHOD_TO_API: Record<'Efectivo' | 'Yape' | 'Tarjeta', 'cash' | 'yape' | 'card'> = {
+  Efectivo: 'cash',
+  Yape: 'yape',
+  Tarjeta: 'card',
+};
+
 export const MOVEMENT_KIND_LABELS: Record<string, string> = {
   sale: 'Venta',
   sale_reversal: 'Devolución',

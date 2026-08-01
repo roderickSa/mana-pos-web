@@ -113,48 +113,154 @@
   padding: 6px 0;
 }
 
+/* Fila de 3 columnas: nombre (izq) · cantidad · importe (der) + ✕ al extremo.
+   Todos los nombres arrancan en el mismo eje X; los importes terminan juntos. */
 .linea {
   display: grid;
-  grid-template-columns: 1fr auto minmax(36px, auto);
-  gap: 2px 10px;
-  padding: 9px 12px 9px 18px;
+  grid-template-columns: minmax(0, 1fr) auto 84px 32px;
+  column-gap: 8px;
+  padding: 8px 8px 8px 15px;
   border-bottom: 1px dashed var(--linea);
+  border-left: 3px solid transparent;
   align-items: center;
+  cursor: default;
+}
+
+.lineaSel {
+  border-left-color: var(--mana-verde);
+  background: rgba(30, 107, 78, 0.06);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .nombre {
-  font-weight: 600;
-  font-size: 0.94rem;
+  font-weight: 500;
+  font-size: 0.92rem;
+  line-height: 1.25;
 }
 
 .detalle {
-  grid-column: 1;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: var(--tinta-suave);
-  font-family: var(--fuente-voucher);
-  font-size: 0.75rem;
-}
-
-.monto {
-  grid-row: 1 / span 2;
-  font-weight: 700;
-  font-family: var(--fuente-voucher);
   font-variant-numeric: tabular-nums;
 }
 
+.cantidad {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: center;
+}
+
+.paso {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: 7px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.paso:disabled {
+  opacity: 0.35;
+}
+
+.paso:not(:disabled):hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
+.cant {
+  min-width: 26px;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El peso es botón: tocarlo reabre la balanza para corregir la línea. */
+.peso {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-suave);
+  padding: 6px 10px;
+  border: 1px solid var(--linea);
+  background: var(--superficie-panel);
+  border-radius: 999px;
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+.peso:hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
+.monto {
+  font-weight: 700;
+  font-family: var(--fuente-voucher);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* La ✕ vive al extremo derecho y solo aparece al pasar el mouse o al
+   seleccionar la fila: fuera de la zona de paso, sin clics accidentales. */
 .quitar {
-  grid-row: 1 / span 2;
   border: none;
   background: none;
   color: var(--peligro);
-  font-size: 0.95rem;
-  min-width: 40px;
-  min-height: 40px;
+  font-size: 0.9rem;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radio-chico);
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.linea:hover .quitar,
+.lineaSel .quitar {
+  opacity: 1;
 }
 
 .quitar:hover {
   background: rgba(194, 68, 56, 0.08);
+}
+
+/* Pantalla táctil: no hay hover — la ✕ y los steppers viven siempre visibles
+   y a tamaño dedo (≥44px), con aire entre targets vecinos. */
+@media (pointer: coarse) {
+  .quitar {
+    opacity: 1;
+    width: 44px;
+    height: 44px;
+    font-size: 1.05rem;
+    background: rgba(194, 68, 56, 0.07);
+  }
+
+  .paso {
+    width: 42px;
+    height: 42px;
+    font-size: 1.15rem;
+  }
+
+  .cantidad {
+    gap: 6px;
+  }
+
+  .linea {
+    grid-template-columns: minmax(0, 1fr) auto 84px 48px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
 }
 
 .vacio {
@@ -164,16 +270,32 @@
   margin: 28px 16px;
 }
 
+/* El total es el elemento tipográfico más grande de toda la vista Vender. */
 .total {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
+  gap: 12px;
   padding: 12px 18px 4px;
   border-top: 2px solid var(--tinta);
   margin: 0 12px;
-  font-size: 1.4rem;
-  font-weight: 800;
+}
+
+.totalEtiqueta {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tinta-suave);
+}
+
+.totalMonto {
+  font-size: clamp(2.4rem, 3.4vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1.05;
   font-family: var(--fuente-voucher);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .cobrar {
@@ -224,4 +346,25 @@
 .esperaBoton:not(:disabled):hover {
   border-color: var(--mana-verde);
   color: var(--mana-verde);
+}
+
+.ayuda {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+}
+
+@media (pointer: coarse) {
+  .deshacer {
+    min-height: 44px;
+    padding: 9px 18px;
+  }
+
+  .esperaBoton {
+    min-height: 48px;
+  }
+
+  .peso {
+    min-height: 44px;
+    padding: 9px 14px;
+  }
 }

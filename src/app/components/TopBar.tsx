@@ -5,6 +5,7 @@ import { cashRefreshVersion } from '@/shared/state/cash-refresh';
 import { getCashStatus } from '@/shared/api/cash';
 import { formatSoles } from '@/shared/lib/money';
 import { currentUser, endSession, isManager } from '@/shared/state/session';
+import { bigTextEnabled, toggleBigText } from '@/shared/state/preferences';
 import styles from './TopBar.module.css';
 
 async function cashInDrawer(): Promise<number | null> {
@@ -95,7 +96,25 @@ export const TopBar: Component<{
         {currentUser()?.name ?? '—'}
         <small>· {isManager() ? 'encargado' : 'cajera'}</small>
       </span>
-      <button type="button" class={`${styles.chip} ${styles.salir}`} onClick={endSession}>
+      <button
+        type="button"
+        class={`${styles.chip} ${styles.salir}`}
+        classList={{ [styles.accesActivo]: bigTextEnabled() }}
+        title="Texto grande (se recuerda por usuario)"
+        aria-pressed={bigTextEnabled()}
+        onClick={() => {
+          const user = currentUser();
+          if (user !== null) toggleBigText(user.id);
+        }}
+      >
+        A+
+      </button>
+      <button
+        type="button"
+        class={`${styles.chip} ${styles.salir}`}
+        title="Bloquear pantalla (F10) — el ticket en curso se conserva"
+        onClick={endSession}
+      >
         Salir
       </button>
       <span class={styles.reloj}>{clock()}</span>

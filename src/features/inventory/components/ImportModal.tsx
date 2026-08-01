@@ -1,6 +1,7 @@
 import { createSignal, For, Show, type Component } from 'solid-js';
 
 import { importProducts, type ImportReportDto } from '@/shared/api/products';
+import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import styles from '@/shared/ui/forms.module.css';
 
@@ -40,6 +41,7 @@ export const ImportModal: Component<{
         props.onDone(`${result.createdCount} productos importados sin errores`);
       }
     } catch {
+      beepError();
       setError('No se pudo importar. Verifica que el archivo siga la plantilla.');
     } finally {
       setImporting(false);

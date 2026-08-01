@@ -1,6 +1,6 @@
 import { For, type Component } from 'solid-js';
 
-import { CATEGORIES } from '@/shared/lib/categories';
+import { activeCategories } from '@/shared/state/categories';
 import styles from './CategoryTabs.module.css';
 
 export const CategoryTabs: Component<{
@@ -16,15 +16,23 @@ export const CategoryTabs: Component<{
     >
       ★ Mostrador
     </button>
-    <For each={CATEGORIES}>
+    <button
+      type="button"
+      class={styles.tab}
+      classList={{ [styles.activa]: props.selected === null }}
+      onClick={() => props.onSelect(null)}
+    >
+      Todos
+    </button>
+    <For each={activeCategories()}>
       {(item) => (
         <button
           type="button"
           class={styles.tab}
-          classList={{ [styles.activa]: props.selected === item.key }}
-          onClick={() => props.onSelect(item.key)}
+          classList={{ [styles.activa]: props.selected === item.slug }}
+          onClick={() => props.onSelect(item.slug)}
         >
-          {item.label}
+          {item.name}
         </button>
       )}
     </For>

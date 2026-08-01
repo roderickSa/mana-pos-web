@@ -61,6 +61,7 @@
   border-color: var(--mana-verde);
 }
 
+/* Chip-botón: muestra el conteo y, al tocarlo, filtra la tabla. */
 .alertaBajo {
   background: rgba(232, 161, 61, 0.16);
   color: #8a5a13;
@@ -69,6 +70,26 @@
   padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 700;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.alertaBajo:hover {
+  background: rgba(232, 161, 61, 0.28);
+}
+
+.alertaBajoActiva {
+  background: var(--mana-ambar);
+  color: var(--mana-ambar-tinta);
+}
+
+.sinMinimo {
+  font-size: 0.72rem;
+  color: #8a5a13;
+  background: rgba(232, 161, 61, 0.14);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
 }
 
 .importar {
@@ -115,16 +136,28 @@
   letter-spacing: 0.07em;
   color: var(--tinta-suave);
   padding: 12px 14px;
-  border-bottom: 1px solid var(--linea);
+  border-bottom: 2px solid var(--linea);
   position: sticky;
   top: 0;
   background: var(--superficie-panel);
+  white-space: nowrap;
+  z-index: 1;
 }
 
 .tabla td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--linea);
   vertical-align: middle;
+}
+
+/* Seguir la fila con la vista: zebra sutil + resalte al pasar por encima.
+   (Los estados propios — inactivo/anulada — pisan estos fondos.) */
+.tabla tbody tr:nth-child(even) td {
+  background: rgba(31, 38, 30, 0.022);
+}
+
+.tabla tbody tr:hover td {
+  background: rgba(30, 107, 78, 0.05);
 }
 
 .num {
@@ -168,8 +201,23 @@
   color: var(--tinta-suave);
 }
 
-.inactivo {
-  opacity: 0.55;
+/* Filas inactivas/anuladas: se atenúa el contenido (texto gris, fondo sutil,
+   íconos sin color) pero los botones de acción se mantienen a plena vista.
+   El selector largo gana sobre el zebra de nth-child. */
+.tabla tbody tr.inactivo td {
+  color: var(--tinta-suave);
+  background: var(--superficie-app);
+}
+
+.inactivo .thumb,
+.inactivo .stockBajo,
+.inactivo .stockCero {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.inactivo .margen {
+  color: var(--tinta-suave);
 }
 
 .stock {
@@ -202,8 +250,10 @@
   color: var(--peligro);
 }
 
+/* Acciones siempre pegadas a la derecha: la columna no baila entre filas. */
 .acciones {
   white-space: nowrap;
+  text-align: right;
 }
 
 .acciones button {
@@ -252,4 +302,36 @@
 .paginacion button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Pantalla táctil: los botones de acción por fila y la paginación crecen a
+   tamaño dedo (≥44px) — con mouse se quedan compactos. */
+@media (pointer: coarse) {
+  .alertaBajo {
+    min-height: 48px;
+  }
+
+  .buscador {
+    min-height: 52px;
+  }
+
+  .importar,
+  .nuevo {
+    min-height: 52px;
+  }
+
+  .acciones button {
+    min-height: 44px;
+    padding: 9px 16px;
+    margin-right: 8px;
+  }
+
+  .paginacion button {
+    min-height: 48px;
+    padding: 11px 22px;
+  }
+
+  .subtab {
+    min-height: 48px;
+  }
 }

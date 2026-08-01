@@ -1,0 +1,40 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px 20px;
+  min-width: 420px;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.tecla {
+  justify-self: start;
+  font-family: var(--fuente-voucher);
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--superficie-app);
+  border: 1px solid var(--linea);
+  border-bottom-width: 2.5px;
+  border-radius: 6px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.accion {
+  font-size: 0.9rem;
+  color: var(--tinta);
+}
+
+.nota {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+  border-top: 1px dashed var(--linea);
+  padding-top: 12px;
+}

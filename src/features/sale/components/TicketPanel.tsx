@@ -1,14 +1,20 @@
 import { For, Show, type Component } from 'solid-js';
 
 import { formatKg, formatSoles } from '@/shared/lib/money';
+import { showNotice } from '@/shared/state/notices';
+import type { TicketLine } from '@/shared/types';
 import {
+  adjustLineQuantity,
   heldTicketsCount,
   holdCurrentTicket,
-  removeLastLine,
   removeLine,
+  removedLineAvailable,
   resumeHeldTicket,
+  selectLine,
+  selectedLineIndex,
   ticketLines,
   ticketTotalCents,
+  undoRemoveLine,
 } from '@/features/sale/state/ticket';
 import { PaymentPicker } from './PaymentPicker';
 import styles from './TicketPanel.module.css';
@@ -19,41 +25,105 @@ export const TicketPanel: Component<{
   onCharge: () => void;
   lastSaleNumber: number | null;
   onReprintLast: () => void;
+  onHelp: () => void;
+  onEditWeight: (line: TicketLine) => void;
 }> = (props) => (
   <aside class={styles.panel}>
     <div class={styles.voucher}>
       <header class={styles.cabecera}>
         <h2>Venta en curso</h2>
         <Show
-          when={ticketLines().length > 0}
-          fallback={<span>{ticketLines().length === 1 ? '1 línea' : `${ticketLines().length} líneas`}</span>}
+          when={removedLineAvailable()}
+          fallback={
+            <span>
+              {ticketLines().length === 1 ? '1 línea' : `${ticketLines().length} líneas`}
+            </span>
+          }
         >
-          <button type="button" class={styles.deshacer} onClick={removeLastLine}>
-            ⌫ Deshacer (F9)
+          <button
+            type="button"
+            class={styles.deshacer}
+            onClick={() => {
+              const restored = undoRemoveLine();
+              if (restored !== null) showNotice(`${restored.product.name} volvió al ticket`);
+            }}
+          >
+            ↩ Deshacer
           </button>
         </Show>
       </header>
 
       <div class={styles.lineas}>
         <For each={ticketLines()}>
-          {(line) => (
-            <div class={styles.linea}>
-              <span class={styles.nombre}>{line.product.name}</span>
-              <span class={styles.monto}>{formatSoles(line.totalCents)}</span>
-              <span class={styles.detalle}>
-                {line.weightGrams !== null
-                  ? `${formatKg(line.weightGrams)} × ${
-                      line.product.saleType === 'weight'
-                        ? formatSoles(line.product.pricePerKgCents)
-                        : ''
-                    }/kg`
-                  : `${line.quantity} × ${formatSoles(line.totalCents / line.quantity)}`}
+          {(line, index) => (
+            <div
+              class={styles.linea}
+              classList={{ [styles.lineaSel]: selectedLineIndex() === index() }}
+              onClick={() => selectLine(index())}
+            >
+              <span class={styles.info}>
+                <span class={styles.nombre}>{line.product.name}</span>
+                <span class={styles.detalle}>
+                  {line.product.saleType === 'weight'
+                    ? `${formatSoles(line.product.pricePerKgCents)} por kg`
+                    : `${formatSoles(line.product.priceCents)} c/u`}
+                </span>
               </span>
+              <span class={styles.cantidad}>
+                <Show
+                  when={line.weightGrams === null}
+                  fallback={
+                    <button
+                      type="button"
+                      class={styles.peso}
+                      title="Corregir el peso (vuelve a abrir la balanza)"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        props.onEditWeight(line);
+                      }}
+                    >
+                      ⚖ {formatKg(line.weightGrams ?? 0)}
+                    </button>
+                  }
+                >
+                  <button
+                    type="button"
+                    class={styles.paso}
+                    aria-label={`Una menos de ${line.product.name}`}
+                    disabled={line.quantity <= 1}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      adjustLineQuantity(index(), -1);
+                    }}
+                  >
+                    −
+                  </button>
+                  <span class={styles.cant}>{line.quantity}</span>
+                  <button
+                    type="button"
+                    class={styles.paso}
+                    aria-label={`Una más de ${line.product.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      adjustLineQuantity(index(), 1);
+                    }}
+                  >
+                    +
+                  </button>
+                </Show>
+              </span>
+              <span class={styles.monto}>{formatSoles(line.totalCents)}</span>
               <button
                 type="button"
                 class={styles.quitar}
                 aria-label={`Quitar ${line.product.name}`}
-                onClick={() => removeLine(line.lineId)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const removed = removeLine(line.lineId);
+                  if (removed !== null) {
+                    showNotice(`Se quitó ${removed.product.name} — «Deshacer» lo devuelve`);
+                  }
+                }}
               >
                 ✕
               </button>
@@ -66,8 +136,8 @@ export const TicketPanel: Component<{
       </div>
 
       <div class={styles.total}>
-        <span>Total</span>
-        <span>{formatSoles(ticketTotalCents())}</span>
+        <span class={styles.totalEtiqueta}>Total</span>
+        <span class={styles.totalMonto}>{formatSoles(ticketTotalCents())}</span>
       </div>
     </div>
 
@@ -90,6 +160,14 @@ export const TicketPanel: Component<{
           🖨 Voucher #{props.lastSaleNumber}
         </button>
       </Show>
+      <button
+        type="button"
+        class={`${styles.esperaBoton} ${styles.ayuda}`}
+        title="Atajos de teclado (F1)"
+        onClick={props.onHelp}
+      >
+        ⌨ F1
+      </button>
     </div>
 
     <PaymentPicker selected={props.payment} onSelect={props.onPayment} />
@@ -100,7 +178,7 @@ export const TicketPanel: Component<{
       disabled={ticketLines().length === 0}
       onClick={props.onCharge}
     >
-      Cobrar {formatSoles(ticketTotalCents())}
+      Cobrar (F4)
     </button>
   </aside>
 );

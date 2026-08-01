@@ -65,3 +65,7 @@ export async function registerCashMovement(
 export async function closeCash(countedCashCents: number, userId: string): Promise<CloseResultDto> {
   return sendJson('POST', '/cash/close', { countedCashCents, userId });
 }
+
+export async function printLastCloseSummary(): Promise<{ message: string }> {
+  return sendJson('POST', '/cash/print-last-close');
+}

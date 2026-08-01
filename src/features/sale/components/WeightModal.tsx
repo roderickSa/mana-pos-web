@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, onCleanup, Show, type Component } from 'solid-js';
+import { createResource, createSignal, For, onCleanup, onMount, Show, type Component } from 'solid-js';
 
 import { getScale } from '@/shared/api/devices';
 import { formatKg, formatSoles } from '@/shared/lib/money';
@@ -19,6 +19,16 @@ export const WeightModal: Component<{
   // La balanza se lee en vivo mientras el modal está abierto.
   const interval = setInterval(() => setTick((value) => value + 1), 700);
   onCleanup(() => clearInterval(interval));
+
+  // Esc cancela, igual que en el resto de modales.
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      props.onCancel();
+    }
+  }
+  onMount(() => document.addEventListener('keydown', onKeyDown));
+  onCleanup(() => document.removeEventListener('keydown', onKeyDown));
 
   const scaleGrams = () => {
     const state = scale();

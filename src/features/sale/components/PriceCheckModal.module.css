@@ -1,0 +1,58 @@
+.cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px 20px;
+  min-width: 420px;
+}
+
+.input {
+  background: var(--superficie-panel);
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 14px 16px;
+  font-size: 1.05rem;
+  color: var(--tinta);
+  min-height: var(--toque-min);
+}
+
+.input:focus {
+  border-color: var(--mana-verde);
+}
+
+.resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  padding: 14px 0 4px;
+  text-align: center;
+}
+
+.nombre {
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+/* El precio se lee desde el otro lado del mostrador. */
+.precio {
+  font-size: 3.4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--mana-verde-hondo);
+  font-variant-numeric: tabular-nums;
+}
+
+.noEncontrado {
+  margin: 0;
+  color: var(--peligro);
+  font-weight: 650;
+  text-align: center;
+}
+
+.nota {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+  text-align: center;
+}

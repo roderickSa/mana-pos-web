@@ -40,3 +40,9 @@
   --sombra-suave: 0 1px 3px rgba(31, 38, 30, 0.1);
   --sombra-panel: 0 6px 24px rgba(31, 38, 30, 0.08);
 }
+
+/* Modo texto grande (toggle A+ por usuario): toda la app usa rem, así que
+   escalar la raíz agranda tipografía completa sin romper los layouts. */
+:root.texto-grande {
+  font-size: 115%;
+}

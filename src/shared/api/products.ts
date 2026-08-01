@@ -53,10 +53,12 @@ export async function searchProductsPage(
   query: string,
   page: number,
   perPage: number,
+  lowStockOnly = false,
 ): Promise<ProductsPageDto> {
   const params = new URLSearchParams();
   if (query.trim() !== '') params.set('query', query);
   params.set('includeInactive', 'true');
+  if (lowStockOnly) params.set('lowStock', 'true');
   params.set('page', String(page));
   params.set('perPage', String(perPage));
   return getJson(`/catalog/products?${params.toString()}`);

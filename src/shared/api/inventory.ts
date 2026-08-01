@@ -18,8 +18,13 @@ export interface KardexDto {
   movements: MovementDto[];
 }
 
-export async function registerEntry(productId: string, quantity: number): Promise<MovementDto> {
-  return sendJson('POST', '/inventory/entries', { productId, quantity });
+export async function registerEntry(
+  productId: string,
+  quantity: number,
+  unitCostCents: number | null = null,
+  expiryDate: string | null = null,
+): Promise<MovementDto> {
+  return sendJson('POST', '/inventory/entries', { productId, quantity, unitCostCents, expiryDate });
 }
 
 export async function registerAdjustment(
@@ -65,4 +70,37 @@ export async function searchMovements(filters: {
   params.set('page', String(filters.page));
   params.set('perPage', String(filters.perPage));
   return getJson(`/inventory/movements?${params.toString()}`);
+}
+
+export interface ExpiringItemDto {
+  productId: string;
+  name: string;
+  saleType: 'unit' | 'weight';
+  stockQuantity: number;
+  expiryDate: string;
+  daysLeft: number;
+}
+
+export interface ExpiringListDto {
+  alertDays: number;
+  items: ExpiringItemDto[];
+}
+
+export async function getExpiring(): Promise<ExpiringListDto> {
+  return getJson('/inventory/expiring');
+}
+
+export async function setProductExpiry(
+  productId: string,
+  expiryDate: string | null,
+): Promise<void> {
+  await sendJson('POST', '/inventory/expiry', { productId, expiryDate });
+}
+
+export async function getExpiryAlertDays(): Promise<{ days: number }> {
+  return getJson('/settings/expiry');
+}
+
+export async function setExpiryAlertDays(days: number): Promise<{ days: number }> {
+  return sendJson('PUT', '/settings/expiry', { days });
 }

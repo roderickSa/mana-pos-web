@@ -12,6 +12,7 @@ import { apiErrorMessage } from '@/shared/api/client';
 import { formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
+import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
 import { currentUserName } from '@/shared/state/session';
 import { Modal } from '@/shared/ui/Modal';
@@ -119,11 +120,13 @@ const AbonoModal: Component<{
     if (cents === null || cents <= 0) return;
     try {
       const result = await registerAbono(props.account.id, cents, method(), currentUserName());
+      beepSuccess();
       bumpCashRefresh();
       props.onDone(
         `Abono de ${formatSoles(cents)} registrado — deuda restante: ${formatSoles(result.newBalanceCents)}`,
       );
     } catch (cause) {
+      beepError();
       setError(apiErrorMessage(cause, 'No se pudo registrar el abono.'));
     }
   }

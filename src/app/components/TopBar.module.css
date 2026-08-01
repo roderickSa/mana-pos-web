@@ -83,9 +83,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Tono neutro a propósito: el único elemento naranja de la pantalla de venta
+   debe ser el botón de cobrar. */
 .caja {
-  background: var(--mana-ambar);
-  color: var(--mana-ambar-tinta);
+  background: rgba(255, 255, 255, 0.14);
+  color: #f2f5ef;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   font-variant-numeric: tabular-nums;
 }
 
@@ -100,6 +103,11 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.accesActivo {
+  background: var(--mana-ambar);
+  color: var(--mana-ambar-tinta);
+}
+
 .salir:hover {
   background: rgba(255, 255, 255, 0.2);
 }
@@ -107,4 +115,15 @@
 .chip small {
   font-weight: 400;
   opacity: 0.75;
+}
+
+@media (pointer: coarse) {
+  .navBoton {
+    min-height: 46px;
+    padding: 10px 20px;
+  }
+
+  .chip {
+    min-height: 44px;
+  }
 }

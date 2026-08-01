@@ -1,16 +1,19 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
 
 import {
+  getTicketDetail,
   reprintTicket,
   salesExportUrl,
   searchSales,
   voidTicketRequest,
+  type TicketDetailDto,
   type TicketListItemDto,
 } from '@/shared/api/sales';
-import { formatSoles } from '@/shared/lib/money';
+import { formatKg, formatSoles } from '@/shared/lib/money';
 import { METHOD_LABELS } from '@/shared/lib/labels';
 import { formatDateTime } from '@/shared/lib/dates';
-import { ApiError } from '@/shared/api/client';
+import { beepError, beepSuccess } from '@/shared/lib/sounds';
+import { ApiError, apiErrorMessage } from '@/shared/api/client';
 import { showNotice } from '@/shared/state/notices';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
 import { currentUserName, isManager } from '@/shared/state/session';
@@ -22,6 +25,15 @@ import styles from './SalesHistoryView.module.css';
 
 const PER_PAGE = 25;
 
+// Motivos frecuentes de anulación: un toque en vez de teclear.
+const VOID_REASONS = ['Se registró mal', 'Cliente se arrepintió', 'Precio incorrecto'];
+
+function toLocalISODate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export const SalesHistoryView: Component = () => {
   const [from, setFrom] = createSignal('');
   const [to, setTo] = createSignal('');
@@ -29,8 +41,10 @@ export const SalesHistoryView: Component = () => {
   const [status, setStatus] = createSignal('');
   const [page, setPage] = createSignal(1);
   const [voiding, setVoiding] = createSignal<TicketListItemDto | null>(null);
+  const [voidReason, setVoidReason] = createSignal('');
   const [managerPin, setManagerPin] = createSignal('');
   const [voidError, setVoidError] = createSignal('');
+  const [detailId, setDetailId] = createSignal<string | null>(null);
 
   const filters = () => ({ from: from(), to: to(), method: method(), status: status() });
 
@@ -39,15 +53,88 @@ export const SalesHistoryView: Component = () => {
     (params) => searchSales(params, params.page, PER_PAGE),
   );
 
+  const [detail] = createResource(detailId, (id) =>
+    getTicketDetail(id).catch(() => {
+      showNotice('No se pudo cargar el detalle de la venta.');
+      return null;
+    }),
+  );
+
   const items = () => result()?.items ?? [];
   const total = () => result()?.total ?? 0;
   const summary = () => result()?.summary;
   const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
   const resetPage = () => setPage(1);
 
+  // Los contadores se concilian en una sola línea: total = cobradas + anuladas
+  // (solo cuando no hay filtro de estado, si no el total ya viene filtrado).
+  const voidedCount = () => {
+    if (status() !== '') return null;
+    const data = summary();
+    if (data === undefined) return null;
+    return total() - data.chargedCount;
+  };
+
+  function applyQuickRange(kind: 'hoy' | 'ayer' | 'semana' | 'mes'): void {
+    const now = new Date();
+    const today = toLocalISODate(now);
+    if (kind === 'hoy') {
+      setFrom(today);
+      setTo(today);
+    } else if (kind === 'ayer') {
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const value = toLocalISODate(yesterday);
+      setFrom(value);
+      setTo(value);
+    } else if (kind === 'semana') {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 6);
+      setFrom(toLocalISODate(start));
+      setTo(today);
+    } else {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      setFrom(toLocalISODate(start));
+      setTo(today);
+    }
+    resetPage();
+  }
+
+  const quickActive = (kind: 'hoy' | 'ayer' | 'semana' | 'mes'): boolean => {
+    if (from() === '' || to() === '') return false;
+    const now = new Date();
+    const today = toLocalISODate(now);
+    if (kind === 'hoy') return from() === today && to() === today;
+    if (kind === 'ayer') {
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const value = toLocalISODate(yesterday);
+      return from() === value && to() === value;
+    }
+    if (kind === 'semana') {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 6);
+      return from() === toLocalISODate(start) && to() === today;
+    }
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return from() === toLocalISODate(start) && to() === today;
+  };
+
+  function closeVoidModal(): void {
+    setVoiding(null);
+    setVoidReason('');
+    setManagerPin('');
+    setVoidError('');
+  }
+
   async function confirmVoid(): Promise<void> {
     const ticket = voiding();
     if (ticket === null) return;
+    const reason = voidReason().trim();
+    if (reason.length < 3) {
+      setVoidError('Indica el motivo de la anulación.');
+      return;
+    }
     setVoidError('');
     try {
       // Anular es destructivo: si quien opera no es encargado, exige su PIN.
@@ -56,17 +143,18 @@ export const SalesHistoryView: Component = () => {
         const verification = await verifyManagerPin(managerPin());
         voidedBy = verification.managerName;
       }
-      await voidTicketRequest(ticket.id, voidedBy);
-      setVoiding(null);
-      setManagerPin('');
+      await voidTicketRequest(ticket.id, voidedBy, reason);
+      closeVoidModal();
+      beepSuccess();
       showNotice(`Venta #${ticket.number} anulada por ${voidedBy} — el stock volvió al inventario`);
       void refetch();
       bumpCashRefresh();
     } catch (cause) {
+      beepError();
       if (cause instanceof ApiError && cause.serverMessage !== null) {
         setVoidError(cause.serverMessage);
       } else {
-        setVoidError('No se pudo anular la venta. Intenta de nuevo.');
+        setVoidError(apiErrorMessage(cause, 'No se pudo anular la venta. Intenta de nuevo.'));
       }
     }
   }
@@ -74,9 +162,39 @@ export const SalesHistoryView: Component = () => {
   return (
     <section class={tabla.vista}>
       <div class={tabla.encabezado}>
+        <div class={styles.rapidos} role="group" aria-label="Rangos rápidos">
+          <button
+            type="button"
+            classList={{ [styles.rapidoActivo]: quickActive('hoy') }}
+            onClick={() => applyQuickRange('hoy')}
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            classList={{ [styles.rapidoActivo]: quickActive('ayer') }}
+            onClick={() => applyQuickRange('ayer')}
+          >
+            Ayer
+          </button>
+          <button
+            type="button"
+            classList={{ [styles.rapidoActivo]: quickActive('semana') }}
+            onClick={() => applyQuickRange('semana')}
+          >
+            7 días
+          </button>
+          <button
+            type="button"
+            classList={{ [styles.rapidoActivo]: quickActive('mes') }}
+            onClick={() => applyQuickRange('mes')}
+          >
+            Este mes
+          </button>
+        </div>
         <input
           class={forms.input}
-          style={{ 'max-width': '170px' }}
+          style={{ 'max-width': '160px' }}
           type="date"
           value={from()}
           onInput={(event) => {
@@ -86,7 +204,7 @@ export const SalesHistoryView: Component = () => {
         />
         <input
           class={forms.input}
-          style={{ 'max-width': '170px' }}
+          style={{ 'max-width': '160px' }}
           type="date"
           value={to()}
           onInput={(event) => {
@@ -130,24 +248,39 @@ export const SalesHistoryView: Component = () => {
 
       <Show when={summary()}>
         {(data) => (
-          <div class={styles.resumen}>
-            <div class={styles.tarjeta}>
-              <span>Ventas cobradas</span>
-              <b>{data().chargedCount}</b>
+          <>
+            <p class={styles.conteo}>
+              <b>{total()}</b> {total() === 1 ? 'venta' : 'ventas'}
+              <Show when={voidedCount() !== null}>
+                {' '}
+                · {data().chargedCount} cobradas · {voidedCount()} anuladas
+              </Show>
+            </p>
+            <div class={styles.resumen}>
+              <div class={styles.tarjeta}>
+                <span>Total del período (solo cobradas)</span>
+                <b>{formatSoles(data().chargedTotalCents)}</b>
+              </div>
+              <For each={data().byMethod}>
+                {(entry) => (
+                  <div class={styles.tarjeta}>
+                    <span>{METHOD_LABELS[entry.method] ?? entry.method}</span>
+                    <b>{formatSoles(entry.amountCents)}</b>
+                  </div>
+                )}
+              </For>
+              <For each={data().voidedByUser}>
+                {(entry) => (
+                  <div class={`${styles.tarjeta} ${styles.tarjetaAnulaciones}`}>
+                    <span>Anuladas por {entry.user}</span>
+                    <b>
+                      {entry.count} · {formatSoles(entry.totalCents)}
+                    </b>
+                  </div>
+                )}
+              </For>
             </div>
-            <div class={styles.tarjeta}>
-              <span>Total del período</span>
-              <b>{formatSoles(data().chargedTotalCents)}</b>
-            </div>
-            <For each={data().byMethod}>
-              {(entry) => (
-                <div class={styles.tarjeta}>
-                  <span>{METHOD_LABELS[entry.method] ?? entry.method}</span>
-                  <b>{formatSoles(entry.amountCents)}</b>
-                </div>
-              )}
-            </For>
-          </div>
+          </>
         )}
       </Show>
 
@@ -167,7 +300,11 @@ export const SalesHistoryView: Component = () => {
           <tbody>
             <For each={items()}>
               {(item) => (
-                <tr classList={{ [tabla.inactivo]: item.status === 'voided' }}>
+                <tr
+                  class={styles.fila}
+                  classList={{ [styles.filaAnulada]: item.status === 'voided' }}
+                  onClick={() => setDetailId(item.id)}
+                >
                   <td class={tabla.nombre}>#{item.number}</td>
                   <td class={tabla.sub}>
                     {item.chargedAt === null ? '—' : formatDateTime(item.chargedAt)}
@@ -175,7 +312,7 @@ export const SalesHistoryView: Component = () => {
                   <td>{item.methods.map((entry) => METHOD_LABELS[entry] ?? entry).join(' + ')}</td>
                   <td class={tabla.sub}>{item.userId}</td>
                   <td class={tabla.num}>
-                    <b>{formatSoles(item.totalCents)}</b>
+                    <b class={styles.monto}>{formatSoles(item.totalCents)}</b>
                   </td>
                   <td>
                     <span
@@ -185,7 +322,7 @@ export const SalesHistoryView: Component = () => {
                       {item.status === 'charged' ? 'cobrada' : 'anulada'}
                     </span>
                   </td>
-                  <td class={tabla.acciones}>
+                  <td class={tabla.acciones} onClick={(event) => event.stopPropagation()}>
                     <Show when={item.status === 'charged'}>
                       <button
                         type="button"
@@ -197,8 +334,13 @@ export const SalesHistoryView: Component = () => {
                       >
                         Voucher
                       </button>
-                      <button type="button" onClick={() => setVoiding(item)}>
-                        Anular
+                      <button
+                        type="button"
+                        class={styles.anularChico}
+                        title="Anular esta venta"
+                        onClick={() => setVoiding(item)}
+                      >
+                        ⋯
                       </button>
                     </Show>
                   </td>
@@ -226,19 +368,36 @@ export const SalesHistoryView: Component = () => {
 
       <Show when={voiding()}>
         {(ticket) => (
-          <Modal
-            title={`Anular venta #${ticket().number}`}
-            onClose={() => {
-              setVoiding(null);
-              setManagerPin('');
-              setVoidError('');
-            }}
-          >
+          <Modal title={`Anular venta #${ticket().number}`} onClose={closeVoidModal}>
             <div class={forms.form}>
               <p class={forms.nota}>
                 Se anula la venta de <b>{formatSoles(ticket().totalCents)}</b> y el stock vuelve al
                 inventario. Esta acción queda registrada y no se puede deshacer.
               </p>
+              <div class={forms.campo}>
+                <span class={forms.etiqueta}>Motivo (obligatorio)</span>
+                <div class={styles.motivos}>
+                  <For each={VOID_REASONS}>
+                    {(reason) => (
+                      <button
+                        type="button"
+                        classList={{ [styles.motivoActivo]: voidReason() === reason }}
+                        onClick={() => setVoidReason(reason)}
+                      >
+                        {reason}
+                      </button>
+                    )}
+                  </For>
+                </div>
+                <input
+                  class={forms.input}
+                  type="text"
+                  placeholder="o escribe el motivo…"
+                  maxLength={200}
+                  value={voidReason()}
+                  onInput={(event) => setVoidReason(event.currentTarget.value)}
+                />
+              </div>
               <Show when={!isManager()}>
                 <div class={forms.campo}>
                   <span class={forms.etiqueta}>PIN del encargado</span>
@@ -249,7 +408,6 @@ export const SalesHistoryView: Component = () => {
                     maxLength={6}
                     value={managerPin()}
                     onInput={(event) => setManagerPin(event.currentTarget.value.replace(/\D/g, ''))}
-                    autofocus
                   />
                 </div>
               </Show>
@@ -257,10 +415,15 @@ export const SalesHistoryView: Component = () => {
                 <p class={forms.error}>{voidError()}</p>
               </Show>
               <div class={forms.acciones}>
-                <button type="button" class={forms.secundario} onClick={() => setVoiding(null)}>
+                <button type="button" class={forms.secundario} onClick={closeVoidModal}>
                   Cancelar
                 </button>
-                <button type="button" class={styles.anular} onClick={() => void confirmVoid()}>
+                <button
+                  type="button"
+                  class={styles.anular}
+                  disabled={voidReason().trim().length < 3}
+                  onClick={() => void confirmVoid()}
+                >
                   Sí, anular venta
                 </button>
               </div>
@@ -268,6 +431,83 @@ export const SalesHistoryView: Component = () => {
           </Modal>
         )}
       </Show>
+
+      <Show when={detailId() !== null}>
+        <Modal title="Detalle de la venta" onClose={() => setDetailId(null)}>
+          <Show when={detail()} fallback={<p class={styles.cargando}>Cargando…</p>}>
+            {(ticket) => <TicketDetail ticket={ticket()} />}
+          </Show>
+        </Modal>
+      </Show>
     </section>
   );
 };
+
+const TicketDetail: Component<{ ticket: TicketDetailDto }> = (props) => (
+  <div class={styles.detalle}>
+    <div class={styles.detalleCabecera}>
+      <span class={styles.detalleNumero}>#{props.ticket.number}</span>
+      <span
+        class={styles.estado}
+        classList={{ [styles.estadoAnulada]: props.ticket.status === 'voided' }}
+      >
+        {props.ticket.status === 'charged' ? 'cobrada' : 'anulada'}
+      </span>
+      <span class={styles.detalleMeta}>
+        {props.ticket.chargedAt === null ? '' : formatDateTime(props.ticket.chargedAt)} ·{' '}
+        {props.ticket.userId}
+      </span>
+    </div>
+
+    <Show when={props.ticket.status === 'voided'}>
+      <p class={styles.detalleAnulada}>
+        Anulada {props.ticket.voidedAt === null ? '' : formatDateTime(props.ticket.voidedAt)} por{' '}
+        <b>{props.ticket.voidedBy ?? '—'}</b>
+        <Show when={props.ticket.voidReason}>
+          {(reason) => (
+            <>
+              {' '}
+              — motivo: <b>{reason()}</b>
+            </>
+          )}
+        </Show>
+      </p>
+    </Show>
+
+    <table class={styles.detalleTabla}>
+      <tbody>
+        <For each={props.ticket.lines}>
+          {(line) => (
+            <tr>
+              <td>
+                {line.description}
+                <span class={styles.detalleSub}>
+                  {line.grams !== null
+                    ? ` ${formatKg(line.grams)} × ${formatSoles(line.unitPriceCents)}/kg`
+                    : ` ${line.quantity} × ${formatSoles(line.unitPriceCents)}`}
+                </span>
+              </td>
+              <td class={styles.detalleMonto}>{formatSoles(line.totalCents)}</td>
+            </tr>
+          )}
+        </For>
+      </tbody>
+    </table>
+
+    <div class={styles.detallePagos}>
+      <For each={props.ticket.payments}>
+        {(payment) => (
+          <span>
+            {METHOD_LABELS[payment.method] ?? payment.method}:{' '}
+            <b>{formatSoles(payment.amountCents)}</b>
+          </span>
+        )}
+      </For>
+    </div>
+
+    <div class={styles.detalleTotal}>
+      <span>Total</span>
+      <b>{formatSoles(props.ticket.totalCents)}</b>
+    </div>
+  </div>
+);

@@ -2,55 +2,75 @@ import { createResource, createSignal, onCleanup, onMount, Show, type Component 
 
 import { ApiError } from '@/shared/api/client';
 import { getProductByBarcode, searchProducts } from '@/shared/api/products';
-import { checkoutSale, reprintTicket, type CheckoutResponseDto, type PaymentMethod } from '@/shared/api/sales';
+import {
+  checkoutSale,
+  checkoutSaleWithPayments,
+  reprintTicket,
+  type CheckoutResponseDto,
+  type PaymentPart,
+} from '@/shared/api/sales';
 import { getCashStatus } from '@/shared/api/cash';
+import { CHARGE_METHOD_TO_API } from '@/shared/lib/labels';
 import { formatSoles } from '@/shared/lib/money';
+import { beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import { bumpCashRefresh, cashRefreshVersion } from '@/shared/state/cash-refresh';
 import { currentUserName } from '@/shared/state/session';
-import type { ProductDto, WeightProductDto } from '@/shared/types';
+import type { ProductDto, TicketLine, WeightProductDto } from '@/shared/types';
 import { CategoryTabs } from './components/CategoryTabs';
 import { ChargeModal } from './components/ChargeModal';
 import { CreditChargeModal } from './components/CreditChargeModal';
+import { PriceCheckModal } from './components/PriceCheckModal';
 import { ProductGrid } from './components/ProductGrid';
 import { SearchBox } from './components/SearchBox';
+import { ShortcutsHelp } from './components/ShortcutsHelp';
 import { TicketPanel } from './components/TicketPanel';
 import { WeightModal } from './components/WeightModal';
 import {
   addUnitProduct,
   addWeightProduct,
-  removeLastLine,
+  adjustSelectedQuantity,
+  moveSelection,
+  removeSelectedLine,
   startNewTicket,
   ticketId,
   ticketLines,
   ticketTotalCents,
+  undoRemoveLine,
+  updateWeightLine,
 } from './state/ticket';
 import styles from './SaleView.module.css';
 
 type ChargeMethod = 'Efectivo' | 'Yape' | 'Tarjeta';
-
-const METHOD_MAP: Record<ChargeMethod, PaymentMethod> = {
-  Efectivo: 'cash',
-  Yape: 'yape',
-  Tarjeta: 'card',
-};
 
 export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   const [query, setQuery] = createSignal('');
   const [category, setCategory] = createSignal<string | null>('__mostrador');
   const [payment, setPayment] = createSignal('Efectivo');
   const [weighing, setWeighing] = createSignal<WeightProductDto | null>(null);
+  // Línea pesable en corrección: el mismo modal de balanza, pero reemplaza.
+  const [reweighingLine, setReweighingLine] = createSignal<TicketLine | null>(null);
   const [charging, setCharging] = createSignal<ChargeMethod | null>(null);
   const [creditCharging, setCreditCharging] = createSignal(false);
+  const [helpOpen, setHelpOpen] = createSignal(false);
+  const [priceCheck, setPriceCheck] = createSignal(false);
+  const [multiplier, setMultiplier] = createSignal(1);
   const [lastSale, setLastSale] = createSignal<{ id: string; number: number } | null>(null);
   let searchInput: HTMLInputElement | undefined;
 
+  // Al escribir se busca en TODO el catálogo: la pestaña activa solo filtra
+  // cuando el buscador está vacío (si no, "queso" no aparece desde "Pan").
+  // Las secciones muestran solo los 24 más vendidos: los tiles son para lo
+  // frecuente; el resto se alcanza por búsqueda o escaneo.
+  const TILES_PER_CATEGORY = 24;
   const [products, { refetch }] = createResource(
-    () => ({ query: query(), category: category() }),
-    (params) =>
-      params.category === '__mostrador'
-        ? searchProducts(params.query, null, false, true)
-        : searchProducts(params.query, params.category),
+    () => ({ query: query().trim(), category: category() }),
+    async (params) => {
+      if (params.query !== '') return searchProducts(params.query, null);
+      if (params.category === '__mostrador') return searchProducts('', null, false, true);
+      const all = await searchProducts('', params.category);
+      return all.slice(0, TILES_PER_CATEGORY);
+    },
   );
 
   // La pantalla de venta se bloquea entera si la caja está cerrada.
@@ -69,26 +89,44 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   onCleanup(() => clearInterval(cashInterval));
   const sellingBlocked = () => cashOpen() === false;
 
+  const modalOpen = () =>
+    charging() !== null ||
+    weighing() !== null ||
+    reweighingLine() !== null ||
+    creditCharging() ||
+    helpOpen() ||
+    priceCheck();
+
+  // Tras cada acción el buscador recupera el foco: escanear siempre funciona.
+  function focusSearch(): void {
+    setTimeout(() => searchInput?.focus(), 40);
+  }
+
   function onProductTap(product: ProductDto): void {
     if (sellingBlocked()) {
+      beepError();
       showNotice('La caja está cerrada. Ábrela para empezar a vender.');
       return;
     }
     if (product.saleType === 'weight') {
+      setMultiplier(1);
       setWeighing(product);
       return;
     }
-    addUnitProduct(product);
+    addUnitProduct(product, multiplier());
+    setMultiplier(1);
+    beepOk();
+    focusSearch();
   }
 
-  async function onSearchSubmit(): Promise<void> {
-    const text = query().trim();
+  async function addByCode(text: string): Promise<void> {
     // 1-3 dígitos = código corto de mostrador: agrega directo.
     if (/^\d{1,3}$/.test(text)) {
       const matches = await searchProducts(text, null);
       const byShortCode = matches.find((product) => product.shortCode === text);
       setQuery('');
       if (byShortCode === undefined) {
+        beepError();
         showNotice(`Ningún producto tiene el código corto ${text}`);
         return;
       }
@@ -99,10 +137,56 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     const product = await getProductByBarcode(text);
     setQuery('');
     if (product === null) {
+      beepError();
       showNotice(`El código ${text} no está registrado — créalo en Inventario`);
       return;
     }
     onProductTap(product);
+  }
+
+  async function onSearchSubmit(): Promise<void> {
+    const text = query().trim();
+    // Enter con el buscador vacío y ticket armado = ir directo al cobro.
+    if (text === '') {
+      openCharge();
+      return;
+    }
+    // "3*" arma el multiplicador; "3*15" multiplica y agrega en un paso.
+    const multOnly = /^(\d{1,2})\s*[*xX]$/.exec(text);
+    if (multOnly?.[1] !== undefined) {
+      setMultiplier(Math.max(1, Number(multOnly[1])));
+      setQuery('');
+      return;
+    }
+    const multCombo = /^(\d{1,2})[*xX](\d+)$/.exec(text);
+    if (multCombo?.[1] !== undefined && multCombo[2] !== undefined) {
+      setMultiplier(Math.max(1, Number(multCombo[1])));
+      await addByCode(multCombo[2]);
+      return;
+    }
+    await addByCode(text);
+  }
+
+  function onSaleCompleted(response: CheckoutResponseDto): void {
+    startNewTicket();
+    setLastSale({ id: response.id, number: response.number });
+    void refetch();
+    bumpCashRefresh();
+    beepSuccess();
+  }
+
+  function onCheckoutError(cause: unknown): void {
+    beepError();
+    if (cause instanceof ApiError && cause.code === 'PAYMENTS_DO_NOT_MATCH_TOTAL') {
+      showNotice('Los precios cambiaron. Revisa el ticket y vuelve a cobrar.');
+      void refetch();
+    } else if (cause instanceof ApiError && cause.code === 'PRODUCT_NOT_SELLABLE') {
+      showNotice('Un producto del ticket ya no está disponible. Quítalo y vuelve a cobrar.');
+    } else if (cause instanceof ApiError && cause.serverMessage !== null) {
+      showNotice(cause.serverMessage);
+    } else {
+      showNotice('No se pudo cobrar. Revisa que el sistema local esté activo.');
+    }
   }
 
   async function confirmCharge(receivedCents: number | null): Promise<CheckoutResponseDto | null> {
@@ -112,28 +196,32 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
       const response = await checkoutSale(
         ticketId(),
         ticketLines(),
-        METHOD_MAP[method],
+        CHARGE_METHOD_TO_API[method],
         ticketTotalCents(),
         receivedCents,
         null,
         currentUserName(),
       );
-      startNewTicket();
-      setLastSale({ id: response.id, number: response.number });
-      void refetch();
-      bumpCashRefresh();
+      onSaleCompleted(response);
       return response;
     } catch (cause) {
-      if (cause instanceof ApiError && cause.code === 'PAYMENTS_DO_NOT_MATCH_TOTAL') {
-        showNotice('Los precios cambiaron. Revisa el ticket y vuelve a cobrar.');
-        void refetch();
-      } else if (cause instanceof ApiError && cause.code === 'PRODUCT_NOT_SELLABLE') {
-        showNotice('Un producto del ticket ya no está disponible. Quítalo y vuelve a cobrar.');
-      } else if (cause instanceof ApiError && cause.serverMessage !== null) {
-        showNotice(cause.serverMessage);
-      } else {
-        showNotice('No se pudo cobrar. Revisa que el sistema local esté activo.');
-      }
+      onCheckoutError(cause);
+      return null;
+    }
+  }
+
+  async function confirmSplitCharge(payments: PaymentPart[]): Promise<CheckoutResponseDto | null> {
+    try {
+      const response = await checkoutSaleWithPayments(
+        ticketId(),
+        ticketLines(),
+        payments,
+        currentUserName(),
+      );
+      onSaleCompleted(response);
+      return response;
+    } catch (cause) {
+      onCheckoutError(cause);
       return null;
     }
   }
@@ -165,9 +253,12 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
       setCreditCharging(false);
       void refetch();
       bumpCashRefresh();
+      beepSuccess();
       showNotice(`Venta #${response.number} fiada: ${formatSoles(response.totalCents)}`);
+      focusSearch();
     } catch (cause) {
       setCreditCharging(false);
+      beepError();
       if (cause instanceof ApiError && cause.serverMessage !== null) {
         showNotice(cause.serverMessage);
       } else {
@@ -178,26 +269,40 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
 
   // Enter (sin foco en inputs) = cobro exacto en efectivo: un solo teclazo.
   async function chargeExactCash(): Promise<void> {
-    if (sellingBlocked() || ticketLines().length === 0 || charging() !== null || weighing() !== null) return;
+    if (sellingBlocked() || ticketLines().length === 0 || modalOpen()) return;
     setCharging('Efectivo');
     const response = await confirmCharge(null);
     setCharging(null);
     if (response !== null) {
       const warning = response.printerWarning === null ? '' : ` · ${response.printerWarning}`;
       showNotice(`Venta #${response.number} cobrada: ${formatSoles(response.totalCents)}${warning}`);
+      focusSearch();
     }
   }
 
   function onKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'F1') {
+      event.preventDefault();
+      setHelpOpen((open) => !open);
+      return;
+    }
     if (event.key === 'F2') {
       event.preventDefault();
       searchInput?.focus();
       searchInput?.select();
       return;
     }
+    if (event.key === 'F8') {
+      event.preventDefault();
+      setPriceCheck((open) => !open);
+      return;
+    }
+    // Con un modal abierto, el teclado es del modal (Esc lo cierra allí).
+    if (modalOpen()) return;
     if (event.key === 'F9') {
       event.preventDefault();
-      removeLastLine();
+      const removed = removeSelectedLine();
+      if (removed !== null) showNotice(`Se quitó ${removed.product.name} — Ctrl+Z lo devuelve`);
       return;
     }
     if (event.key === 'F4') {
@@ -205,9 +310,42 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
       openCharge();
       return;
     }
-    if (event.key === 'Enter' && event.target === document.body) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      const restored = undoRemoveLine();
+      if (restored !== null) showNotice(`${restored.product.name} volvió al ticket`);
+      return;
+    }
+    if (event.target !== document.body) return;
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveSelection(event.key === 'ArrowUp' ? -1 : 1);
+      return;
+    }
+    if (event.key === '+' || event.key === '-') {
+      event.preventDefault();
+      adjustSelectedQuantity(event.key === '+' ? 1 : -1);
+      return;
+    }
+    if (event.key === 'Enter') {
       event.preventDefault();
       void chargeExactCash();
+      return;
+    }
+    // Teclear sin foco no se pierde: el carácter va directo al buscador,
+    // así el lector de códigos funciona aunque nadie haya hecho clic.
+    if (
+      event.key.length === 1 &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      /[\dA-Za-zÁÉÍÓÚáéíóúñÑ*.]/.test(event.key)
+    ) {
+      event.preventDefault();
+      setQuery(query() + event.key);
+      searchInput?.focus();
+      const length = query().length;
+      searchInput?.setSelectionRange(length, length);
     }
   }
 
@@ -232,11 +370,20 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           value={query()}
           onInput={setQuery}
           onSubmit={onSearchSubmit}
+          multiplier={multiplier()}
           setRef={(element) => {
             searchInput = element;
           }}
         />
-        <CategoryTabs selected={category()} onSelect={setCategory} />
+        <div classList={{ [styles.tabsBuscando]: query().trim() !== '' }}>
+          <CategoryTabs
+            selected={category()}
+            onSelect={(selected) => {
+              setCategory(selected);
+              setQuery('');
+            }}
+          />
+        </div>
         <ProductGrid
           products={products() ?? []}
           loading={products.loading}
@@ -257,26 +404,59 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
             .then((result) => showNotice(result.message))
             .catch(() => showNotice('No se pudo reimprimir el voucher.'));
         }}
+        onHelp={() => setHelpOpen(true)}
+        onEditWeight={(line) => {
+          if (line.product.saleType === 'weight') setReweighingLine(line);
+        }}
       />
 
       <Show when={weighing()}>
         {(product) => (
           <WeightModal
             product={product()}
-            onCancel={() => setWeighing(null)}
+            onCancel={() => {
+              setWeighing(null);
+              focusSearch();
+            }}
             onConfirm={(grams, source) => {
               addWeightProduct(product(), grams, source);
               setWeighing(null);
+              beepOk();
+              focusSearch();
             }}
           />
         )}
+      </Show>
+
+      <Show when={reweighingLine()}>
+        {(line) => {
+          const product = line().product;
+          return product.saleType === 'weight' ? (
+            <WeightModal
+              product={product}
+              onCancel={() => {
+                setReweighingLine(null);
+                focusSearch();
+              }}
+              onConfirm={(grams, source) => {
+                updateWeightLine(line().lineId, grams, source);
+                setReweighingLine(null);
+                beepOk();
+                focusSearch();
+              }}
+            />
+          ) : null;
+        }}
       </Show>
 
       <Show when={creditCharging()}>
         <CreditChargeModal
           totalCents={ticketTotalCents()}
           onConfirm={confirmCreditCharge}
-          onClose={() => setCreditCharging(false)}
+          onClose={() => {
+            setCreditCharging(false);
+            focusSearch();
+          }}
         />
       </Show>
 
@@ -286,9 +466,31 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
             method={method()}
             totalCents={ticketTotalCents()}
             onConfirm={confirmCharge}
-            onClose={() => setCharging(null)}
+            onConfirmSplit={confirmSplitCharge}
+            onClose={() => {
+              setCharging(null);
+              focusSearch();
+            }}
           />
         )}
+      </Show>
+
+      <Show when={priceCheck()}>
+        <PriceCheckModal
+          onClose={() => {
+            setPriceCheck(false);
+            focusSearch();
+          }}
+        />
+      </Show>
+
+      <Show when={helpOpen()}>
+        <ShortcutsHelp
+          onClose={() => {
+            setHelpOpen(false);
+            focusSearch();
+          }}
+        />
       </Show>
     </main>
   );

@@ -10,6 +10,12 @@ body,
   height: 100%;
 }
 
+html {
+  /* Cifras tabulares en TODA la app: los números no cambian de ancho al
+     actualizarse y las columnas de montos quedan alineadas solas. */
+  font-variant-numeric: tabular-nums;
+}
+
 body {
   margin: 0;
   background: var(--superficie-app);
@@ -21,15 +27,29 @@ body {
 button {
   font-family: inherit;
   cursor: pointer;
+  /* Táctil: sin retraso de doble-tap ni zoom accidental; el toque largo no
+     selecciona texto del botón. */
+  touch-action: manipulation;
+  user-select: none;
+}
+
+a,
+select {
+  touch-action: manipulation;
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
   outline: 3px solid var(--mana-ambar);
   outline-offset: 2px;
 }
 
-input {
+input,
+select,
+textarea {
   font-family: inherit;
 }
 

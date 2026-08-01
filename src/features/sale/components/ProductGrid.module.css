@@ -58,19 +58,27 @@
   border-color: var(--mana-ambar);
 }
 
+/* Agotado: se apaga y no responde al toque; el código sí sigue vendiendo. */
 .cardAgotada {
-  border-color: var(--peligro);
-  opacity: 0.85;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
+/* El stock es dato de fondo: chico, gris, en la esquina del pie.
+   Solo levanta la voz cuando está bajo o en cero. */
 .stock {
-  font-size: 0.7rem;
-  font-weight: 700;
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 600;
   color: var(--tinta-suave);
+  opacity: 0.85;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .stockBajo {
+  font-weight: 700;
+  opacity: 1;
   color: #8a5a13;
   background: rgba(232, 161, 61, 0.18);
   border-radius: 999px;
@@ -78,6 +86,8 @@
 }
 
 .stockCero {
+  font-weight: 700;
+  opacity: 1;
   color: #fff;
   background: var(--peligro);
   border-radius: 999px;
@@ -104,9 +114,10 @@
   color: var(--cat-pan);
 }
 
+/* Jerarquía del tile: nombre y precio se leen a un metro; el stock no. */
 .nombre {
-  font-size: 0.92rem;
-  font-weight: 650;
+  font-size: 1rem;
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -118,7 +129,7 @@
 }
 
 .precio {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--mana-verde);
   font-weight: 750;
   font-variant-numeric: tabular-nums;
@@ -141,15 +152,17 @@
   text-align: center;
 }
 
-/* Código corto tecleable: visible para que las cajeras se lo aprendan. */
+/* Código corto tecleable, con pinta de tecla: se teclea N + Enter. */
 .codigoCorto {
-  font-size: 0.7rem;
-  font-weight: 800;
-  font-family: var(--fuente-voucher);
-  background: var(--mana-verde-hondo);
-  color: #fff;
-  border-radius: 6px;
-  padding: 2px 7px;
   margin-left: auto;
-  margin-right: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--fuente-voucher);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border: 1px solid var(--linea);
+  border-bottom-width: 2.5px;
+  border-radius: 5px;
+  padding: 1px 7px;
+  line-height: 1.5;
 }

@@ -1,5 +1,6 @@
 .form {
   width: 100%;
+  position: relative;
 }
 
 .input {
@@ -20,4 +21,38 @@
 
 .input:focus {
   border-color: var(--mana-verde);
+  box-shadow: 0 0 0 3px rgba(30, 107, 78, 0.12);
+}
+
+/* Puntito de estado: verde cuando el buscador está armado para escanear. */
+.armado {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--linea);
+  transition: background 120ms ease;
+}
+
+.form:focus-within .armado {
+  background: var(--exito);
+  box-shadow: 0 0 0 3px rgba(63, 164, 99, 0.2);
+}
+
+/* Multiplicador activo: 3* → el siguiente producto entra ×3. */
+.mult {
+  position: absolute;
+  right: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--mana-verde-hondo);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  border-radius: 999px;
+  padding: 3px 10px;
 }

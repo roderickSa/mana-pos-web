@@ -2,6 +2,7 @@ import { createSignal, Show, type Component } from 'solid-js';
 
 import { ApiError } from '@/shared/api/client';
 import { registerAdjustment } from '@/shared/api/inventory';
+import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
 import { unitLabel } from './product-units';
@@ -35,6 +36,7 @@ export const AdjustmentModal: Component<{
       );
       props.onDone(`Ajuste registrado: −${value} ${unitLabel(props.product)}`);
     } catch (cause) {
+      beepError();
       if (cause instanceof ApiError && cause.code === 'ADJUSTMENT_EXCEEDS_STOCK') {
         setError('La cantidad supera el stock disponible. Verifica y vuelve a intentar.');
       } else {

@@ -9,17 +9,11 @@ import {
 } from '@/shared/api/products';
 import { createSupplier, listSuppliers } from '@/shared/api/suppliers';
 import type { ProductDto } from '@/shared/types';
+import { centsToSolesInput, solesInputToCents } from '@/shared/lib/money';
+import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
-import { CATEGORIES } from '@/shared/lib/categories';
+import { activeCategories } from '@/shared/state/categories';
 import styles from '@/shared/ui/forms.module.css';
-
-function centsToInput(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
-
-function inputToCents(value: string): number {
-  return Math.round(Number.parseFloat(value) * 100);
-}
 
 export const ProductFormModal: Component<{
   product: ProductDto | null; // null = crear
@@ -38,12 +32,12 @@ export const ProductFormModal: Component<{
   const [price, setPrice] = createSignal(
     editing === null
       ? ''
-      : centsToInput(editing.saleType === 'unit' ? editing.priceCents : editing.pricePerKgCents),
+      : centsToSolesInput(editing.saleType === 'unit' ? editing.priceCents : editing.pricePerKgCents),
   );
   const [cost, setCost] = createSignal(
     editing === null
       ? ''
-      : centsToInput(editing.saleType === 'unit' ? editing.costCents : editing.costPerKgCents),
+      : centsToSolesInput(editing.saleType === 'unit' ? editing.costCents : editing.costPerKgCents),
   );
   const [minimum, setMinimum] = createSignal(
     editing === null
@@ -68,18 +62,18 @@ export const ProductFormModal: Component<{
       await refetchSuppliers();
       setSupplierId(created.id);
     } catch {
+      beepError();
       setError('No se pudo crear el proveedor.');
     }
   }
 
   const valid = () =>
-    name().trim() !== '' &&
-    !Number.isNaN(inputToCents(price())) &&
-    inputToCents(price()) > 0 &&
-    !Number.isNaN(inputToCents(cost()));
+    name().trim() !== '' && (solesInputToCents(price()) ?? 0) > 0 && solesInputToCents(cost()) !== null;
 
   async function save(): Promise<void> {
-    if (!valid() || saving()) return;
+    const priceValue = solesInputToCents(price());
+    const costValue = solesInputToCents(cost());
+    if (!valid() || priceValue === null || costValue === null || saving()) return;
     setSaving(true);
     setError('');
     const payload = {
@@ -88,8 +82,8 @@ export const ProductFormModal: Component<{
       name: name().trim(),
       category: category(),
       supplierId: supplierId() === '' ? null : supplierId(),
-      priceCents: inputToCents(price()),
-      costCents: inputToCents(cost()),
+      priceCents: priceValue,
+      costCents: costValue,
       stockMinimum: Number.parseInt(minimum(), 10) || 0,
       quickAccess: quickAccess(),
     };
@@ -112,6 +106,7 @@ export const ProductFormModal: Component<{
         props.onDone(`Producto «${payload.name}» actualizado`);
       }
     } catch (cause) {
+      beepError();
       if (cause instanceof ApiError && cause.code === 'BARCODE_ALREADY_IN_USE') {
         setError('Ese código de barras ya pertenece a otro producto.');
       } else if (cause instanceof ApiError && cause.serverMessage !== null) {
@@ -160,8 +155,8 @@ export const ProductFormModal: Component<{
               value={category()}
               onChange={(event) => setCategory(event.currentTarget.value)}
             >
-              {CATEGORIES.filter((item) => item.key !== null).map((item) => (
-                <option value={item.key ?? ''}>{item.label}</option>
+              {activeCategories().map((item) => (
+                <option value={item.slug}>{item.name}</option>
               ))}
             </select>
           </div>

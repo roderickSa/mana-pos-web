@@ -37,11 +37,15 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
       : `Queda ${formatKg(remaining())}`;
   };
 
+  // Sin stock: el tile se apaga, pero escanear/teclear el código sigue
+  // vendiendo (la venta nunca se bloquea por stock — el tile solo avisa).
   return (
     <button
       type="button"
       class={styles.card}
       classList={{ [styles.cardBaja]: low(), [styles.cardAgotada]: out() }}
+      disabled={out()}
+      aria-disabled={out()}
       onClick={() => props.onTap(props.product)}
     >
       <span class={styles.filaAlta}>
@@ -54,14 +58,12 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
           </Show>
         </span>
         <Show when={props.product.shortCode}>
-          {(code) => <span class={styles.codigoCorto}>{code()}</span>}
+          {(code) => (
+            <kbd class={styles.codigoCorto} title={`Código corto: teclea ${code()} y Enter`}>
+              {code()}
+            </kbd>
+          )}
         </Show>
-        <span
-          class={styles.stock}
-          classList={{ [styles.stockBajo]: low(), [styles.stockCero]: out() }}
-        >
-          {remainingLabel()}
-        </span>
       </span>
       <span class={styles.nombre}>{props.product.name}</span>
       <span class={styles.pie}>
@@ -73,6 +75,12 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
         <Show when={props.product.saleType === 'weight'}>
           <span class={styles.granel}>por kg</span>
         </Show>
+        <span
+          class={styles.stock}
+          classList={{ [styles.stockBajo]: low(), [styles.stockCero]: out() }}
+        >
+          {remainingLabel()}
+        </span>
       </span>
     </button>
   );

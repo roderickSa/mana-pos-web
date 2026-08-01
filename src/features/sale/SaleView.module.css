@@ -57,6 +57,12 @@
   min-height: 52px;
 }
 
+/* Mientras se escribe, las pestañas se atenúan: la búsqueda es global.
+   Tocar una pestaña limpia la búsqueda y vuelve a filtrar por categoría. */
+.tabsBuscando {
+  opacity: 0.45;
+}
+
 .catalogo {
   flex: 1.7;
   padding: 16px;

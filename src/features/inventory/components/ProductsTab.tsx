@@ -3,6 +3,7 @@ import { createResource, createSignal, For, Show, type Component } from 'solid-j
 import { searchProductsPage } from '@/shared/api/products';
 import { listSuppliers } from '@/shared/api/suppliers';
 import { formatKg, formatSoles } from '@/shared/lib/money';
+import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
@@ -14,7 +15,7 @@ import { ProductFormModal } from './ProductFormModal';
 import { costOf, minimumOf, priceOf, stockOf } from './product-units';
 import styles from '@/shared/ui/tabla.module.css';
 
-const PER_PAGE = 25;
+const PER_PAGE = 50;
 
 type ModalState =
   | { kind: 'none' }
@@ -29,17 +30,25 @@ function stockLabel(product: ProductDto): string {
 export const ProductsTab: Component = () => {
   const [query, setQuery] = createSignal('');
   const [page, setPage] = createSignal(1);
+  const [lowOnly, setLowOnly] = createSignal(false);
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
 
   const [result, { refetch }] = createResource(
-    () => ({ query: query(), page: page() }),
-    (params) => searchProductsPage(params.query, params.page, PER_PAGE),
+    () => ({ query: query(), page: page(), lowOnly: lowOnly() }),
+    (params) => searchProductsPage(params.query, params.page, PER_PAGE, params.lowOnly),
   );
+  // Conteo real de stock bajo en TODO el catálogo (no solo la página visible).
+  const [lowTotal, { refetch: refetchLowTotal }] = createResource(async () => {
+    const response = await searchProductsPage('', 1, 1, true);
+    return response.total;
+  });
   const [suppliers, { refetch: refetchSuppliers }] = createResource(listSuppliers);
 
   const items = () => result()?.items ?? [];
   const total = () => result()?.total ?? 0;
   const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
+  // Columna de proveedor solo cuando hay datos que mostrar.
+  const showSupplierColumn = () => items().some((product) => product.supplierId !== null);
 
   const supplierName = (supplierId: string | null) => {
     if (supplierId === null) return '—';
@@ -48,13 +57,17 @@ export const ProductsTab: Component = () => {
 
   function closeAndRefresh(message: string): void {
     setModal({ kind: 'none' });
+    beepSuccess();
     showNotice(message);
     void refetch();
+    void refetchLowTotal();
     void refetchSuppliers();
   }
 
-  const lowCount = () =>
-    items().filter((product) => product.active && stockOf(product) <= minimumOf(product)).length;
+  function toggleLowOnly(): void {
+    setLowOnly((value) => !value);
+    setPage(1);
+  }
 
   const queryIsBarcode = () => /^\d{6,}$/.test(query().trim());
 
@@ -71,10 +84,17 @@ export const ProductsTab: Component = () => {
             setPage(1);
           }}
         />
-        <Show when={lowCount() > 0}>
-          <span class={styles.alertaBajo}>
-            {lowCount() === 1 ? '1 producto con stock bajo' : `${lowCount()} productos con stock bajo`}
-          </span>
+        <Show when={(lowTotal() ?? 0) > 0 || lowOnly()}>
+          <button
+            type="button"
+            class={styles.alertaBajo}
+            classList={{ [styles.alertaBajoActiva]: lowOnly() }}
+            title={lowOnly() ? 'Quitar el filtro de stock bajo' : 'Ver solo productos con stock bajo'}
+            onClick={toggleLowOnly}
+          >
+            {lowTotal() === 1 ? '1 producto con stock bajo' : `${lowTotal() ?? 0} productos con stock bajo`}
+            {lowOnly() ? ' ✕' : ''}
+          </button>
         </Show>
         <button
           type="button"
@@ -98,7 +118,9 @@ export const ProductsTab: Component = () => {
             <tr>
               <th>Producto</th>
               <th>Categoría</th>
-              <th>Proveedor</th>
+              <Show when={showSupplierColumn()}>
+                <th>Proveedor</th>
+              </Show>
               <th class={styles.num}>Stock</th>
               <th class={styles.num}>Mínimo</th>
               <th class={styles.num}>Precio</th>
@@ -112,6 +134,8 @@ export const ProductsTab: Component = () => {
               {(product) => {
                 const low = () => stockOf(product) <= minimumOf(product);
                 const out = () => stockOf(product) <= 0;
+                // Sin costo real capturado no se inventa margen: se muestra "—".
+                const hasCost = costOf(product) > 0;
                 const marginCents = priceOf(product) - costOf(product);
                 const marginPct =
                   priceOf(product) > 0 ? Math.round((marginCents / priceOf(product)) * 100) : 0;
@@ -138,7 +162,9 @@ export const ProductsTab: Component = () => {
                       </div>
                     </td>
                     <td>{product.category}</td>
-                    <td class={styles.sub}>{supplierName(product.supplierId)}</td>
+                    <Show when={showSupplierColumn()}>
+                      <td class={styles.sub}>{supplierName(product.supplierId)}</td>
+                    </Show>
                     <td class={styles.num}>
                       <span
                         class={styles.stock}
@@ -148,16 +174,42 @@ export const ProductsTab: Component = () => {
                       </span>
                     </td>
                     <td class={`${styles.num} ${styles.sub}`}>
-                      {product.saleType === 'unit'
-                        ? product.stockMinimum
-                        : formatKg(product.stockMinimumGrams)}
+                      <Show
+                        when={minimumOf(product) > 0}
+                        fallback={
+                          <span
+                            class={styles.sinMinimo}
+                            title="Sin mínimo configurado: este producto nunca alertará stock bajo"
+                          >
+                            sin mínimo
+                          </span>
+                        }
+                      >
+                        {product.saleType === 'unit'
+                          ? product.stockMinimum
+                          : formatKg(product.stockMinimumGrams)}
+                      </Show>
                     </td>
                     <td class={styles.num}>{formatSoles(priceOf(product))}</td>
-                    <td class={`${styles.num} ${styles.sub}`}>{formatSoles(costOf(product))}</td>
+                    <td class={`${styles.num} ${styles.sub}`}>
+                      {hasCost ? formatSoles(costOf(product)) : '—'}
+                    </td>
                     <td class={styles.num}>
-                      <span class={styles.margen} classList={{ [styles.margenNegativo]: marginCents < 0 }}>
-                        {formatSoles(marginCents)} · {marginPct}%
-                      </span>
+                      <Show
+                        when={hasCost}
+                        fallback={
+                          <span
+                            class={styles.sub}
+                            title="Sin costo registrado: captúralo en una entrada de mercancía o editando el producto"
+                          >
+                            —
+                          </span>
+                        }
+                      >
+                        <span class={styles.margen} classList={{ [styles.margenNegativo]: marginCents < 0 }}>
+                          {formatSoles(marginCents)} · {marginPct}%
+                        </span>
+                      </Show>
                     </td>
                     <td class={styles.acciones}>
                       <ActionsMenu onSelect={(action) => setModal({ kind: action, product })} />

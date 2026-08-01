@@ -11,6 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Permite acceder al dev server a través de túneles ngrok (demos remotas).
+    allowedHosts: ['.ngrok-free.dev', '.ngrok-free.app', '.ngrok.app'],
     proxy: {
       '/catalog': 'http://localhost:3210',
       '/inventory': 'http://localhost:3210',
