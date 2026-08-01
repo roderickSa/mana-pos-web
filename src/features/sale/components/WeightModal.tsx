@@ -3,6 +3,7 @@ import { createResource, createSignal, For, onCleanup, onMount, Show, type Compo
 import { getScale } from '@/shared/api/devices';
 import { formatKg, formatSoles } from '@/shared/lib/money';
 import type { WeightProductDto } from '@/shared/types';
+import { Keypad } from '@/shared/ui/Keypad';
 import styles from './WeightModal.module.css';
 
 const PRESET_GRAMS = [100, 250, 500, 750, 1000];
@@ -100,6 +101,7 @@ export const WeightModal: Component<{
             )}
           </For>
         </div>
+        <Keypad value={grams()} onChange={setGrams} />
         <div class={styles.acciones}>
           <button type="button" class={styles.cancelar} onClick={props.onCancel}>
             Cancelar

@@ -3,10 +3,30 @@ import { createResource, createSignal, For, onCleanup, Show, type Component } fr
 import { currentNotice } from '@/shared/state/notices';
 import { cashRefreshVersion } from '@/shared/state/cash-refresh';
 import { getCashStatus } from '@/shared/api/cash';
+import { getDevicesStatus } from '@/shared/api/devices';
 import { formatSoles } from '@/shared/lib/money';
 import { currentUser, endSession, isManager } from '@/shared/state/session';
-import { bigTextEnabled, toggleBigText } from '@/shared/state/preferences';
+import {
+  bigTextEnabled,
+  bigTextLevel,
+  nightModeEnabled,
+  toggleBigText,
+  toggleNightMode,
+} from '@/shared/state/preferences';
 import styles from './TopBar.module.css';
+
+// En producción (equipos reales), una balanza caída debe gritar en el
+// header, no esconderse en el pie de página.
+async function deviceAlert(): Promise<string | null> {
+  try {
+    const status = await getDevicesStatus();
+    if (status.mode !== 'real') return null;
+    if (!status.scale.connected) return 'Balanza sin conexión';
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 async function cashInDrawer(): Promise<number | null> {
   try {
@@ -17,18 +37,19 @@ async function cashInDrawer(): Promise<number | null> {
   }
 }
 
-export type View = 'venta' | 'caja' | 'ventas' | 'fiado' | 'inventario' | 'equipos' | 'ajustes';
+export type View = 'venta' | 'caja' | 'ventas' | 'fiado' | 'inventario' | 'compras' | 'ajustes';
 
 // La cajera solo ve lo operativo; lo administrativo (reportes, costos,
-// usuarios) es del encargado.
+// usuarios) es del encargado. Ajustes (con Equipos, Voucher, IGV y los
+// catálogos maestros) va como engrane a la derecha: no es de uso diario.
 const VIEWS: Array<{ key: View; label: string; managerOnly: boolean }> = [
   { key: 'venta', label: 'Vender', managerOnly: false },
   { key: 'caja', label: 'Caja', managerOnly: false },
-  { key: 'ventas', label: 'Ventas', managerOnly: true },
+  // La cajera ve Ventas pero SOLO las de hoy (la vista se encarga de fijarlo).
+  { key: 'ventas', label: 'Ventas', managerOnly: false },
   { key: 'fiado', label: 'Fiado', managerOnly: false },
   { key: 'inventario', label: 'Inventario', managerOnly: true },
-  { key: 'equipos', label: 'Equipos', managerOnly: false },
-  { key: 'ajustes', label: 'Ajustes', managerOnly: true },
+  { key: 'compras', label: 'Compras', managerOnly: true },
 ];
 
 export const TopBar: Component<{
@@ -42,6 +63,7 @@ export const TopBar: Component<{
     () => ({ tick: cashTick(), version: cashRefreshVersion() }),
     cashInDrawer,
   );
+  const [alert] = createResource(cashTick, deviceAlert);
   const interval = setInterval(() => {
     setNow(new Date());
     setCashTick((value) => value + 1);
@@ -79,10 +101,33 @@ export const TopBar: Component<{
       </nav>
 
       <span class={styles.spacer} />
+      <Show when={alert()}>
+        {(message) => (
+          <span
+            class={styles.chip}
+            role="alert"
+            style={{ background: 'var(--peligro)', color: '#fff' }}
+          >
+            ⚠ {message()}
+          </span>
+        )}
+      </Show>
       <Show when={currentNotice() !== ''}>
         <span class={`${styles.chip} ${styles.aviso}`} role="status">
           {currentNotice()}
         </span>
+      </Show>
+      <Show when={isManager()}>
+        <button
+          type="button"
+          class={`${styles.chip} ${styles.salir}`}
+          classList={{ [styles.accesActivo]: props.view === 'ajustes' }}
+          title="Ajustes: usuarios, equipos, voucher, IGV, categorías y proveedores"
+          aria-label="Ajustes"
+          onClick={() => props.onNavigate('ajustes')}
+        >
+          ⚙
+        </button>
       </Show>
       <span
         class={`${styles.chip} ${styles.caja}`}
@@ -100,14 +145,27 @@ export const TopBar: Component<{
         type="button"
         class={`${styles.chip} ${styles.salir}`}
         classList={{ [styles.accesActivo]: bigTextEnabled() }}
-        title="Texto grande (se recuerda por usuario)"
+        title="Texto grande: normal → 115% → 130% (se recuerda por usuario)"
         aria-pressed={bigTextEnabled()}
         onClick={() => {
           const user = currentUser();
           if (user !== null) toggleBigText(user.id);
         }}
       >
-        A+
+        {bigTextLevel() === 2 ? 'A++' : 'A+'}
+      </button>
+      <button
+        type="button"
+        class={`${styles.chip} ${styles.salir}`}
+        classList={{ [styles.accesActivo]: nightModeEnabled() }}
+        title="Modo noche (se recuerda por usuario)"
+        aria-pressed={nightModeEnabled()}
+        onClick={() => {
+          const user = currentUser();
+          if (user !== null) toggleNightMode(user.id);
+        }}
+      >
+        🌙
       </button>
       <button
         type="button"

@@ -1,15 +1,18 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { focusOnMount } from '@/shared/lib/focus';
 
-import { searchProductsPage } from '@/shared/api/products';
+import { searchProductsPage, updateProduct } from '@/shared/api/products';
 import { listSuppliers } from '@/shared/api/suppliers';
-import { formatKg, formatSoles } from '@/shared/lib/money';
+import { formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
+import { activeCategories } from '@/shared/state/categories';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { ActionsMenu, type ProductAction } from './ActionsMenu';
 import { CountModal } from './CountModal';
 import { ImportModal } from './ImportModal';
+import { MergeModal } from './MergeModal';
 import { PriceModal } from './PriceModal';
 import { ProductFormModal } from './ProductFormModal';
 import { costOf, minimumOf, priceOf, stockOf } from './product-units';
@@ -31,28 +34,68 @@ export const ProductsTab: Component = () => {
   const [query, setQuery] = createSignal('');
   const [page, setPage] = createSignal(1);
   const [lowOnly, setLowOnly] = createSignal(false);
+  const [noCostOnly, setNoCostOnly] = createSignal(false);
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
+  // Captura de costos en línea: id del producto en edición y su valor.
+  const [costEditing, setCostEditing] = createSignal<string | null>(null);
+  const [costDraft, setCostDraft] = createSignal('');
 
   const [result, { refetch }] = createResource(
-    () => ({ query: query(), page: page(), lowOnly: lowOnly() }),
-    (params) => searchProductsPage(params.query, params.page, PER_PAGE, params.lowOnly),
+    () => ({ query: query(), page: page(), lowOnly: lowOnly(), noCostOnly: noCostOnly() }),
+    (params) => searchProductsPage(params.query, params.page, PER_PAGE, params.lowOnly, params.noCostOnly),
   );
-  // Conteo real de stock bajo en TODO el catálogo (no solo la página visible).
+  // Conteos reales en TODO el catálogo (no solo la página visible).
   const [lowTotal, { refetch: refetchLowTotal }] = createResource(async () => {
     const response = await searchProductsPage('', 1, 1, true);
     return response.total;
   });
+  const [noCostTotal, { refetch: refetchNoCostTotal }] = createResource(async () => {
+    const response = await searchProductsPage('', 1, 1, false, true);
+    return response.total;
+  });
+
+  async function saveInlineCost(product: ProductDto): Promise<void> {
+    const cents = solesInputToCents(costDraft());
+    if (cents === null || cents <= 0) return;
+    try {
+      await updateProduct(product.id, {
+        barcode: product.barcode,
+        shortCode: product.shortCode,
+        name: product.name,
+        category: product.category,
+        supplierIds: product.supplierIds,
+        priceCents: priceOf(product),
+        costCents: cents,
+        packSize: product.saleType === 'unit' ? product.packSize : null,
+        packCostCents: product.saleType === 'unit' ? product.packCostCents : null,
+        stockMinimum: minimumOf(product),
+        active: product.active,
+        quickAccess: product.quickAccess,
+      });
+      beepSuccess();
+      showNotice(`Costo de «${product.name}» capturado`);
+      setCostEditing(null);
+      setCostDraft('');
+      void refetch();
+      void refetchNoCostTotal();
+    } catch {
+      showNotice('No se pudo guardar el costo.');
+    }
+  }
   const [suppliers, { refetch: refetchSuppliers }] = createResource(listSuppliers);
 
   const items = () => result()?.items ?? [];
   const total = () => result()?.total ?? 0;
   const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
   // Columna de proveedor solo cuando hay datos que mostrar.
-  const showSupplierColumn = () => items().some((product) => product.supplierId !== null);
+  const showSupplierColumn = () => items().some((product) => product.supplierIds.length > 0);
 
-  const supplierName = (supplierId: string | null) => {
-    if (supplierId === null) return '—';
-    return (suppliers() ?? []).find((supplier) => supplier.id === supplierId)?.name ?? '…';
+  const supplierNames = (supplierIds: string[]) => {
+    if (supplierIds.length === 0) return '—';
+    const all = suppliers() ?? [];
+    return supplierIds
+      .map((id) => all.find((supplier) => supplier.id === id)?.name ?? '…')
+      .join(', ');
   };
 
   function closeAndRefresh(message: string): void {
@@ -61,8 +104,13 @@ export const ProductsTab: Component = () => {
     showNotice(message);
     void refetch();
     void refetchLowTotal();
+    void refetchNoCostTotal();
     void refetchSuppliers();
   }
+
+  // Nombre bonito de la categoría: el slug es cosa interna.
+  const categoryName = (slug: string) =>
+    activeCategories().find((item) => item.slug === slug)?.name ?? slug;
 
   function toggleLowOnly(): void {
     setLowOnly((value) => !value);
@@ -75,6 +123,7 @@ export const ProductsTab: Component = () => {
     <section class={styles.vista}>
       <div class={styles.encabezado}>
         <input
+          ref={focusOnMount}
           class={styles.buscador}
           type="text"
           placeholder="Buscar por nombre o código de barras…"
@@ -84,6 +133,25 @@ export const ProductsTab: Component = () => {
             setPage(1);
           }}
         />
+        <Show when={(noCostTotal() ?? 0) > 0 || noCostOnly()}>
+          <button
+            type="button"
+            class={styles.alertaBajo}
+            classList={{ [styles.alertaBajoActiva]: noCostOnly() }}
+            title={
+              noCostOnly()
+                ? 'Quitar el filtro'
+                : 'Ver solo productos sin costo y capturarlos desde la tabla'
+            }
+            onClick={() => {
+              setNoCostOnly((value) => !value);
+              setPage(1);
+            }}
+          >
+            {noCostTotal() === 1 ? '1 producto sin costo' : `${noCostTotal() ?? 0} productos sin costo`}
+            {noCostOnly() ? ' ✕' : ''}
+          </button>
+        </Show>
         <Show when={(lowTotal() ?? 0) > 0 || lowOnly()}>
           <button
             type="button"
@@ -161,9 +229,9 @@ export const ProductsTab: Component = () => {
                         </div>
                       </div>
                     </td>
-                    <td>{product.category}</td>
+                    <td>{categoryName(product.category)}</td>
                     <Show when={showSupplierColumn()}>
-                      <td class={styles.sub}>{supplierName(product.supplierId)}</td>
+                      <td class={styles.sub}>{supplierNames(product.supplierIds)}</td>
                     </Show>
                     <td class={styles.num}>
                       <span
@@ -192,7 +260,48 @@ export const ProductsTab: Component = () => {
                     </td>
                     <td class={styles.num}>{formatSoles(priceOf(product))}</td>
                     <td class={`${styles.num} ${styles.sub}`}>
-                      {hasCost ? formatSoles(costOf(product)) : '—'}
+                      <Show
+                        when={noCostOnly()}
+                        fallback={hasCost ? formatSoles(costOf(product)) : '—'}
+                      >
+                        <Show
+                          when={costEditing() === product.id}
+                          fallback={
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCostEditing(product.id);
+                                setCostDraft('');
+                              }}
+                            >
+                              Capturar costo
+                            </button>
+                          }
+                        >
+                          <input
+                            style={{ 'max-width': '110px' }}
+                            type="number"
+                            step="0.10"
+                            min="0"
+                            placeholder="S/"
+                            value={costDraft()}
+                            onInput={(event) => setCostDraft(event.currentTarget.value)}
+                            onKeyDown={(event) => event.key === 'Enter' && void saveInlineCost(product)}
+                            autofocus
+                          />
+                          <button type="button" onClick={() => void saveInlineCost(product)}>
+                            OK
+                          </button>
+                        </Show>
+                      </Show>
+                      <Show when={product.saleType === 'unit' && product.packSize !== null}>
+                        <div
+                          class={styles.sub}
+                          title="Este producto se compra por caja: costo unitario derivado"
+                        >
+                          caja ×{product.saleType === 'unit' ? product.packSize : ''}
+                        </div>
+                      </Show>
                     </td>
                     <td class={styles.num}>
                       <Show
@@ -276,5 +385,7 @@ function renderModal(state: ModalState, onDone: (message: string) => void, onClo
       return <PriceModal product={state.product} onDone={onDone} onClose={onClose} />;
     case 'stock':
       return <CountModal product={state.product} onDone={onDone} onClose={onClose} />;
+    case 'merge':
+      return <MergeModal product={state.product} onDone={onDone} onClose={onClose} />;
   }
 }

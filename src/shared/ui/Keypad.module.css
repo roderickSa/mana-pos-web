@@ -1,0 +1,47 @@
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 320px;
+}
+
+.tecla {
+  min-height: 60px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--linea, #dde3ea);
+  border-radius: 12px;
+  background: var(--superficie-panel, #fff);
+  color: var(--tinta, #1d232b);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.tecla:active {
+  background: var(--mana-verde-suave, #e2f4e5);
+  transform: scale(0.97);
+}
+
+.confirmar {
+  grid-column: 1 / -1;
+  min-height: 60px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 12px;
+  background: var(--mana-verde, #1e6b34);
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.confirmar:active {
+  filter: brightness(0.9);
+}
+
+.confirmar:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

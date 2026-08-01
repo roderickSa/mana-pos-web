@@ -7,6 +7,10 @@
   --mana-verde-suave: #e4efe8;
   --mana-ambar: #e8a13d;
   --mana-ambar-tinta: #3a2a0e;
+  /* Advertencias (sin mínimo, por vencer): ámbar suave, distinto del CTA.
+     El ámbar pleno queda reservado para la acción de cobrar. */
+  --advertencia-fondo: #f7ead0;
+  --advertencia-tinta: #6b4a00;
 
   /* Superficies */
   --superficie-app: #eff3ec;
@@ -15,7 +19,8 @@
 
   /* Tinta */
   --tinta: #1f261e;
-  --tinta-suave: #647062;
+  /* Texto secundario ≥6:1 sobre blanco: se lee bajo luz de tienda. */
+  --tinta-suave: #5a655c;
   --linea: #dbe2d8;
 
   /* Semánticos */
@@ -45,4 +50,31 @@
    escalar la raíz agranda tipografía completa sin romper los layouts. */
 :root.texto-grande {
   font-size: 115%;
+}
+
+:root.texto-grande-xl {
+  font-size: 130%;
+}
+
+/* Modo noche (toggle 🌙 por usuario): la tienda opera de noche con la
+   pantalla como fuente principal de luz. Base verde oscuro de marca, texto
+   claro; como toda la app pinta con tokens, basta re-mapearlos aquí. */
+:root.noche {
+  --mana-verde-hondo: #0d3527;
+  --mana-verde: #4cae83;
+  --mana-verde-suave: #1b3a2d;
+  --mana-ambar: #e8a13d;
+  --mana-ambar-tinta: #2a1e08;
+  --advertencia-fondo: #3a2f14;
+  --advertencia-tinta: #e8c477;
+  --superficie-app: #131b16;
+  --superficie-panel: #1c2620;
+  --superficie-voucher: #202a24;
+  --tinta: #e6ece5;
+  --tinta-suave: #a3b0a4;
+  --linea: #35423a;
+  --peligro: #e06a5e;
+  --exito: #57c07c;
+  --sombra-suave: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --sombra-panel: 0 6px 24px rgba(0, 0, 0, 0.45);
 }

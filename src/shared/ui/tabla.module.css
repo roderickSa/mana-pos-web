@@ -79,14 +79,14 @@
 }
 
 .alertaBajoActiva {
-  background: var(--mana-ambar);
-  color: var(--mana-ambar-tinta);
+  background: var(--advertencia-tinta);
+  color: #fff;
 }
 
 .sinMinimo {
   font-size: 0.72rem;
-  color: #8a5a13;
-  background: rgba(232, 161, 61, 0.14);
+  color: var(--advertencia-tinta);
+  background: var(--advertencia-fondo);
   border-radius: 999px;
   padding: 2px 8px;
   white-space: nowrap;
@@ -115,6 +115,7 @@
 }
 
 .tablaContenedor {
+  overscroll-behavior: contain;
   flex: 1;
   overflow: auto;
   background: var(--superficie-panel);
@@ -163,6 +164,13 @@
 .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* El encabezado hereda la alineación de su columna: numéricas a la derecha
+   (sin esto, `.tabla th` le ganaba por especificidad y quedaba a la izquierda). */
+.tabla th.num {
+  text-align: right;
 }
 
 .productoCelda {
@@ -256,7 +264,13 @@
   text-align: right;
 }
 
-.acciones button {
+/* TODO botón dentro del cuerpo de una tabla comparte esta pinta de píldora:
+   los sueltos (Ver ticket, Capturar costo, OK…) no quedan sin estilo. */
+.tabla tbody button,
+.acciones button,
+.acciones a {
+  display: inline-flex;
+  align-items: center;
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta);
@@ -264,11 +278,18 @@
   padding: 7px 12px;
   font-size: 0.8rem;
   font-weight: 600;
-  margin-right: 6px;
   min-height: 38px;
+  cursor: pointer;
+  text-decoration: none;
 }
 
-.acciones button:hover {
+.acciones button {
+  margin-right: 6px;
+}
+
+.tabla tbody button:hover,
+.acciones button:hover,
+.acciones a:hover {
   border-color: var(--mana-verde);
   color: var(--mana-verde);
 }
@@ -321,9 +342,14 @@
   }
 
   .acciones button {
+    margin-right: 8px;
+  }
+
+  .tabla tbody button,
+  .acciones button,
+  .acciones a {
     min-height: 44px;
     padding: 9px 16px;
-    margin-right: 8px;
   }
 
   .paginacion button {
@@ -334,4 +360,22 @@
   .subtab {
     min-height: 48px;
   }
+}
+
+@media (pointer: coarse) {
+  /* 8px mínimos entre acciones vecinas: un dedo no es un cursor. */
+  .acciones button + button {
+    margin-left: 8px;
+  }
+}
+
+/* Saldo positivo (a favor): verde — es buena noticia, no una alerta. */
+.positivo {
+  font-weight: 700;
+  color: #1e6b34;
+  background: #e2f4e5;
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }

@@ -1,6 +1,7 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { focusOnMount } from '@/shared/lib/focus';
 
-import { searchProducts } from '@/shared/api/products';
+import { searchProductsPage } from '@/shared/api/products';
 import { formatKg } from '@/shared/lib/money';
 import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
@@ -10,7 +11,10 @@ import { AdjustmentModal } from './AdjustmentModal';
 import { CountModal } from './CountModal';
 import { EntryModal } from './EntryModal';
 import { KardexModal } from './KardexModal';
+import { RowMenu } from './RowMenu';
 import styles from '@/shared/ui/tabla.module.css';
+
+const PER_PAGE = 50;
 
 type ModalState =
   | { kind: 'none' }
@@ -18,12 +22,17 @@ type ModalState =
 
 export const AdjustmentsTab: Component = () => {
   const [query, setQuery] = createSignal('');
+  const [page, setPage] = createSignal(1);
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
 
-  const [products, { refetch }] = createResource(
-    () => query(),
-    (search) => searchProducts(search, null),
+  const [result, { refetch }] = createResource(
+    () => ({ query: query(), page: page() }),
+    (params) => searchProductsPage(params.query, params.page, PER_PAGE),
   );
+
+  const items = () => result()?.items ?? [];
+  const total = () => result()?.total ?? 0;
+  const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
 
   function closeAndRefresh(message: string): void {
     beepSuccess();
@@ -36,11 +45,15 @@ export const AdjustmentsTab: Component = () => {
     <section class={styles.vista}>
       <div class={styles.encabezado}>
         <input
+          ref={focusOnMount}
           class={styles.buscador}
           type="text"
           placeholder="Busca el producto a ajustar (nombre o código)…"
           value={query()}
-          onInput={(event) => setQuery(event.currentTarget.value)}
+          onInput={(event) => {
+            setQuery(event.currentTarget.value);
+            setPage(1);
+          }}
         />
       </div>
 
@@ -54,7 +67,7 @@ export const AdjustmentsTab: Component = () => {
             </tr>
           </thead>
           <tbody>
-            <For each={products() ?? []}>
+            <For each={items()}>
               {(product) => (
                 <tr>
                   <td>
@@ -80,6 +93,7 @@ export const AdjustmentsTab: Component = () => {
                         : formatKg(product.stockGrams)}
                     </span>
                   </td>
+                  {/* Lo frecuente a la vista; conteo y kardex al menú ⋯. */}
                   <td class={styles.acciones}>
                     <button type="button" onClick={() => setModal({ kind: 'entry', product })}>
                       Entrada
@@ -87,21 +101,36 @@ export const AdjustmentsTab: Component = () => {
                     <button type="button" onClick={() => setModal({ kind: 'adjust', product })}>
                       Merma
                     </button>
-                    <button type="button" onClick={() => setModal({ kind: 'count', product })}>
-                      Conteo
-                    </button>
-                    <button type="button" onClick={() => setModal({ kind: 'kardex', product })}>
-                      Kardex
-                    </button>
+                    <RowMenu
+                      items={[
+                        { key: 'count', label: 'Conteo físico' },
+                        { key: 'kardex', label: 'Ver kardex' },
+                      ]}
+                      onSelect={(key) =>
+                        setModal({ kind: key === 'count' ? 'count' : 'kardex', product })
+                      }
+                    />
                   </td>
                 </tr>
               )}
             </For>
           </tbody>
         </table>
-        <Show when={!products.loading && (products() ?? []).length === 0}>
+        <Show when={!result.loading && items().length === 0}>
           <p class={styles.vacio}>No hay productos que coincidan con la búsqueda.</p>
         </Show>
+      </div>
+
+      <div class={styles.paginacion}>
+        <button type="button" disabled={page() <= 1} onClick={() => setPage(page() - 1)}>
+          ‹ Anterior
+        </button>
+        <span>
+          Página {page()} de {totalPages()} · {total()} productos
+        </span>
+        <button type="button" disabled={page() >= totalPages()} onClick={() => setPage(page() + 1)}>
+          Siguiente ›
+        </button>
       </div>
 
       {(() => {

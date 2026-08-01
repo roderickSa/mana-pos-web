@@ -1,0 +1,39 @@
+.campo {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.boton {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--linea, #dde3ea);
+  border-radius: 10px;
+  background: var(--superficie-panel, #fff);
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton:active {
+  background: var(--mana-verde-suave, #e2f4e5);
+}
+
+/* Input nativo oculto: solo existe para anclar el calendario del navegador. */
+.oculto {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+  padding: 0;
+}

@@ -1,4 +1,5 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { DateField } from '@/shared/ui/DateField';
 
 import {
   getExpiring,
@@ -78,11 +79,9 @@ export const ExpiringTab: Component = () => {
             value={daysValue()}
             onInput={(event) => setDays(event.currentTarget.value)}
             onKeyDown={(event) => event.key === 'Enter' && void saveDays()}
+            onBlur={() => days() !== '' && void saveDays()}
           />
-          días
-          <button type="button" class={styles.guardarDias} onClick={() => void saveDays()}>
-            Guardar
-          </button>
+          días (se guarda solo)
         </label>
       </div>
 
@@ -137,12 +136,11 @@ export const ExpiringTab: Component = () => {
                         </>
                       }
                     >
-                      <input
-                        class={forms.input}
-                        style={{ 'max-width': '160px', display: 'inline-block' }}
-                        type="date"
+                      <DateField
+                        inputClass={forms.input}
+                        style={{ 'max-width': '210px', display: 'inline-flex' }}
                         value={newDate()}
-                        onInput={(event) => setNewDate(event.currentTarget.value)}
+                        onChange={setNewDate}
                       />
                       <button
                         type="button"

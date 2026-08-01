@@ -18,12 +18,13 @@ export interface CashBreakdownDto {
   cashAbonosCents: number;
   withdrawalsCents: number;
   expensesCents: number;
+  depositsCents: number;
   currentCashCents: number;
 }
 
 export interface CashMovementDto {
   id: string;
-  kind: 'withdrawal' | 'expense';
+  kind: 'withdrawal' | 'expense' | 'deposit';
   amountCents: number;
   concept: string;
   userId: string;
@@ -54,12 +55,16 @@ export async function openCash(
 }
 
 export async function registerCashMovement(
-  kind: 'withdrawal' | 'expense',
+  kind: 'withdrawal' | 'expense' | 'deposit',
   amountCents: number,
   concept: string,
   userId: string,
 ): Promise<{ currentCashCents: number }> {
   return sendJson('POST', '/cash/movements', { kind, amountCents, concept, userId });
+}
+
+export async function getCashHistory(): Promise<CashSessionDto[]> {
+  return getJson('/cash/history');
 }
 
 export async function closeCash(countedCashCents: number, userId: string): Promise<CloseResultDto> {

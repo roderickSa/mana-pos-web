@@ -1,9 +1,9 @@
 import { createSignal, Match, Show, Switch, type Component } from 'solid-js';
 
 import { InventoryView } from '@/features/inventory/InventoryView';
+import { PurchasesView } from '@/features/purchases/PurchasesView';
 import { SaleView } from '@/features/sale/SaleView';
 import { SalesHistoryView } from '@/features/sales-history/SalesHistoryView';
-import { DevicesView } from '@/features/devices/DevicesView';
 import { CreditView } from '@/features/credit/CreditView';
 import { CashView } from '@/features/cash/CashView';
 import { LoginView } from '@/features/login/LoginView';
@@ -12,6 +12,7 @@ import { currentUser, endSession } from '@/shared/state/session';
 import { clearPreferences, loadPreferencesFor } from '@/shared/state/preferences';
 import { showNotice } from '@/shared/state/notices';
 import { createEffect, createResource, onCleanup, onMount } from 'solid-js';
+import { StaleShiftBanner } from './components/StaleShiftBanner';
 import { StatusBar } from './components/StatusBar';
 import { TopBar, type View } from './components/TopBar';
 import styles from './App.module.css';
@@ -61,6 +62,7 @@ const App: Component = () => {
           </div>
         </Show>
         <TopBar view={view()} onNavigate={setView} />
+        <StaleShiftBanner onGoToCash={() => setView('caja')} />
 
       <Switch>
         <Match when={view() === 'venta'}>
@@ -78,8 +80,8 @@ const App: Component = () => {
         <Match when={view() === 'inventario'}>
           <InventoryView />
         </Match>
-        <Match when={view() === 'equipos'}>
-          <DevicesView />
+        <Match when={view() === 'compras'}>
+          <PurchasesView />
         </Match>
         <Match when={view() === 'ajustes'}>
           <SettingsView />

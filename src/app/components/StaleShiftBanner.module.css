@@ -1,0 +1,36 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #fdf3d7;
+  color: #6b4a00;
+  border-bottom: 1px solid #ecd9a0;
+  font-size: 0.92rem;
+}
+
+.icono {
+  font-size: 1.1rem;
+}
+
+.texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.accion {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #d9b95c;
+  border-radius: 10px;
+  background: #fff;
+  color: #6b4a00;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+.accion:active {
+  background: #f7e7b8;
+}

@@ -5,6 +5,7 @@ export interface UserDto {
   name: string;
   role: 'manager' | 'cashier';
   active: boolean;
+  lastLoginAt: string | null;
 }
 
 export async function loginWithPin(pin: string): Promise<UserDto> {

@@ -66,20 +66,23 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
         </Show>
       </span>
       <span class={styles.nombre}>{props.product.name}</span>
+      {/* Pie en dos filas: el precio nunca se parte; el detalle va debajo. */}
       <span class={styles.pie}>
         <span class={styles.precio}>
           {props.product.saleType === 'unit'
             ? formatSoles(props.product.priceCents)
             : formatSoles(props.product.pricePerKgCents)}
         </span>
-        <Show when={props.product.saleType === 'weight'}>
-          <span class={styles.granel}>por kg</span>
-        </Show>
-        <span
-          class={styles.stock}
-          classList={{ [styles.stockBajo]: low(), [styles.stockCero]: out() }}
-        >
-          {remainingLabel()}
+        <span class={styles.pieDetalle}>
+          <Show when={props.product.saleType === 'weight'}>
+            <span class={styles.granel}>por kg</span>
+          </Show>
+          <span
+            class={styles.stock}
+            classList={{ [styles.stockBajo]: low(), [styles.stockCero]: out() }}
+          >
+            {remainingLabel()}
+          </span>
         </span>
       </span>
     </button>

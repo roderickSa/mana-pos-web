@@ -135,7 +135,8 @@ export const TicketPanel: Component<{
         </Show>
       </div>
 
-      <div class={styles.total}>
+      {/* aria-live: el lector de pantalla anuncia el total con cada cambio. */}
+      <div class={styles.total} aria-live="polite">
         <span class={styles.totalEtiqueta}>Total</span>
         <span class={styles.totalMonto}>{formatSoles(ticketTotalCents())}</span>
       </div>
@@ -163,10 +164,11 @@ export const TicketPanel: Component<{
       <button
         type="button"
         class={`${styles.esperaBoton} ${styles.ayuda}`}
-        title="Atajos de teclado (F1)"
+        title="Ver los atajos de teclado y su equivalente táctil"
+        aria-label="Ayuda: atajos de teclado (F1)"
         onClick={props.onHelp}
       >
-        ⌨ F1
+        ⌨ Ayuda (F1)
       </button>
     </div>
 

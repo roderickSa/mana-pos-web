@@ -59,3 +59,43 @@ textarea {
     animation: none !important;
   }
 }
+
+/* En táctil no hay hover: el único feedback de un tap es :active. */
+button:active {
+  filter: brightness(0.94);
+}
+
+/* Evita el rebote/pull-to-refresh al llegar al borde de una lista. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* Red de seguridad táctil global: TODO control interactivo llega a 44px.
+   Los módulos pueden dar más (48px), pero nunca menos. */
+@media (pointer: coarse) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+  }
+
+  label:has(input[type='checkbox']),
+  label:has(input[type='radio']) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+}

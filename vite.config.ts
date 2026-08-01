@@ -17,6 +17,7 @@ export default defineConfig({
       '/catalog': 'http://localhost:3210',
       '/inventory': 'http://localhost:3210',
       '/suppliers': 'http://localhost:3210',
+      '/purchases': 'http://localhost:3210',
       '/sales': 'http://localhost:3210',
       '/devices': 'http://localhost:3210',
       '/customers': 'http://localhost:3210',

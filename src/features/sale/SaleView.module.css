@@ -70,10 +70,31 @@
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
   .cuerpo {
     flex-direction: column;
   }
+}
+
+/* Leyenda fija bajo la grilla: qué significan los badges con número. */
+.leyendaAtajos {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+}
+
+.leyendaAtajos kbd {
+  font-family: var(--fuente-voucher);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid var(--linea);
+  border-bottom-width: 2.5px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  background: var(--superficie-panel);
 }

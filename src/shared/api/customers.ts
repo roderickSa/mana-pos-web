@@ -7,6 +7,7 @@ export interface CustomerAccountDto {
   document: string | null;
   creditLimitCents: number;
   balanceCents: number;
+  debtSince: string | null;
   availableCents: number;
 }
 

@@ -4,7 +4,8 @@ interface ProductBase {
   shortCode: string | null;
   name: string;
   category: string;
-  supplierId: string | null;
+  // Proveedores a los que se compra; vacío = costo directo sin proveedor.
+  supplierIds: string[];
   imagePath: string | null;
   active: boolean;
   quickAccess: boolean;
@@ -22,6 +23,9 @@ export interface UnitProductDto extends ProductBase {
   saleType: 'unit';
   priceCents: number;
   costCents: number;
+  // Compra por empaque: 1 caja/paquete = packSize unidades a packCostCents.
+  packSize: number | null;
+  packCostCents: number | null;
   stockUnits: number;
   stockMinimum: number;
 }

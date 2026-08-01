@@ -82,7 +82,16 @@ export interface SalesPageDto {
     chargedTotalCents: number;
     byMethod: Array<{ method: string; amountCents: number }>;
     voidedByUser: Array<{ user: string; count: number; totalCents: number }>;
+    soldByUser: Array<{ user: string; count: number; totalCents: number }>;
+    // Desglose informativo: el precio cobrado ya incluye IGV.
+    igv: IgvBreakdownDto;
   };
+}
+
+export interface IgvBreakdownDto {
+  ratePercent: number;
+  baseCents: number;
+  igvCents: number;
 }
 
 export interface SalesFilters {
@@ -144,6 +153,7 @@ export interface TicketDetailDto {
     totalCents: number;
   }>;
   payments: Array<{ method: string; amountCents: number }>;
+  igv: IgvBreakdownDto;
 }
 
 export async function getTicketDetail(ticketId: string): Promise<TicketDetailDto> {

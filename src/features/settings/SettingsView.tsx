@@ -1,8 +1,11 @@
 import { createResource, createSignal, Match, Show, Switch, type Component } from 'solid-js';
 
-import { getReceiptConfig, updateReceiptConfig } from '@/shared/api/settings';
+import { getIgvConfig, getReceiptConfig, updateIgvConfig, updateReceiptConfig } from '@/shared/api/settings';
 import { showNotice } from '@/shared/state/notices';
 import { UsersView } from '@/features/users/UsersView';
+import { DevicesView } from '@/features/devices/DevicesView';
+import { CategoriesTab } from '@/features/inventory/components/CategoriesTab';
+import { SuppliersTab } from '@/features/inventory/components/SuppliersTab';
 import tabs from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 import styles from './SettingsView.module.css';
@@ -85,6 +88,10 @@ const VoucherTab: Component = () => {
           <p>Inca Kola 600 ml{'          '}S/ 3.50</p>
           <p class={styles.previewLinea}>--------------------------------</p>
           <p class={styles.previewTotal}>TOTAL{'              '}S/ 3.50</p>
+          <p>Efectivo{'           '}S/ 2.00</p>
+          <p>Yape{'               '}S/ 1.50</p>
+          <p>Recibido{'           '}S/ 5.00</p>
+          <p>Vuelto{'             '}S/ 3.00</p>
           <p>{footerValue() || 'Mensaje final'}</p>
           <p class={styles.previewLegal}>Comprobante interno - no valido</p>
           <p class={styles.previewLegal}>como comprobante de pago</p>
@@ -94,36 +101,113 @@ const VoucherTab: Component = () => {
   );
 };
 
+const IgvTab: Component = () => {
+  const [config] = createResource(getIgvConfig);
+  const [rate, setRate] = createSignal<string | null>(null);
+  const [saving, setSaving] = createSignal(false);
+
+  const rateValue = () => rate() ?? String(config()?.ratePercent ?? 18);
+  const parsedRate = () => Number.parseInt(rateValue(), 10);
+  const valid = () => !Number.isNaN(parsedRate()) && parsedRate() >= 0 && parsedRate() <= 25;
+
+  async function save(): Promise<void> {
+    if (!valid() || saving()) return;
+    setSaving(true);
+    try {
+      const updated = await updateIgvConfig(parsedRate());
+      setRate(String(updated.ratePercent));
+      showNotice(`IGV configurado en ${updated.ratePercent}%`);
+    } catch {
+      showNotice('No se pudo guardar la tasa de IGV.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section class={tabs.vista}>
+      <div class={forms.form} style={{ 'max-width': '520px' }}>
+        <div class={forms.campo}>
+          <span class={forms.etiqueta}>Tasa de IGV (%)</span>
+          <input
+            class={forms.input}
+            type="number"
+            min="0"
+            max="25"
+            step="1"
+            value={rateValue()}
+            onInput={(event) => setRate(event.currentTarget.value)}
+          />
+        </div>
+        <p class={forms.nota}>
+          El precio al público ya incluye el IGV: esta tasa solo se usa para el desglose
+          informativo de base imponible e IGV en Ventas y en el detalle de cada ticket. No cambia
+          ningún cobro. Usa 0 si la venta está exonerada.
+        </p>
+        <div class={forms.acciones}>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={!valid() || saving()}
+            onClick={() => void save()}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// Todo lo que se configura una vez y se toca poco vive aquí: usuarios,
+// equipos, voucher, IGV y los catálogos maestros (categorías, proveedores).
+type SettingsTab = 'usuarios' | 'equipos' | 'voucher' | 'igv' | 'categorias' | 'proveedores';
+
+const TABS: Array<{ key: SettingsTab; label: string }> = [
+  { key: 'usuarios', label: 'Usuarios' },
+  { key: 'equipos', label: 'Equipos' },
+  { key: 'voucher', label: 'Voucher' },
+  { key: 'igv', label: 'IGV' },
+  { key: 'categorias', label: 'Categorías' },
+  { key: 'proveedores', label: 'Proveedores' },
+];
+
 export const SettingsView: Component = () => {
-  const [tab, setTab] = createSignal<'usuarios' | 'voucher'>('usuarios');
+  const [tab, setTab] = createSignal<SettingsTab>('usuarios');
 
   return (
     <section class={tabs.contenedorTabs}>
       <nav class={tabs.subnav} aria-label="Ajustes">
-        <button
-          type="button"
-          class={tabs.subtab}
-          classList={{ [tabs.subtabActiva]: tab() === 'usuarios' }}
-          onClick={() => setTab('usuarios')}
-        >
-          Usuarios
-        </button>
-        <button
-          type="button"
-          class={tabs.subtab}
-          classList={{ [tabs.subtabActiva]: tab() === 'voucher' }}
-          onClick={() => setTab('voucher')}
-        >
-          Voucher
-        </button>
+        {TABS.map((item) => (
+          <button
+            type="button"
+            class={tabs.subtab}
+            classList={{ [tabs.subtabActiva]: tab() === item.key }}
+            onClick={() => setTab(item.key)}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
 
       <Switch>
         <Match when={tab() === 'usuarios'}>
           <UsersView />
         </Match>
+        <Match when={tab() === 'equipos'}>
+          <DevicesView />
+        </Match>
         <Match when={tab() === 'voucher'}>
           <VoucherTab />
+        </Match>
+        <Match when={tab() === 'igv'}>
+          <IgvTab />
+        </Match>
+        <Match when={tab() === 'categorias'}>
+          <CategoriesTab />
+        </Match>
+        <Match when={tab() === 'proveedores'}>
+          <SuppliersTab />
         </Match>
       </Switch>
     </section>

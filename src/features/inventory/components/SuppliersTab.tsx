@@ -1,6 +1,10 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
 
+import { linkProductSupplier, searchProducts, unlinkProductSupplier } from '@/shared/api/products';
+import { ProductPicker } from '@/shared/ui/ProductPicker';
 import { createSupplier, listSuppliers, updateSupplier } from '@/shared/api/suppliers';
+import { beepError, beepOk } from '@/shared/lib/sounds';
+import type { ProductDto } from '@/shared/types';
 import { showNotice } from '@/shared/state/notices';
 import type { SupplierDto } from '@/shared/types';
 import { Modal } from '@/shared/ui/Modal';
@@ -90,7 +94,11 @@ const SupplierFormModal: Component<{
 
 export const SuppliersTab: Component = () => {
   const [suppliers, { refetch }] = createResource(listSuppliers);
-  type ModalState = { kind: 'none' } | { kind: 'create' } | { kind: 'edit'; supplier: SupplierDto };
+  type ModalState =
+    | { kind: 'none' }
+    | { kind: 'create' }
+    | { kind: 'edit'; supplier: SupplierDto }
+    | { kind: 'products'; supplier: SupplierDto };
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
 
   function closeAndRefresh(message: string): void {
@@ -103,7 +111,8 @@ export const SuppliersTab: Component = () => {
     <section class={styles.vista}>
       <div class={styles.encabezado}>
         <span class={styles.sub} style={{ flex: '1' }}>
-          Los proveedores se asignan a cada producto desde Productos → Editar.
+          Asocia productos desde el botón «Productos» de cada proveedor, o desde Productos →
+          Editar.
         </span>
         <button type="button" class={styles.nuevo} onClick={() => setModal({ kind: 'create' })}>
           + Nuevo proveedor
@@ -133,6 +142,13 @@ export const SuppliersTab: Component = () => {
                     <button type="button" onClick={() => setModal({ kind: 'edit', supplier })}>
                       Editar
                     </button>
+                    <button
+                      type="button"
+                      title="Qué productos se le compran a este proveedor"
+                      onClick={() => setModal({ kind: 'products', supplier })}
+                    >
+                      Productos
+                    </button>
                   </td>
                 </tr>
               )}
@@ -140,13 +156,26 @@ export const SuppliersTab: Component = () => {
           </tbody>
         </table>
         <Show when={!suppliers.loading && (suppliers() ?? []).length === 0}>
-          <p class={styles.vacio}>Aún no hay proveedores. Crea el primero.</p>
+          <div class={styles.vacio}>
+            <p>Aún no hay proveedores.</p>
+            <button type="button" class={styles.nuevo} onClick={() => setModal({ kind: 'create' })}>
+              + Crear el primer proveedor
+            </button>
+          </div>
         </Show>
       </div>
 
       <Show when={modal().kind !== 'none'}>
         {(() => {
           const state = modal();
+          if (state.kind === 'products') {
+            return (
+              <SupplierProductsModal
+                supplier={state.supplier}
+                onClose={() => setModal({ kind: 'none' })}
+              />
+            );
+          }
           return (
             <SupplierFormModal
               supplier={state.kind === 'edit' ? state.supplier : null}
@@ -157,5 +186,91 @@ export const SuppliersTab: Component = () => {
         })()}
       </Show>
     </section>
+  );
+};
+
+// Catálogo del proveedor: asociar/desasociar en lote sin pasar por cada
+// producto. El buscador de la orden de compra solo ofrece lo asociado aquí.
+const SupplierProductsModal: Component<{
+  supplier: SupplierDto;
+  onClose: () => void;
+}> = (props) => {
+  const [version, setVersion] = createSignal(0);
+
+  const [linked, { refetch }] = createResource(version, () =>
+    searchProducts('', null, true, false, props.supplier.id),
+  );
+
+  async function add(product: ProductDto): Promise<void> {
+    try {
+      await linkProductSupplier(product.id, props.supplier.id);
+      beepOk();
+      setVersion((value) => value + 1);
+      void refetch();
+    } catch {
+      beepError();
+    }
+  }
+
+  async function remove(product: ProductDto): Promise<void> {
+    try {
+      await unlinkProductSupplier(product.id, props.supplier.id);
+      beepOk();
+      setVersion((value) => value + 1);
+      void refetch();
+    } catch {
+      beepError();
+    }
+  }
+
+  return (
+    <Modal size="lg" title={`Productos de ${props.supplier.name}`} onClose={props.onClose}>
+      <div class={forms.form}>
+        <div class={forms.campo}>
+          <span class={forms.etiqueta}>Asociar producto (nombre, o escanea el código y Enter)</span>
+          <ProductPicker
+            placeholder="busca por nombre o escanea el código"
+            includeInactive
+            accept={(product) => !(linked() ?? []).some((item) => item.id === product.id)}
+            meta={(product) => product.barcode ?? 'sin código'}
+            onPick={(product) => void add(product)}
+          />
+        </div>
+
+        <p class={forms.nota}>
+          {(linked() ?? []).length === 0
+            ? 'Este proveedor aún no tiene productos asociados: asócialos arriba para poder armarle órdenes de compra.'
+            : `${(linked() ?? []).length} productos asociados — solo estos aparecen al armarle una orden de compra.`}
+        </p>
+        <div style={{ display: 'flex', 'flex-direction': 'column', gap: '6px' }}>
+          <For each={linked() ?? []}>
+            {(product) => (
+              <div
+                style={{
+                  display: 'flex',
+                  'align-items': 'center',
+                  'justify-content': 'space-between',
+                  gap: '8px',
+                  'border-bottom': '1px dashed var(--linea)',
+                  padding: '6px 0',
+                }}
+              >
+                <span>
+                  {product.name}
+                  {product.active ? '' : ' (inactivo)'}
+                </span>
+                <button
+                  type="button"
+                  class={forms.secundario}
+                  onClick={() => void remove(product)}
+                >
+                  Quitar
+                </button>
+              </div>
+            )}
+          </For>
+        </div>
+      </div>
+    </Modal>
   );
 };

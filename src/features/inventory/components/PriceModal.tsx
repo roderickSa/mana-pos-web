@@ -33,9 +33,11 @@ export const PriceModal: Component<{
         shortCode: props.product.shortCode,
         name: props.product.name,
         category: props.product.category,
-        supplierId: props.product.supplierId,
+        supplierIds: props.product.supplierIds,
         priceCents: newPriceCents(),
         costCents: costOf(props.product),
+        packSize: props.product.saleType === 'unit' ? props.product.packSize : null,
+        packCostCents: props.product.saleType === 'unit' ? props.product.packCostCents : null,
         stockMinimum:
           props.product.saleType === 'unit'
             ? props.product.stockMinimum

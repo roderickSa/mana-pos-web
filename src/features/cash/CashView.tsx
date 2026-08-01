@@ -1,11 +1,13 @@
 import { createResource, createSignal, For, Match, Show, Switch, type Component } from 'solid-js';
+import { Keypad } from '@/shared/ui/Keypad';
 
 import {
   closeCash,
   getCashStatus,
   openCash,
   registerCashMovement,
-  type CloseResultDto, printLastCloseSummary,
+  type CashSessionDto,
+  type CloseResultDto, getCashHistory, printLastCloseSummary,
 } from '@/shared/api/cash';
 import { apiErrorMessage } from '@/shared/api/client';
 import { formatSoles, solesInputToCents } from '@/shared/lib/money';
@@ -19,9 +21,15 @@ import { Modal } from '@/shared/ui/Modal';
 import forms from '@/shared/ui/forms.module.css';
 import styles from './CashView.module.css';
 
+const MOVEMENT_LABELS: Record<'withdrawal' | 'expense' | 'deposit', string> = {
+  withdrawal: 'Retiro',
+  expense: 'Gasto',
+  deposit: 'Ingreso',
+};
+
 type ModalState =
   | { kind: 'none' }
-  | { kind: 'movement'; movementKind: 'withdrawal' | 'expense' }
+  | { kind: 'movement'; movementKind: 'withdrawal' | 'expense' | 'deposit' }
   | { kind: 'close' }
   | { kind: 'closed'; result: CloseResultDto };
 
@@ -135,12 +143,16 @@ export const CashView: Component = () => {
                         <div><span>Fondo inicial</span><b>{formatSoles(open().breakdown.openingCents)}</b></div>
                         <div><span>Ventas en efectivo</span><b>{formatSoles(open().breakdown.cashSalesCents)}</b></div>
                         <div><span>Abonos de fiado</span><b>{formatSoles(open().breakdown.cashAbonosCents)}</b></div>
+                        <div><span>Ingresos de efectivo</span><b>{formatSoles(open().breakdown.depositsCents)}</b></div>
                         <div><span>Retiros</span><b>−{formatSoles(open().breakdown.withdrawalsCents)}</b></div>
                         <div><span>Gastos</span><b>−{formatSoles(open().breakdown.expensesCents)}</b></div>
                       </div>
                     </div>
 
                     <div class={styles.acciones}>
+                      <button type="button" onClick={() => setModal({ kind: 'movement', movementKind: 'deposit' })}>
+                        Ingreso de efectivo
+                      </button>
                       <button type="button" onClick={() => setModal({ kind: 'movement', movementKind: 'withdrawal' })}>
                         Retiro de efectivo
                       </button>
@@ -159,8 +171,11 @@ export const CashView: Component = () => {
                           <p class={forms.nota} style={{ 'border-bottom': '1px dashed var(--linea)', padding: '6px 0' }}>
                             {formatTime(movement.createdAt)}
                             {' · '}
-                            {movement.kind === 'withdrawal' ? 'Retiro' : 'Gasto'} · {movement.concept} ·{' '}
-                            <b style={{ color: 'var(--peligro)' }}>−{formatSoles(movement.amountCents)}</b>
+                            {MOVEMENT_LABELS[movement.kind]} · {movement.concept} ·{' '}
+                            <b style={{ color: movement.kind === 'deposit' ? 'var(--exito)' : 'var(--peligro)' }}>
+                              {movement.kind === 'deposit' ? '+' : '−'}
+                              {formatSoles(movement.amountCents)}
+                            </b>
                           </p>
                         )}
                       </For>
@@ -176,6 +191,8 @@ export const CashView: Component = () => {
         </Match>
       </Switch>
 
+      <ClosingsHistory version={cashRefreshVersion()} />
+
       {renderModal(modal(), setModal, () => {
         bumpCashRefresh();
         void refetch();
@@ -184,8 +201,47 @@ export const CashView: Component = () => {
   );
 };
 
+// Cortes anteriores: hoy sí se puede ver el cierre de ayer sin reimprimirlo.
+const ClosingsHistory: Component<{ version: number }> = (props) => {
+  const [history] = createResource(
+    () => props.version,
+    () => getCashHistory().catch((): CashSessionDto[] => []),
+  );
+
+  const difference = (session: CashSessionDto) =>
+    (session.countedCashCents ?? 0) - (session.expectedCashCents ?? 0);
+
+  return (
+    <Show when={(history() ?? []).length > 0}>
+      <div class={styles.movimientos}>
+        <h3>Cierres anteriores</h3>
+        <For each={history() ?? []}>
+          {(session) => (
+            <p class={forms.nota} style={{ 'border-bottom': '1px dashed var(--linea)', padding: '6px 0' }}>
+              {session.closedAt === null ? '—' : formatDateTime(session.closedAt)}
+              {' · '}
+              {session.shift === 'morning' ? 'mañana' : 'tarde'} · esperado{' '}
+              {formatSoles(session.expectedCashCents ?? 0)} · contado{' '}
+              {formatSoles(session.countedCashCents ?? 0)} ·{' '}
+              <b
+                style={{
+                  color: difference(session) === 0 ? 'var(--exito)' : 'var(--peligro)',
+                }}
+              >
+                {difference(session) === 0
+                  ? 'cuadró'
+                  : `${difference(session) > 0 ? '+' : ''}${formatSoles(difference(session))}`}
+              </b>
+            </p>
+          )}
+        </For>
+      </div>
+    </Show>
+  );
+};
+
 const MovementModal: Component<{
-  movementKind: 'withdrawal' | 'expense';
+  movementKind: 'withdrawal' | 'expense' | 'deposit';
   onDone: () => void;
   onClose: () => void;
 }> = (props) => {
@@ -200,7 +256,7 @@ const MovementModal: Component<{
       const result = await registerCashMovement(props.movementKind, cents, concept().trim(), currentUserName());
       beepSuccess();
       showNotice(
-        `${props.movementKind === 'withdrawal' ? 'Retiro' : 'Gasto'} de ${formatSoles(cents)} registrado — quedan ${formatSoles(result.currentCashCents)} en caja`,
+        `${MOVEMENT_LABELS[props.movementKind]} de ${formatSoles(cents)} registrado — quedan ${formatSoles(result.currentCashCents)} en caja`,
       );
       props.onDone();
     } catch (cause) {
@@ -211,7 +267,13 @@ const MovementModal: Component<{
 
   return (
     <Modal
-      title={props.movementKind === 'withdrawal' ? 'Retiro de efectivo' : 'Gasto desde caja'}
+      title={
+        props.movementKind === 'withdrawal'
+          ? 'Retiro de efectivo'
+          : props.movementKind === 'expense'
+            ? 'Gasto desde caja'
+            : 'Ingreso de efectivo (refuerzo de fondo)'
+      }
       onClose={props.onClose}
     >
       <div class={forms.form}>
@@ -234,7 +296,13 @@ const MovementModal: Component<{
               class={forms.input}
               value={concept()}
               onInput={(event) => setConcept(event.currentTarget.value)}
-              placeholder={props.movementKind === 'withdrawal' ? 'p. ej. a la bóveda' : 'p. ej. hielo, flete'}
+              placeholder={
+                props.movementKind === 'withdrawal'
+                  ? 'p. ej. a la bóveda'
+                  : props.movementKind === 'expense'
+                    ? 'p. ej. hielo, flete'
+                    : 'p. ej. sencillo para vuelto'
+              }
               onKeyDown={(event) => event.key === 'Enter' && void save()}
             />
           </div>
@@ -294,6 +362,7 @@ const CloseModal: Component<{
             onKeyDown={(event) => event.key === 'Enter' && void save()}
             autofocus
           />
+          <Keypad value={counted()} onChange={setCounted} allowDecimal />
         </div>
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>

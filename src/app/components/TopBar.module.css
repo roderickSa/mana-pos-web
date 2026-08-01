@@ -59,7 +59,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--mana-ambar);
+  background: rgba(255, 255, 255, 0.9);
   color: var(--mana-verde-hondo);
   display: inline-flex;
   align-items: center;
@@ -69,8 +69,8 @@
 }
 
 .aviso {
-  background: var(--mana-ambar);
-  color: var(--mana-ambar-tinta);
+  background: #fff;
+  color: var(--mana-verde-hondo);
 }
 
 .spacer {
@@ -104,8 +104,8 @@
 }
 
 .accesActivo {
-  background: var(--mana-ambar);
-  color: var(--mana-ambar-tinta);
+  background: #fff;
+  color: var(--mana-verde-hondo);
 }
 
 .salir:hover {

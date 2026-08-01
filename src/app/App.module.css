@@ -4,9 +4,10 @@
   height: 100%;
 }
 
+/* Informativo, no alerta: azul gris para no competir con las advertencias. */
 .entrenamiento {
-  background: var(--mana-ambar);
-  color: var(--mana-ambar-tinta);
+  background: #dbe7f5;
+  color: #1c3f6e;
   text-align: center;
   font-weight: 800;
   font-size: 0.85rem;

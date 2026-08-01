@@ -1,4 +1,6 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { focusOnMount } from '@/shared/lib/focus';
+import { Keypad } from '@/shared/ui/Keypad';
 
 import {
   createCustomer,
@@ -25,6 +27,23 @@ type ModalState =
   | { kind: 'edit'; account: CustomerAccountDto }
   | { kind: 'abono'; account: CustomerAccountDto }
   | { kind: 'statement'; account: CustomerAccountDto };
+
+// "debe desde hace N días" legible, sin que la cajera calcule fechas.
+function debtSinceLabel(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  const fecha = new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  if (days <= 0) return `hoy (${fecha})`;
+  if (days === 1) return `ayer (${fecha})`;
+  return `hace ${days} días (${fecha})`;
+}
+
+// Mensaje pre-armado: la función de fiado que más se usa en la práctica.
+function whatsappReminderUrl(account: CustomerAccountDto): string {
+  const phone = (account.phone ?? '').replace(/\D/g, '');
+  const withCountry = phone.length === 9 ? `51${phone}` : phone;
+  const message = `Hola ${account.name}, te saludamos del minimarket Maná. Te recordamos que tienes un saldo pendiente de ${formatSoles(account.balanceCents)}. ¡Gracias!`;
+  return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
+}
 
 const CustomerFormModal: Component<{
   account: CustomerAccountDto | null;
@@ -163,6 +182,7 @@ const AbonoModal: Component<{
             </select>
           </div>
         </div>
+        <Keypad value={amount()} onChange={setAmount} allowDecimal />
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
@@ -238,12 +258,18 @@ export const CreditView: Component = () => {
     void refetch();
   }
 
-  const totalDebt = () => (accounts() ?? []).reduce((sum, account) => sum + account.balanceCents, 0);
+  // Deuda real = solo saldos positivos; lo "a favor" se informa aparte y en
+  // verde (un negativo dentro de un chip de alerta se lee como problema).
+  const totalDebt = () =>
+    (accounts() ?? []).reduce((sum, account) => sum + Math.max(0, account.balanceCents), 0);
+  const totalInFavor = () =>
+    (accounts() ?? []).reduce((sum, account) => sum + Math.max(0, -account.balanceCents), 0);
 
   return (
     <section class={tabla.vista}>
       <div class={tabla.encabezado}>
         <input
+          ref={focusOnMount}
           class={tabla.buscador}
           type="text"
           placeholder="Buscar cliente…"
@@ -259,6 +285,9 @@ export const CreditView: Component = () => {
           Solo deudores
         </label>
         <span class={tabla.alertaBajo}>Deuda total: {formatSoles(totalDebt())}</span>
+        <Show when={totalInFavor() > 0}>
+          <span class={tabla.positivo}>{formatSoles(totalInFavor())} a favor de clientes</span>
+        </Show>
         <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
           + Nuevo cliente
         </button>
@@ -272,6 +301,7 @@ export const CreditView: Component = () => {
               <th>Teléfono</th>
               <th class={tabla.num}>Límite</th>
               <th class={tabla.num}>Deuda</th>
+              <th>Debe desde</th>
               <th class={tabla.num}>Disponible</th>
               <th>Acciones</th>
             </tr>
@@ -291,13 +321,18 @@ export const CreditView: Component = () => {
                       class={tabla.stock}
                       classList={{
                         [tabla.stockCero]: account.balanceCents > 0,
-                        [tabla.stockBajo]: account.balanceCents < 0,
+                        [tabla.positivo]: account.balanceCents < 0,
                       }}
                     >
                       {account.balanceCents < 0
                         ? `${formatSoles(-account.balanceCents)} a favor`
                         : formatSoles(account.balanceCents)}
                     </span>
+                  </td>
+                  <td class={tabla.sub}>
+                    {account.debtSince === null || account.balanceCents <= 0
+                      ? '—'
+                      : debtSinceLabel(account.debtSince)}
                   </td>
                   <td class={`${tabla.num} ${tabla.sub}`}>{formatSoles(account.availableCents)}</td>
                   <td class={tabla.acciones}>
@@ -308,6 +343,18 @@ export const CreditView: Component = () => {
                     >
                       Abonar
                     </button>
+                    <Show when={account.phone !== null && account.balanceCents > 0}>
+                      <a
+                        class={tabla.sub}
+                        style={{ 'margin-right': '6px' }}
+                        href={whatsappReminderUrl(account)}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Recordatorio de deuda por WhatsApp con mensaje pre-armado"
+                      >
+                        WhatsApp
+                      </a>
+                    </Show>
                     <button type="button" onClick={() => setModal({ kind: 'statement', account })}>
                       Estado de cuenta
                     </button>
@@ -321,9 +368,14 @@ export const CreditView: Component = () => {
           </tbody>
         </table>
         <Show when={!accounts.loading && (accounts() ?? []).length === 0}>
-          <p class={tabla.vacio}>
-            {onlyDebtors() ? 'Nadie debe nada. 🎉' : 'Aún no hay clientes. Crea el primero.'}
-          </p>
+          <div class={tabla.vacio}>
+            <Show when={!onlyDebtors()} fallback={<p>Nadie debe nada. 🎉</p>}>
+              <p>Aún no hay clientes de fiado.</p>
+              <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
+                + Crear el primer cliente
+              </button>
+            </Show>
+          </div>
         </Show>
       </div>
 

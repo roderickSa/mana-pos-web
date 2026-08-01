@@ -352,8 +352,24 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   onMount(() => document.addEventListener('keydown', onKeyDown));
   onCleanup(() => document.removeEventListener('keydown', onKeyDown));
 
+  // El buscador es el corazón de Vender: tras tocar CUALQUIER botón del
+  // módulo (stepper, pestañas, en espera, método de pago…) el foco vuelve
+  // ahí, así el siguiente escaneo nunca se pierde. Con un modal abierto no
+  // se roba el foco (el modal maneja el suyo).
+  function refocusAfterTap(event: MouseEvent): void {
+    if (modalOpen()) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('button') !== null) {
+      focusSearch();
+    }
+  }
+
   return (
-    <main class={styles.cuerpo} classList={{ [styles.borroso]: sellingBlocked() }}>
+    <main
+      class={styles.cuerpo}
+      classList={{ [styles.borroso]: sellingBlocked() }}
+      onClick={refocusAfterTap}
+    >
       <Show when={sellingBlocked()}>
         <div class={styles.bloqueo}>
           <div class={styles.bloqueoCard}>
@@ -390,6 +406,11 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           query={query()}
           onTap={onProductTap}
         />
+        {/* Leyenda de los badges numéricos: son teclas, no adornos. */}
+        <p class={styles.leyendaAtajos}>
+          <kbd>12</kbd> = código corto: tecléalo y Enter para agregar sin buscar. Escanear siempre
+          funciona, aunque el producto no esté a la vista.
+        </p>
       </section>
 
       <TicketPanel

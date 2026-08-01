@@ -16,12 +16,30 @@
   gap: 10px;
 }
 
+/* Labels en sentence case y peso medio: las mayúsculas quedan reservadas
+   para los títulos de sección — así hay jerarquía sin que todo grite. */
 .etiqueta {
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 500;
   color: var(--tinta-suave);
+}
+
+/* Título de sección dentro de un formulario largo: línea + versalitas. */
+.seccion {
+  margin: 6px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--linea);
+  font-size: 0.7rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: var(--tinta-suave);
+}
+
+.seccion:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
 }
 
 .input,

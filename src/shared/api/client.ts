@@ -52,7 +52,10 @@ export async function sendJson<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) return parseError(response);
-  return response.json();
+  // 204 / cuerpo vacío (asociar proveedor, deletes): no hay JSON que parsear
+  // — response.json() lanzaría "Unexpected end of JSON input".
+  const text = await response.text();
+  return JSON.parse(text === '' ? 'null' : text);
 }
 
 // Mensaje para mostrar al usuario: el del servidor si existe, si no el fallback.

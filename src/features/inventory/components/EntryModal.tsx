@@ -1,40 +1,142 @@
-import { createSignal, Show, type Component } from 'solid-js';
+import { createResource, createSignal, Show, type Component } from 'solid-js';
 
 import { registerEntry } from '@/shared/api/inventory';
-import { solesInputToCents } from '@/shared/lib/money';
+import {
+  getPurchaseOrder,
+  listPurchaseOrders,
+  receivePurchaseOrder,
+  type PurchaseOrderLineDto,
+} from '@/shared/api/purchases';
+import { centsToSolesInput, formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
+import { currentUserName } from '@/shared/state/session';
+import { DateField } from '@/shared/ui/DateField';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
 import { unitLabel } from './product-units';
 import styles from '@/shared/ui/forms.module.css';
+
+// Umbral de aviso: con menos de este margen conviene revisar el precio.
+const LOW_MARGIN_PCT = 10;
+
+interface LinkedOrder {
+  orderId: string;
+  orderNumber: number;
+  supplierName: string;
+  line: PurchaseOrderLineDto;
+}
 
 export const EntryModal: Component<{
   product: ProductDto;
   onDone: (message: string) => void;
   onClose: () => void;
 }> = (props) => {
+  const unitProduct = props.product.saleType === 'unit' ? props.product : null;
+  const [byBoxes, setByBoxes] = createSignal(false);
   const [quantity, setQuantity] = createSignal('');
   const [unitCost, setUnitCost] = createSignal('');
+  const [boxes, setBoxes] = createSignal('');
+  const [unitsPerBox, setUnitsPerBox] = createSignal(
+    unitProduct !== null && unitProduct.packSize !== null ? String(unitProduct.packSize) : '',
+  );
+  const [boxCost, setBoxCost] = createSignal(
+    unitProduct !== null && unitProduct.packCostCents !== null
+      ? centsToSolesInput(unitProduct.packCostCents)
+      : '',
+  );
   const [expiry, setExpiry] = createSignal('');
   const [error, setError] = createSignal('');
+  const [linkToOrder, setLinkToOrder] = createSignal(true);
+
+  // Si hay una orden de compra abierta con este producto pendiente, la
+  // entrada puede vincularse a ella (baja el pendiente en vez de quedar suelta).
+  const [linkedOrder] = createResource<LinkedOrder | null>(async () => {
+    try {
+      const orders = await listPurchaseOrders();
+      for (const summary of orders) {
+        if (summary.status !== 'open' && summary.status !== 'partial') continue;
+        const order = await getPurchaseOrder(summary.id);
+        const line = order.lines.find(
+          (item) => item.productId === props.product.id && item.pendingQuantity > 0,
+        );
+        if (line !== undefined) {
+          return {
+            orderId: order.id,
+            orderNumber: order.number,
+            supplierName: summary.supplierName,
+            line,
+          };
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
 
   const costUnitLabel = () => (props.product.saleType === 'weight' ? 'por kg' : 'por unidad');
 
+  const enteredQuantity = () =>
+    byBoxes() ? totalUnits() : Number.parseInt(quantity(), 10) || 0;
+  const enteredCost = () =>
+    byBoxes()
+      ? derivedCost()
+      : unitCost().trim() === ''
+        ? null
+        : solesInputToCents(unitCost());
+
+  const currentStock = () =>
+    props.product.saleType === 'unit' ? props.product.stockUnits : props.product.stockGrams;
+  const stockLabel = (value: number) =>
+    props.product.saleType === 'unit' ? `${value} und` : formatKg(value);
+
+  // Margen resultante con el costo capturado: si queda flaco, avisar.
+  const resultingMarginPct = () => {
+    const cost = enteredCost();
+    if (cost === null || cost <= 0) return null;
+    const price =
+      props.product.saleType === 'unit' ? props.product.priceCents : props.product.pricePerKgCents;
+    if (price <= 0) return null;
+    return Math.round(((price - cost) / price) * 100);
+  };
+
+  const boxCount = () => Number.parseInt(boxes(), 10) || 0;
+  const boxUnits = () => Number.parseInt(unitsPerBox(), 10) || 0;
+  const totalUnits = () => boxCount() * boxUnits();
+  // Costo unitario derivado del costo por caja (vacío = no actualizar costo).
+  const derivedCost = () => {
+    const cents = solesInputToCents(boxCost());
+    return cents === null || cents <= 0 || boxUnits() <= 0 ? null : Math.round(cents / boxUnits());
+  };
+
   async function save(): Promise<void> {
-    const value = Number.parseInt(quantity(), 10);
-    if (Number.isNaN(value) || value <= 0) return;
-    const costCents = unitCost().trim() === '' ? null : solesInputToCents(unitCost());
-    if (costCents !== null && costCents <= 0) {
+    const value = enteredQuantity();
+    if (value <= 0) return;
+    const costCents = enteredCost();
+    if (!byBoxes() && costCents !== null && costCents <= 0) {
       setError('El costo debe ser mayor a cero, o déjalo vacío.');
       return;
     }
+    const order = linkedOrder();
     try {
-      await registerEntry(
-        props.product.id,
-        value,
-        costCents,
-        expiry().trim() === '' ? null : expiry(),
-      );
+      if (order != null && linkToOrder()) {
+        // Vinculada: es una recepción de la orden, no una entrada suelta.
+        const updated = await receivePurchaseOrder(order.orderId, currentUserName(), [
+          {
+            lineId: order.line.id,
+            quantity: value,
+            unitCostCents: costCents,
+            expiryDate: expiry().trim() === '' ? null : expiry(),
+          },
+        ]);
+        props.onDone(
+          `Recepción registrada en la orden #${order.orderNumber} (${
+            updated.status === 'received' ? 'completa' : 'parcial'
+          }): +${value} ${unitLabel(props.product)}`,
+        );
+        return;
+      }
+      await registerEntry(props.product.id, value, costCents, expiry().trim() === '' ? null : expiry());
       props.onDone(
         `Entrada registrada: +${value} ${unitLabel(props.product)}${
           costCents === null ? '' : ' — costo actualizado'
@@ -49,41 +151,124 @@ export const EntryModal: Component<{
   return (
     <Modal title={`Entrada de mercancía — ${props.product.name}`} onClose={props.onClose}>
       <div class={styles.form}>
-        <div class={styles.fila}>
-          <div class={styles.campo}>
-            <span class={styles.etiqueta}>Cantidad que llegó ({unitLabel(props.product)})</span>
+        <Show when={unitProduct !== null}>
+          <label class={styles.check}>
             <input
-              class={styles.input}
-              type="number"
-              min="1"
-              value={quantity()}
-              onInput={(event) => setQuantity(event.currentTarget.value)}
-              onKeyDown={(event) => event.key === 'Enter' && save()}
-              autofocus
+              type="checkbox"
+              checked={byBoxes()}
+              onChange={(event) => setByBoxes(event.currentTarget.checked)}
             />
+            Llegó en cajas/paquetes
+          </label>
+        </Show>
+
+        <Show
+          when={byBoxes()}
+          fallback={
+            <div class={styles.fila}>
+              <div class={styles.campo}>
+                <span class={styles.etiqueta}>Cantidad que llegó ({unitLabel(props.product)})</span>
+                <input
+                  class={styles.input}
+                  type="number"
+                  min="1"
+                  value={quantity()}
+                  onInput={(event) => setQuantity(event.currentTarget.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && save()}
+                  autofocus
+                />
+              </div>
+              <div class={styles.campo}>
+                <span class={styles.etiqueta}>Costo S/ {costUnitLabel()} (opcional)</span>
+                <input
+                  class={styles.input}
+                  type="number"
+                  step="0.10"
+                  min="0"
+                  placeholder="lo que pagaste"
+                  value={unitCost()}
+                  onInput={(event) => setUnitCost(event.currentTarget.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && save()}
+                />
+              </div>
+            </div>
+          }
+        >
+          <div class={styles.fila}>
+            <div class={styles.campo}>
+              <span class={styles.etiqueta}>Cajas que llegaron</span>
+              <input
+                class={styles.input}
+                type="number"
+                min="1"
+                step="1"
+                value={boxes()}
+                onInput={(event) => setBoxes(event.currentTarget.value)}
+                onKeyDown={(event) => event.key === 'Enter' && save()}
+                autofocus
+              />
+            </div>
+            <div class={styles.campo}>
+              <span class={styles.etiqueta}>Unidades por caja</span>
+              <input
+                class={styles.input}
+                type="number"
+                min="1"
+                step="1"
+                value={unitsPerBox()}
+                onInput={(event) => setUnitsPerBox(event.currentTarget.value)}
+              />
+            </div>
+            <div class={styles.campo}>
+              <span class={styles.etiqueta}>Costo por caja S/ (opcional)</span>
+              <input
+                class={styles.input}
+                type="number"
+                step="0.10"
+                min="0"
+                placeholder="lo que pagaste"
+                value={boxCost()}
+                onInput={(event) => setBoxCost(event.currentTarget.value)}
+                onKeyDown={(event) => event.key === 'Enter' && save()}
+              />
+            </div>
           </div>
-          <div class={styles.campo}>
-            <span class={styles.etiqueta}>Costo S/ {costUnitLabel()} (opcional)</span>
-            <input
-              class={styles.input}
-              type="number"
-              step="0.10"
-              min="0"
-              placeholder="lo que pagaste"
-              value={unitCost()}
-              onInput={(event) => setUnitCost(event.currentTarget.value)}
-              onKeyDown={(event) => event.key === 'Enter' && save()}
-            />
-          </div>
-        </div>
+          <Show when={totalUnits() > 0}>
+            <p class={styles.nota}>
+              = {totalUnits()} unidades
+              {derivedCost() === null ? '' : ` a ${formatSoles(derivedCost() ?? 0)} c/u`}
+            </p>
+          </Show>
+        </Show>
+
+        <Show when={enteredQuantity() > 0}>
+          <p class={styles.nota}>
+            Stock: {stockLabel(currentStock())} → <b>{stockLabel(currentStock() + enteredQuantity())}</b>
+          </p>
+        </Show>
+        <Show when={resultingMarginPct() !== null && (resultingMarginPct() ?? 0) < LOW_MARGIN_PCT}>
+          <p class={styles.error}>
+            Con este costo el margen queda en {resultingMarginPct()}% — considera actualizar el
+            precio de venta.
+          </p>
+        </Show>
+        <Show when={linkedOrder()}>
+          {(order) => (
+            <label class={styles.check}>
+              <input
+                type="checkbox"
+                checked={linkToOrder()}
+                onChange={(event) => setLinkToOrder(event.currentTarget.checked)}
+              />
+              Vincular a la orden #{order().orderNumber} de {order().supplierName} — baja su
+              pendiente en vez de crear una entrada suelta
+            </label>
+          )}
+        </Show>
+
         <div class={styles.campo}>
           <span class={styles.etiqueta}>Fecha de vencimiento (opcional)</span>
-          <input
-            class={styles.input}
-            type="date"
-            value={expiry()}
-            onInput={(event) => setExpiry(event.currentTarget.value)}
-          />
+          <DateField inputClass={styles.input} value={expiry()} onChange={setExpiry} />
         </div>
         <p class={styles.nota}>
           Si capturas el costo, el margen se calcula con este costo de última compra. La fecha de
@@ -96,7 +281,12 @@ export const EntryModal: Component<{
           <button type="button" class={styles.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={styles.primario} onClick={save}>
+          <button
+            type="button"
+            class={styles.primario}
+            disabled={byBoxes() ? totalUnits() <= 0 : false}
+            onClick={save}
+          >
             Registrar entrada
           </button>
         </div>

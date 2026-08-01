@@ -1,0 +1,40 @@
+.resultados {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--linea);
+  border-radius: 10px;
+  padding: 6px;
+  background: var(--superficie-panel);
+}
+
+.resultado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tinta);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.resultado:hover,
+.resultado:active {
+  background: var(--mana-verde-suave);
+}
+
+.meta {
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+  white-space: nowrap;
+}

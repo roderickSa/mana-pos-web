@@ -2,12 +2,17 @@ import { createResource, createSignal, For, Show, type Component } from 'solid-j
 
 import { ApiError } from '@/shared/api/client';
 import { createUser, listUsers, updateUser, type UserDto } from '@/shared/api/users';
+import { formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
 import { Modal } from '@/shared/ui/Modal';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 
-type ModalState = { kind: 'none' } | { kind: 'create' } | { kind: 'edit'; user: UserDto };
+type ModalState =
+  | { kind: 'none' }
+  | { kind: 'create' }
+  | { kind: 'edit'; user: UserDto }
+  | { kind: 'pin'; user: UserDto };
 
 const UserFormModal: Component<{
   user: UserDto | null;
@@ -102,6 +107,67 @@ const UserFormModal: Component<{
   );
 };
 
+// Resetear PIN desde la lista: lo único que pide es el PIN nuevo.
+const ResetPinModal: Component<{
+  user: UserDto;
+  onDone: (message: string) => void;
+  onClose: () => void;
+}> = (props) => {
+  const [pin, setPin] = createSignal('');
+  const [error, setError] = createSignal('');
+  const pinValid = () => /^\d{4,6}$/.test(pin());
+
+  async function save(): Promise<void> {
+    if (!pinValid()) return;
+    try {
+      await updateUser(props.user.id, {
+        name: props.user.name,
+        role: props.user.role,
+        active: props.user.active,
+        newPin: pin(),
+      });
+      props.onDone(`PIN de «${props.user.name}» actualizado`);
+    } catch (cause) {
+      setError(
+        cause instanceof ApiError && cause.serverMessage !== null
+          ? cause.serverMessage
+          : 'No se pudo cambiar el PIN.',
+      );
+    }
+  }
+
+  return (
+    <Modal size="sm" title={`Resetear PIN — ${props.user.name}`} onClose={props.onClose}>
+      <div class={forms.form}>
+        <div class={forms.campo}>
+          <span class={forms.etiqueta}>PIN nuevo (4-6 dígitos)</span>
+          <input
+            class={forms.input}
+            type="password"
+            inputmode="numeric"
+            maxLength={6}
+            value={pin()}
+            onInput={(event) => setPin(event.currentTarget.value.replace(/\D/g, ''))}
+            onKeyDown={(event) => event.key === 'Enter' && void save()}
+            autofocus
+          />
+        </div>
+        <Show when={error() !== ''}>
+          <p class={forms.error}>{error()}</p>
+        </Show>
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} disabled={!pinValid()} onClick={() => void save()}>
+            Cambiar PIN
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 export const UsersView: Component = () => {
   const [users, { refetch }] = createResource(listUsers);
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
@@ -129,6 +195,7 @@ export const UsersView: Component = () => {
             <tr>
               <th>Nombre</th>
               <th>Perfil</th>
+              <th>Último acceso</th>
               <th>Estado</th>
               <th />
             </tr>
@@ -139,10 +206,20 @@ export const UsersView: Component = () => {
                 <tr classList={{ [tabla.inactivo]: !user.active }}>
                   <td class={tabla.nombre}>{user.name}</td>
                   <td>{user.role === 'manager' ? 'Encargado' : 'Cajera'}</td>
+                  <td class={tabla.sub}>
+                    {user.lastLoginAt === null ? 'nunca' : formatDateTime(user.lastLoginAt)}
+                  </td>
                   <td class={tabla.sub}>{user.active ? 'activo' : 'inactivo'}</td>
                   <td class={tabla.acciones}>
                     <button type="button" onClick={() => setModal({ kind: 'edit', user })}>
                       Editar
+                    </button>
+                    <button
+                      type="button"
+                      title="Cambiar el PIN sin tocar nada más del usuario"
+                      onClick={() => setModal({ kind: 'pin', user })}
+                    >
+                      Resetear PIN
                     </button>
                   </td>
                 </tr>
@@ -161,6 +238,8 @@ export const UsersView: Component = () => {
             return <UserFormModal user={null} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
           case 'edit':
             return <UserFormModal user={state.user} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
+          case 'pin':
+            return <ResetPinModal user={state.user} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
         }
       })()}
     </section>

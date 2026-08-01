@@ -1,4 +1,5 @@
 import { createSignal, For, Match, Show, Switch, type Component } from 'solid-js';
+import { Keypad } from '@/shared/ui/Keypad';
 
 import type { CheckoutResponseDto, PaymentPart } from '@/shared/api/sales';
 import { CHARGE_METHOD_TO_API } from '@/shared/lib/labels';
@@ -162,6 +163,7 @@ export const ChargeModal: Component<{
                   )}
                 </For>
               </div>
+              <Keypad value={received()} onChange={setReceived} allowDecimal />
               <Show when={receivedCents() !== null && previewChange() >= 0}>
                 <div class={styles.vueltoPreview}>
                   Vuelto: <b>{formatSoles(previewChange())}</b>

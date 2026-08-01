@@ -18,6 +18,7 @@ import { showNotice } from '@/shared/state/notices';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
 import { currentUserName, isManager } from '@/shared/state/session';
 import { verifyManagerPin } from '@/shared/api/users';
+import { DateField } from '@/shared/ui/DateField';
 import { Modal } from '@/shared/ui/Modal';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
@@ -35,8 +36,12 @@ function toLocalISODate(date: Date): string {
 }
 
 export const SalesHistoryView: Component = () => {
-  const [from, setFrom] = createSignal('');
-  const [to, setTo] = createSignal('');
+  // La cajera solo consulta las ventas de HOY: el rango queda fijo y sin
+  // filtros de fecha. El histórico completo es del encargado.
+  const todayOnly = !isManager();
+  const today = toLocalISODate(new Date());
+  const [from, setFrom] = createSignal(todayOnly ? today : '');
+  const [to, setTo] = createSignal(todayOnly ? today : '');
   const [method, setMethod] = createSignal('');
   const [status, setStatus] = createSignal('');
   const [page, setPage] = createSignal(1);
@@ -162,6 +167,12 @@ export const SalesHistoryView: Component = () => {
   return (
     <section class={tabla.vista}>
       <div class={tabla.encabezado}>
+        <Show when={todayOnly}>
+          <p class={styles.conteo} style={{ margin: '0' }}>
+            Ventas de <b>hoy</b> — el histórico completo lo ve el encargado.
+          </p>
+        </Show>
+        <Show when={!todayOnly}>
         <div class={styles.rapidos} role="group" aria-label="Rangos rápidos">
           <button
             type="button"
@@ -192,26 +203,25 @@ export const SalesHistoryView: Component = () => {
             Este mes
           </button>
         </div>
-        <input
-          class={forms.input}
-          style={{ 'max-width': '160px' }}
-          type="date"
+        <DateField
+          inputClass={forms.input}
+          style={{ 'max-width': '210px' }}
           value={from()}
-          onInput={(event) => {
-            setFrom(event.currentTarget.value);
+          onChange={(iso) => {
+            setFrom(iso);
             resetPage();
           }}
         />
-        <input
-          class={forms.input}
-          style={{ 'max-width': '160px' }}
-          type="date"
+        <DateField
+          inputClass={forms.input}
+          style={{ 'max-width': '210px' }}
           value={to()}
-          onInput={(event) => {
-            setTo(event.currentTarget.value);
+          onChange={(iso) => {
+            setTo(iso);
             resetPage();
           }}
         />
+        </Show>
         <select
           class={forms.select}
           style={{ 'max-width': '170px' }}
@@ -241,9 +251,11 @@ export const SalesHistoryView: Component = () => {
           <option value="voided">Anuladas</option>
         </select>
         <span style={{ flex: '1' }} />
-        <a class={styles.descargar} href={salesExportUrl(filters())} download="ventas-mana.csv">
-          ⬇ Descargar CSV
-        </a>
+        <Show when={!todayOnly}>
+          <a class={styles.descargar} href={salesExportUrl(filters())} download="ventas-mana.csv">
+            ⬇ Descargar CSV
+          </a>
+        </Show>
       </div>
 
       <Show when={summary()}>
@@ -257,15 +269,34 @@ export const SalesHistoryView: Component = () => {
               </Show>
             </p>
             <div class={styles.resumen}>
-              <div class={styles.tarjeta}>
-                <span>Total del período (solo cobradas)</span>
+              <div
+                class={styles.tarjeta}
+                title="Total del período contando solo las ventas cobradas (las anuladas no suman)"
+              >
+                <span>Cobrado</span>
                 <b>{formatSoles(data().chargedTotalCents)}</b>
+              </div>
+              <div class={styles.tarjeta} title="Desglose informativo: el precio ya incluye IGV">
+                <span>Base / IGV {data().igv.ratePercent}%</span>
+                <b>
+                  {formatSoles(data().igv.baseCents)} · {formatSoles(data().igv.igvCents)}
+                </b>
               </div>
               <For each={data().byMethod}>
                 {(entry) => (
                   <div class={styles.tarjeta}>
                     <span>{METHOD_LABELS[entry.method] ?? entry.method}</span>
                     <b>{formatSoles(entry.amountCents)}</b>
+                  </div>
+                )}
+              </For>
+              <For each={data().soldByUser.length > 1 ? data().soldByUser : []}>
+                {(entry) => (
+                  <div class={styles.tarjeta}>
+                    <span>Vendido por {entry.user}</span>
+                    <b>
+                      {entry.count} · {formatSoles(entry.totalCents)}
+                    </b>
                   </div>
                 )}
               </For>
@@ -433,7 +464,7 @@ export const SalesHistoryView: Component = () => {
       </Show>
 
       <Show when={detailId() !== null}>
-        <Modal title="Detalle de la venta" onClose={() => setDetailId(null)}>
+        <Modal size="lg" title="Detalle de la venta" onClose={() => setDetailId(null)}>
           <Show when={detail()} fallback={<p class={styles.cargando}>Cargando…</p>}>
             {(ticket) => <TicketDetail ticket={ticket()} />}
           </Show>
@@ -504,6 +535,11 @@ const TicketDetail: Component<{ ticket: TicketDetailDto }> = (props) => (
         )}
       </For>
     </div>
+
+    <p class={styles.detalleSub}>
+      Base {formatSoles(props.ticket.igv.baseCents)} + IGV {props.ticket.igv.ratePercent}%{' '}
+      {formatSoles(props.ticket.igv.igvCents)} (incluido en el precio)
+    </p>
 
     <div class={styles.detalleTotal}>
       <span>Total</span>
