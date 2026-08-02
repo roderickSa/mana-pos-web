@@ -18,5 +18,5 @@
 .pago.sel {
   border-color: var(--mana-verde);
   background: var(--mana-verde);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
 }

@@ -31,7 +31,6 @@
   border-top: 1px solid var(--linea);
   font-size: 0.7rem;
   font-weight: 800;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--tinta-suave);
 }
@@ -85,7 +84,7 @@
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta-suave);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 10px 20px;
   font-weight: 600;
   min-height: 44px;
@@ -93,16 +92,21 @@
 
 .primario {
   background: var(--mana-verde);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 10px 22px;
   font-weight: 700;
   min-height: 44px;
 }
 
-.primario:disabled {
-  opacity: 0.5;
+.primario:disabled,
+.secundario:disabled {
+  background: var(--superficie-app);
+  color: var(--tinta-suave);
+  border: 1px solid var(--linea);
+  box-shadow: none;
+  cursor: default;
 }
 
 .error {

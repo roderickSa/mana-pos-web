@@ -13,7 +13,7 @@ import { formatKg, formatSoles } from '@/shared/lib/money';
 import { METHOD_LABELS } from '@/shared/lib/labels';
 import { formatDateTime } from '@/shared/lib/dates';
 import { beepError, beepSuccess } from '@/shared/lib/sounds';
-import { ApiError, apiErrorMessage } from '@/shared/api/client';
+import { ApiError, apiErrorMessage, downloadFile } from '@/shared/api/client';
 import { showNotice } from '@/shared/state/notices';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
 import { currentUserName, isManager } from '@/shared/state/session';
@@ -252,9 +252,17 @@ export const SalesHistoryView: Component = () => {
         </select>
         <span style={{ flex: '1' }} />
         <Show when={!todayOnly}>
-          <a class={styles.descargar} href={salesExportUrl(filters())} download="ventas-mana.csv">
+          <button
+            type="button"
+            class={styles.descargar}
+            onClick={() =>
+              void downloadFile(salesExportUrl(filters()), 'ventas-mana.csv').catch(() =>
+                showNotice('No se pudo descargar el CSV.'),
+              )
+            }
+          >
             ⬇ Descargar CSV
-          </a>
+          </button>
         </Show>
       </div>
 
@@ -282,11 +290,17 @@ export const SalesHistoryView: Component = () => {
                   {formatSoles(data().igv.baseCents)} · {formatSoles(data().igv.igvCents)}
                 </b>
               </div>
-              <For each={data().byMethod}>
-                {(entry) => (
+              {/* Las 4 formas de pago SIEMPRE visibles: un método en 0 también
+                  es información (nadie pagó con tarjeta hoy). */}
+              <For each={['cash', 'yape', 'card', 'credit']}>
+                {(method) => (
                   <div class={styles.tarjeta}>
-                    <span>{METHOD_LABELS[entry.method] ?? entry.method}</span>
-                    <b>{formatSoles(entry.amountCents)}</b>
+                    <span>{METHOD_LABELS[method] ?? method}</span>
+                    <b>
+                      {formatSoles(
+                        data().byMethod.find((entry) => entry.method === method)?.amountCents ?? 0,
+                      )}
+                    </b>
                   </div>
                 )}
               </For>

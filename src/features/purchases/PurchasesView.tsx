@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createResource, createSignal, For, Index, Show, type Component } from 'solid-js';
 
 import {
   cancelPurchaseOrder,
@@ -12,6 +12,7 @@ import {
   type PurchaseOrderSummaryDto,
   type ReceiveOrderLinePayload,
 } from '@/shared/api/purchases';
+import { linkProductSupplier, searchProducts } from '@/shared/api/products';
 import { listSuppliers } from '@/shared/api/suppliers';
 import { centsToSolesInput, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
@@ -215,8 +216,88 @@ const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void }> = (p
   const [lines, setLines] = createSignal<DraftLine[]>([]);
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
+  const [suggesting, setSuggesting] = createSignal(false);
+  const [toAssociate, setToAssociate] = createSignal<ProductDto | null>(null);
 
-  function addProduct(product: ProductDto): void {
+  // Reposición sugerida: llegar a 2× el mínimo. En cajas si se compra por
+  // caja; en kilos con un decimal para pesables.
+  function suggestedQuantity(product: ProductDto): string {
+    if (product.saleType === 'weight') {
+      const neededGrams = Math.max(product.stockMinimumGrams * 2 - product.stockGrams, 500);
+      return String(Math.ceil(neededGrams / 100) / 10);
+    }
+    const needed = Math.max(product.stockMinimum * 2 - product.stockUnits, 1);
+    const packSize = packSizeOf(product);
+    if (packSize !== null) return String(Math.max(1, Math.ceil(needed / packSize)));
+    return String(needed);
+  }
+
+  function isLowStock(product: ProductDto): boolean {
+    if (product.saleType === 'weight') {
+      return product.stockMinimumGrams > 0 && product.stockGrams <= product.stockMinimumGrams;
+    }
+    return product.stockMinimum > 0 && product.stockUnits <= product.stockMinimum;
+  }
+
+  // El botón que evita armar la orden de memoria: precarga lo que este
+  // proveedor surte y está bajo mínimo, con cantidad sugerida editable.
+  async function suggestLowStock(): Promise<void> {
+    if (supplierId() === '' || suggesting()) return;
+    setSuggesting(true);
+    try {
+      const products = await searchProducts('', null, false, false, supplierId());
+      const low = products.filter(isLowStock);
+      const fresh = low.filter(
+        (product) => !lines().some((line) => line.product.id === product.id),
+      );
+      if (fresh.length === 0) {
+        showNotice(
+          low.length === 0
+            ? 'Este proveedor no tiene productos bajo mínimo.'
+            : 'Los productos bajo mínimo ya están en la orden.',
+        );
+        return;
+      }
+      for (const product of fresh) {
+        addProduct(product, suggestedQuantity(product));
+      }
+      beepOk();
+      showNotice(`${fresh.length} productos bajo mínimo agregados — revisa las cantidades`);
+    } catch {
+      beepError();
+      showNotice('No se pudieron cargar los productos bajo mínimo.');
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  // El picker muestra TODO el catálogo: si el producto no está asociado al
+  // proveedor, se ofrece asociarlo al vuelo (antes el formulario nacía vacío).
+  function pickProduct(product: ProductDto): void {
+    if (supplierId() === '') return;
+    if (product.supplierIds.includes(supplierId())) {
+      addProduct(product);
+      return;
+    }
+    setToAssociate(product);
+  }
+
+  async function associateAndAdd(): Promise<void> {
+    const product = toAssociate();
+    if (product === null) return;
+    try {
+      await linkProductSupplier(product.id, supplierId());
+      addProduct(product);
+      beepOk();
+      showNotice(`«${product.name}» quedó asociado a este proveedor`);
+    } catch {
+      beepError();
+      showNotice('No se pudo asociar el producto.');
+    }
+    setToAssociate(null);
+  }
+
+  function addProduct(product: ProductDto, quantity = ''): void {
     const packSize = packSizeOf(product);
     // Costo sugerido: última compra (por caja si se compra por caja).
     const suggested =
@@ -229,7 +310,7 @@ const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void }> = (p
       ...lines(),
       {
         product,
-        quantity: '',
+        quantity,
         cost: suggested === null || suggested <= 0 ? '' : centsToSolesInput(suggested),
       },
     ]);
@@ -345,7 +426,6 @@ const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void }> = (p
                 : 'busca por nombre, escanea o teclea el código y Enter'
             }
             disabled={supplierId() === ''}
-            supplierId={supplierId() === '' ? null : supplierId()}
             accept={(product) => !lines().some((line) => line.product.id === product.id)}
             meta={(product) =>
               product.saleType === 'weight'
@@ -354,61 +434,112 @@ const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void }> = (p
                   ? `caja ×${product.packSize} · ${formatSoles(product.packCostCents)}`
                   : formatSoles(product.costCents)
             }
-            onPick={addProduct}
+            onPick={pickProduct}
           />
+          <div class={formStyles.acciones} style={{ 'justify-content': 'flex-start' }}>
+            <button
+              type="button"
+              class={formStyles.secundario}
+              disabled={supplierId() === '' || suggesting()}
+              title="Precarga los productos de este proveedor que están bajo su stock mínimo, con cantidad sugerida"
+              onClick={() => void suggestLowStock()}
+            >
+              ⚡ Sugerir bajo mínimo
+            </button>
+          </div>
           <p class={formStyles.nota}>
-            Solo aparecen productos asociados a este proveedor (se gestionan en Ajustes →
-            Proveedores → Productos).
+            Puedes buscar cualquier producto: si no está asociado a este proveedor, te
+            preguntará si lo asocias al agregarlo.
           </p>
         </div>
 
+        <Show when={toAssociate()}>
+          {(product) => (
+            <Modal
+              size="sm"
+              title="Asociar producto al proveedor"
+              onClose={() => setToAssociate(null)}
+              footer={
+                <div class={formStyles.acciones}>
+                  <button
+                    type="button"
+                    class={formStyles.secundario}
+                    onClick={() => setToAssociate(null)}
+                  >
+                    Volver
+                  </button>
+                  <button
+                    type="button"
+                    class={formStyles.primario}
+                    onClick={() => void associateAndAdd()}
+                  >
+                    Asociar y agregar
+                  </button>
+                </div>
+              }
+            >
+              <p class={formStyles.nota}>
+                «{product().name}» no está asociado a este proveedor. Se asociará (quedará
+                disponible para futuras órdenes y sugerencias) y se agregará a esta orden.
+              </p>
+            </Modal>
+          )}
+        </Show>
+
         <div class={styles.lineas}>
-          <For each={lines()}>
+          {/* Index, no For: For identifica filas por referencia y updateLine
+              recrea el objeto en cada tecla — re-montaba la fila y el input
+              perdía el foco. Index mantiene el DOM estable por posición. */}
+          <Index each={lines()}>
             {(line) => (
               <div class={styles.linea}>
                 <div>
-                  <div class={styles.lineaNombre}>{line.product.name}</div>
-                  <div class={styles.lineaSub}>{lineHint(line)}</div>
+                  <div class={styles.lineaNombre}>{line().product.name}</div>
+                  <div class={styles.lineaSub}>{lineHint(line())}</div>
                 </div>
                 <div class={formStyles.campo}>
-                  <span class={formStyles.etiqueta}>{quantityLabel(line)}</span>
+                  <span class={formStyles.etiqueta}>{quantityLabel(line())}</span>
                   <input
                     class={formStyles.input}
                     type="number"
                     min="0"
-                    step={line.product.saleType === 'weight' ? '0.1' : '1'}
-                    value={line.quantity}
-                    onInput={(event) => updateLine(line.product.id, { quantity: event.currentTarget.value })}
+                    step={line().product.saleType === 'weight' ? '0.1' : '1'}
+                    value={line().quantity}
+                    onInput={(event) =>
+                      updateLine(line().product.id, { quantity: event.currentTarget.value })
+                    }
                   />
                 </div>
                 <div class={formStyles.campo}>
-                  <span class={formStyles.etiqueta}>{costLabel(line)}</span>
+                  <span class={formStyles.etiqueta}>{costLabel(line())}</span>
                   <input
                     class={formStyles.input}
                     type="number"
                     min="0"
                     step="0.10"
-                    value={line.cost}
-                    onInput={(event) => updateLine(line.product.id, { cost: event.currentTarget.value })}
+                    value={line().cost}
+                    onInput={(event) =>
+                      updateLine(line().product.id, { cost: event.currentTarget.value })
+                    }
                   />
                 </div>
                 <div class={formStyles.campo}>
                   <span class={formStyles.etiqueta}>Total</span>
                   <span class={styles.totalOrden} style={{ 'font-size': '15px' }}>
-                    {formatSoles(lineTotalCents(line))}
+                    {formatSoles(lineTotalCents(line()))}
                   </span>
                 </div>
                 <button
                   type="button"
                   class={styles.quitar}
-                  aria-label={`Quitar ${line.product.name}`}
-                  onClick={() => removeLine(line.product.id)}
+                  aria-label={`Quitar ${line().product.name}`}
+                  onClick={() => removeLine(line().product.id)}
                 >
                   ✕
                 </button>
               </div>
             )}
-          </For>
+          </Index>
         </div>
 
         <Show when={lines().length > 0}>
@@ -653,6 +784,56 @@ const OrderDetailModal: Component<{
           </table>
         </div>
         <p class={styles.totalOrden}>Total: {formatSoles(props.order.totalCents)}</p>
+
+        {/* La historia tanda a tanda: complementa la barra de progreso, que
+            solo muestra el acumulado. */}
+        <Show when={props.order.receptions.length > 0}>
+          <div>
+            <h3 style={{ margin: '4px 0 8px', 'font-size': '1rem' }}>
+              Recepciones ({props.order.receptions.length})
+            </h3>
+            <For each={props.order.receptions}>
+              {(reception, index) => {
+                const lineOf = (productId: string) =>
+                  props.order.lines.find((line) => line.productId === productId);
+                return (
+                  <div
+                    style={{
+                      'border-top': '1px dashed var(--linea)',
+                      padding: '8px 0',
+                    }}
+                  >
+                    <p class={formStyles.nota} style={{ margin: '0 0 4px' }}>
+                      Tanda {index() + 1} · {formatDate(reception.receivedAt)} · recibió{' '}
+                      {reception.receivedBy}
+                    </p>
+                    <For each={reception.lines}>
+                      {(line) => {
+                        const orderLine = lineOf(line.productId);
+                        return (
+                          <p style={{ margin: '2px 0', 'font-size': '0.9rem' }}>
+                            {orderLine?.description ?? line.productId} —{' '}
+                            {quantityText({
+                              saleType: orderLine?.saleType ?? 'unit',
+                              quantity: line.quantity,
+                              packSize: orderLine?.packSize ?? null,
+                            })}{' '}
+                            a {formatSoles(line.unitCostCents)}
+                            {orderLine?.saleType === 'weight' ? ' /kg' : ' c/u'}
+                            {line.expiryDate === null
+                              ? ''
+                              : ` · vence ${formatDate(line.expiryDate).split(',')[0] ?? ''}`}
+                          </p>
+                        );
+                      }}
+                    </For>
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+        </Show>
+
         <Show when={error() !== ''}>
           <p class={formStyles.error}>{error()}</p>
         </Show>

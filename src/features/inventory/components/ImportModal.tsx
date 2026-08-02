@@ -1,6 +1,7 @@
 import { createSignal, For, Show, type Component } from 'solid-js';
 
 import { importProducts, type ImportReportDto } from '@/shared/api/products';
+import { downloadFile } from '@/shared/api/client';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import styles from '@/shared/ui/forms.module.css';
@@ -52,7 +53,25 @@ export const ImportModal: Component<{
     <Modal title="Importar productos desde Excel" onClose={props.onClose}>
       <div class={styles.form}>
         <p class={styles.nota}>
-          1. Descarga la <a href="/catalog/products/import/template">plantilla Excel</a> y llénala
+          1. Descarga la{' '}
+          <button
+            type="button"
+            style={{
+              border: 'none',
+              background: 'none',
+              color: 'var(--mana-verde)',
+              'text-decoration': 'underline',
+              cursor: 'pointer',
+              padding: '0',
+              font: 'inherit',
+            }}
+            onClick={() =>
+              void downloadFile('/catalog/products/import/template', 'plantilla-productos.xlsx')
+            }
+          >
+            plantilla Excel
+          </button>{' '}
+          y llénala
           (una fila por producto). 2. Súbela aquí. Las filas con errores se rechazan una por una y
           te decimos por qué — las demás sí entran.
         </p>

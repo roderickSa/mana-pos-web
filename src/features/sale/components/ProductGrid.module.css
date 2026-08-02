@@ -1,31 +1,49 @@
+/* Tile v2: la categoría la dice la barra de 3px del borde, no el color del
+   ícono; el nombre tiene 2 líneas garantizadas y la presentación (400 g, 1 L)
+   es línea propia — es justo lo que distingue productos hermanos.
+   TODO el dimensionado va en rem: A+/A++ escalan la card completa, nunca
+   recortan contenido. */
 .grilla {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-  /* Altura de fila única: todas las cards miden lo mismo, se busque la
-     categoría que se busque. */
-  grid-auto-rows: 172px;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  /* Altura de fila única EN REM: todas las cards miden lo mismo y crecen
+     con el modo texto grande en vez de recortar. */
+  grid-auto-rows: 13.5rem;
   gap: 10px;
   align-content: start;
   /* El scroll de la grilla es SIEMPRE vertical: en táctil un scroll
      horizontal hace que el dedo arrastre en vez de tocar el producto. */
   overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .card {
-  border: 1.5px solid var(--linea);
+  position: relative;
+  border: 1px solid var(--linea);
   background: var(--superficie-panel);
   border-radius: var(--radio);
-  padding: 14px 14px 12px;
+  padding: 12px 12px 12px 15px;
   text-align: left;
   color: var(--tinta);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   height: 100%;
   min-width: 0;
   overflow: hidden;
   box-shadow: var(--sombra-suave);
   transition: border-color 120ms ease;
+}
+
+/* La barra de categoría: 3px de color en el borde izquierdo. */
+.card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--cat, transparent);
 }
 
 .card:hover {
@@ -38,32 +56,38 @@
 
 .filaAlta {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 6px;
 }
 
+/* Ícono monocromo y discreto; las fotos reales sí van a color. */
 .thumb {
-  width: 72px;
-  height: 72px;
-  border-radius: 12px;
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radio-chico);
   background: var(--superficie-app);
-  padding: 10px;
+  padding: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  color: var(--tinta);
+}
+
+.thumb svg {
+  opacity: 0.55;
 }
 
 .thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .cardBaja {
-  border-color: var(--mana-ambar);
+  border-color: var(--alerta);
 }
 
 /* Agotado: se apaga y no responde al toque; el código sí sigue vendiendo. */
@@ -76,64 +100,78 @@
    Solo levanta la voz cuando está bajo o en cero. */
 .stock {
   margin-left: auto;
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 500;
   color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   min-width: 0;
 }
 
 .stockBajo {
-  font-weight: 700;
+  font-weight: 600;
   opacity: 1;
-  color: #8a5a13;
-  background: rgba(232, 161, 61, 0.18);
-  border-radius: 999px;
+  color: var(--advertencia-tinta);
+  background: var(--advertencia-fondo);
+  border: 1px solid var(--advertencia-borde);
+  border-radius: var(--radio-chip);
   padding: 2px 8px;
 }
 
 .stockCero {
-  font-weight: 700;
+  font-weight: 600;
   opacity: 1;
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
   background: var(--peligro);
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
   padding: 2px 8px;
 }
 
+/* La categoría vive en una variable: pinta la barra, no el ícono. */
 .catFruta {
-  color: var(--cat-fruta);
+  --cat: var(--cat-fruta);
 }
 
 .catAbarrote {
-  color: var(--cat-abarrote);
+  --cat: var(--cat-abarrote);
 }
 
 .catBebida {
-  color: var(--cat-bebida);
+  --cat: var(--cat-bebida);
 }
 
 .catLimpieza {
-  color: var(--cat-limpieza);
+  --cat: var(--cat-limpieza);
 }
 
 .catPan {
-  color: var(--cat-pan);
+  --cat: var(--cat-pan);
 }
 
-/* Jerarquía del tile: nombre y precio se leen a un metro; el stock no. */
+/* Jerarquía del tile: nombre y precio se leen a 80 cm; el stock no. */
 .nombre {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.06rem;
+  font-weight: 600;
   line-height: 1.25;
-  /* Nombres largos: máximo 2 líneas con elipsis, nunca desbordan la card. */
+  /* 2 líneas SIEMPRE reservadas: los tiles quedan parejos y los nombres
+     largos no desaparecen — se cortan con elipsis en la segunda línea. */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
   min-width: 0;
+  min-height: 2.5em;
+}
+
+/* La presentación (400 g · 1 L · x6): dato propio, no cola del nombre. */
+.pres {
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
+  margin-top: -4px;
+  white-space: nowrap;
 }
 
 .pie {
@@ -151,19 +189,23 @@
   min-width: 0;
 }
 
+/* El precio es un dato neutro, no una señal positiva: va en tinta, no en
+   verde — el verde queda para lo que sí salió bien. */
 .precio {
-  font-size: 1.2rem;
-  color: var(--mana-verde);
-  font-weight: 750;
+  font-size: 1.25rem;
+  color: var(--tinta);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .granel {
-  font-size: 0.69rem;
+  font-size: 0.78rem;
   color: var(--tinta-suave);
   background: var(--mana-verde-suave);
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
   padding: 2px 8px;
   font-weight: 600;
   white-space: nowrap;
@@ -172,7 +214,7 @@
 .vacio {
   grid-column: 1 / -1;
   color: var(--tinta-suave);
-  font-size: 0.9rem;
+  font-size: 0.94rem;
   margin: 24px 0;
   text-align: center;
 }
@@ -180,14 +222,14 @@
 /* Código corto tecleable, con pinta de tecla: se teclea N + Enter. */
 .codigoCorto {
   margin-left: auto;
-  font-size: 0.72rem;
-  font-weight: 700;
-  font-family: var(--fuente-voucher);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--fuente-dato);
   background: var(--superficie-panel);
-  color: var(--tinta);
+  color: var(--tinta-suave);
   border: 1px solid var(--linea);
   border-bottom-width: 2.5px;
-  border-radius: 5px;
+  border-radius: var(--radio-chip);
   padding: 1px 7px;
   line-height: 1.5;
 }

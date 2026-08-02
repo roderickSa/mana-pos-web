@@ -2,6 +2,7 @@ import { createResource, createSignal, For, Show, type Component } from 'solid-j
 import { focusOnMount } from '@/shared/lib/focus';
 
 import { searchProductsPage, updateProduct } from '@/shared/api/products';
+import { downloadFile } from '@/shared/api/client';
 import { listSuppliers } from '@/shared/api/suppliers';
 import { formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepSuccess } from '@/shared/lib/sounds';
@@ -164,6 +165,18 @@ export const ProductsTab: Component = () => {
             {lowOnly() ? ' ✕' : ''}
           </button>
         </Show>
+        <button
+          type="button"
+          class={styles.importar}
+          title="Descarga todo el inventario en Excel (también sirve como respaldo legible)"
+          onClick={() =>
+            void downloadFile('/catalog/products/export.xlsx', 'inventario-mana.xlsx').catch(() =>
+              showNotice('No se pudo exportar el inventario.'),
+            )
+          }
+        >
+          Exportar
+        </button>
         <button
           type="button"
           class={styles.importar}

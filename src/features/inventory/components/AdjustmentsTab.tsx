@@ -20,7 +20,7 @@ type ModalState =
   | { kind: 'none' }
   | { kind: 'entry' | 'adjust' | 'count' | 'kardex'; product: ProductDto };
 
-export const AdjustmentsTab: Component = () => {
+export const AdjustmentsTab: Component<{ onGoToKardex: () => void }> = (props) => {
   const [query, setQuery] = createSignal('');
   const [page, setPage] = createSignal(1);
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
@@ -151,7 +151,16 @@ export const AdjustmentsTab: Component = () => {
               <CountModal product={state.product} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />
             );
           case 'kardex':
-            return <KardexModal product={state.product} onClose={() => setModal({ kind: 'none' })} />;
+            return (
+              <KardexModal
+                product={state.product}
+                onClose={() => setModal({ kind: 'none' })}
+                onGoToKardex={() => {
+                  setModal({ kind: 'none' });
+                  props.onGoToKardex();
+                }}
+              />
+            );
         }
       })()}
     </section>

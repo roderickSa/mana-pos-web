@@ -27,6 +27,21 @@ export interface PurchaseOrderLineDto {
   totalCents: number;
 }
 
+export interface PurchaseReceptionLineDto {
+  productId: string;
+  quantity: number;
+  unitCostCents: number;
+  expiryDate: string | null;
+}
+
+// Una tanda de recepción: la orden trae el acumulado; esto, la historia.
+export interface PurchaseReceptionDto {
+  id: string;
+  receivedAt: string;
+  receivedBy: string;
+  lines: PurchaseReceptionLineDto[];
+}
+
 export interface PurchaseOrderDto {
   id: string;
   number: number;
@@ -37,6 +52,7 @@ export interface PurchaseOrderDto {
   createdAt: string;
   totalCents: number;
   lines: PurchaseOrderLineDto[];
+  receptions: PurchaseReceptionDto[];
 }
 
 export interface CreateOrderLinePayload {

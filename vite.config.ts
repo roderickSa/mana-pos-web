@@ -24,6 +24,7 @@ export default defineConfig({
       '/cash': 'http://localhost:3210',
       '/users': 'http://localhost:3210',
       '/settings': 'http://localhost:3210',
+      '/backups': 'http://localhost:3210',
       '/images': 'http://localhost:3210',
       '/health': 'http://localhost:3210',
     },

@@ -20,7 +20,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(239, 243, 236, 0.55);
+  background: var(--velo-claro);
 }
 
 .bloqueoCard {
@@ -48,9 +48,9 @@
 .bloqueoCard button {
   margin-top: 6px;
   background: var(--mana-verde);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 14px 26px;
   font-size: 1rem;
   font-weight: 800;

@@ -26,7 +26,7 @@
 }
 
 .acento {
-  color: var(--mana-ambar);
+  color: var(--marca-acento);
 }
 
 .saludo {
@@ -36,26 +36,59 @@
 
 .puntos {
   display: flex;
+  align-items: center;
   gap: 12px;
   min-height: 18px;
 }
 
-.punto {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--linea);
+.puntosGuia {
+  color: var(--linea);
+  font-size: 1.2rem;
+  letter-spacing: 0.2em;
+  line-height: 1;
 }
 
 .puntoLleno {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: var(--mana-verde);
-  border-color: var(--mana-verde);
 }
 
 .error {
   margin: 0;
   color: var(--peligro);
   font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Sacudida corta al fallar el PIN: el error se siente sin leer nada. */
+.tarjetaError {
+  animation: sacudida 240ms ease;
+}
+
+@keyframes sacudida {
+  20% {
+    transform: translateX(-8px);
+  }
+  50% {
+    transform: translateX(8px);
+  }
+  80% {
+    transform: translateX(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarjetaError {
+    animation: none;
+  }
+}
+
+.pista {
+  margin: 0;
+  color: var(--tinta-suave);
+  font-size: 0.8rem;
 }
 
 .teclado {
@@ -65,13 +98,14 @@
 }
 
 .tecla {
-  height: 72px;
+  height: 80px;
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   border-radius: 14px;
   font-size: 1.6rem;
   font-weight: 700;
   color: var(--tinta);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -86,5 +120,5 @@
 .teclaEntrar {
   background: var(--mana-verde);
   border-color: var(--mana-verde);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
 }

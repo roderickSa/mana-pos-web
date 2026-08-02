@@ -16,6 +16,9 @@ export interface SupplierDto {
   name: string;
   phone: string | null;
   notes: string | null;
+  visitDays: string[];
+  contactName: string | null;
+  paymentTerms: string | null;
   active: boolean;
 }
 

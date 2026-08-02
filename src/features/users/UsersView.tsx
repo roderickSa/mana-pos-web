@@ -4,9 +4,16 @@ import { ApiError } from '@/shared/api/client';
 import { createUser, listUsers, updateUser, type UserDto } from '@/shared/api/users';
 import { formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
+import { isOwner } from '@/shared/state/session';
 import { Modal } from '@/shared/ui/Modal';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
+
+const ROLE_LABELS: Record<UserDto['role'], string> = {
+  owner: 'Dueño',
+  manager: 'Encargado',
+  cashier: 'Cajera',
+};
 
 type ModalState =
   | { kind: 'none' }
@@ -21,7 +28,7 @@ const UserFormModal: Component<{
 }> = (props) => {
   const editing = props.user;
   const [name, setName] = createSignal(editing?.name ?? '');
-  const [role, setRole] = createSignal<'manager' | 'cashier'>(editing?.role ?? 'cashier');
+  const [role, setRole] = createSignal<UserDto['role']>(editing?.role ?? 'cashier');
   const [pin, setPin] = createSignal('');
   const [active, setActive] = createSignal(editing?.active ?? true);
   const [error, setError] = createSignal('');
@@ -65,10 +72,16 @@ const UserFormModal: Component<{
             <select
               class={forms.select}
               value={role()}
-              onChange={(event) => setRole(event.currentTarget.value === 'manager' ? 'manager' : 'cashier')}
+              onChange={(event) => {
+                const value = event.currentTarget.value;
+                setRole(value === 'owner' ? 'owner' : value === 'manager' ? 'manager' : 'cashier');
+              }}
             >
               <option value="cashier">Cajera</option>
               <option value="manager">Encargado</option>
+              <Show when={isOwner()}>
+                <option value="owner">Dueño</option>
+              </Show>
             </select>
           </div>
         </div>
@@ -205,22 +218,26 @@ export const UsersView: Component = () => {
               {(user) => (
                 <tr classList={{ [tabla.inactivo]: !user.active }}>
                   <td class={tabla.nombre}>{user.name}</td>
-                  <td>{user.role === 'manager' ? 'Encargado' : 'Cajera'}</td>
+                  <td>{ROLE_LABELS[user.role]}</td>
                   <td class={tabla.sub}>
                     {user.lastLoginAt === null ? 'nunca' : formatDateTime(user.lastLoginAt)}
                   </td>
                   <td class={tabla.sub}>{user.active ? 'activo' : 'inactivo'}</td>
                   <td class={tabla.acciones}>
-                    <button type="button" onClick={() => setModal({ kind: 'edit', user })}>
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      title="Cambiar el PIN sin tocar nada más del usuario"
-                      onClick={() => setModal({ kind: 'pin', user })}
-                    >
-                      Resetear PIN
-                    </button>
+                    {/* Cuentas de dueño: solo otro dueño las toca (el API
+                        también lo bloquea — esto solo evita el 403). */}
+                    <Show when={isOwner() || user.role !== 'owner'}>
+                      <button type="button" onClick={() => setModal({ kind: 'edit', user })}>
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        title="Cambiar el PIN sin tocar nada más del usuario"
+                        onClick={() => setModal({ kind: 'pin', user })}
+                      >
+                        Resetear PIN
+                      </button>
+                    </Show>
                   </td>
                 </tr>
               )}

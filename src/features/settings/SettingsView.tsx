@@ -2,10 +2,12 @@ import { createResource, createSignal, Match, Show, Switch, type Component } fro
 
 import { getIgvConfig, getReceiptConfig, updateIgvConfig, updateReceiptConfig } from '@/shared/api/settings';
 import { showNotice } from '@/shared/state/notices';
+import { isOwner } from '@/shared/state/session';
 import { UsersView } from '@/features/users/UsersView';
 import { DevicesView } from '@/features/devices/DevicesView';
 import { CategoriesTab } from '@/features/inventory/components/CategoriesTab';
 import { SuppliersTab } from '@/features/inventory/components/SuppliersTab';
+import { BackupTab } from '@/features/settings/BackupTab';
 import tabs from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 import styles from './SettingsView.module.css';
@@ -161,24 +163,35 @@ const IgvTab: Component = () => {
 
 // Todo lo que se configura una vez y se toca poco vive aquí: usuarios,
 // equipos, voucher, IGV y los catálogos maestros (categorías, proveedores).
-type SettingsTab = 'usuarios' | 'equipos' | 'voucher' | 'igv' | 'categorias' | 'proveedores';
+type SettingsTab =
+  | 'usuarios'
+  | 'equipos'
+  | 'voucher'
+  | 'igv'
+  | 'categorias'
+  | 'proveedores'
+  | 'respaldo';
 
-const TABS: Array<{ key: SettingsTab; label: string }> = [
-  { key: 'usuarios', label: 'Usuarios' },
-  { key: 'equipos', label: 'Equipos' },
-  { key: 'voucher', label: 'Voucher' },
-  { key: 'igv', label: 'IGV' },
-  { key: 'categorias', label: 'Categorías' },
-  { key: 'proveedores', label: 'Proveedores' },
+// Espejo de la política del API (route-policy.ts): encargado y dueño ven lo
+// mismo; lo técnico/sensible (Respaldo) es solo del dueño.
+const TABS: Array<{ key: SettingsTab; label: string; ownerOnly: boolean }> = [
+  { key: 'usuarios', label: 'Usuarios', ownerOnly: false },
+  { key: 'equipos', label: 'Equipos', ownerOnly: false },
+  { key: 'voucher', label: 'Voucher', ownerOnly: false },
+  { key: 'igv', label: 'IGV', ownerOnly: false },
+  { key: 'categorias', label: 'Categorías', ownerOnly: false },
+  { key: 'proveedores', label: 'Proveedores', ownerOnly: false },
+  { key: 'respaldo', label: 'Respaldo', ownerOnly: true },
 ];
 
 export const SettingsView: Component = () => {
+  const visibleTabs = () => TABS.filter((item) => !item.ownerOnly || isOwner());
   const [tab, setTab] = createSignal<SettingsTab>('usuarios');
 
   return (
     <section class={tabs.contenedorTabs}>
       <nav class={tabs.subnav} aria-label="Ajustes">
-        {TABS.map((item) => (
+        {visibleTabs().map((item) => (
           <button
             type="button"
             class={tabs.subtab}
@@ -208,6 +221,9 @@ export const SettingsView: Component = () => {
         </Match>
         <Match when={tab() === 'proveedores'}>
           <SuppliersTab />
+        </Match>
+        <Match when={tab() === 'respaldo' && isOwner()}>
+          <BackupTab />
         </Match>
       </Switch>
     </section>

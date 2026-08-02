@@ -4,7 +4,7 @@
   border: 1.5px solid var(--mana-verde);
   background: var(--superficie-panel);
   color: var(--mana-verde);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 11px 20px;
   font-weight: 700;
   font-size: 0.9rem;
@@ -37,6 +37,7 @@
 .tarjeta span {
   font-size: 0.72rem;
   text-transform: uppercase;
+  font-family: var(--fuente-dato);
   letter-spacing: 0.07em;
   color: var(--tinta-suave);
   font-weight: 700;
@@ -44,12 +45,13 @@
 
 .tarjeta b {
   font-size: 1.25rem;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
 /* Control antihurto: quién anuló cuánto, siempre a la vista del encargado. */
 .tarjetaAnulaciones {
-  border-color: rgba(194, 68, 56, 0.35);
+  border-color: color-mix(in srgb, var(--peligro) 35%, transparent);
 }
 
 .tarjetaAnulaciones span {
@@ -59,22 +61,22 @@
 .estado {
   background: var(--mana-verde-suave);
   color: var(--mana-verde-hondo);
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
   padding: 3px 12px;
   font-size: 0.78rem;
   font-weight: 700;
 }
 
 .estadoAnulada {
-  background: rgba(194, 68, 56, 0.12);
+  background: color-mix(in srgb, var(--peligro) 12%, transparent);
   color: var(--peligro);
 }
 
 .anular {
   background: var(--peligro);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 10px 22px;
   font-weight: 700;
   min-height: 44px;
@@ -90,7 +92,7 @@
   gap: 4px;
   background: var(--superficie-panel);
   border: 1.5px solid var(--linea);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 4px;
 }
 
@@ -98,7 +100,7 @@
   border: none;
   background: transparent;
   color: var(--tinta-suave);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 700;
@@ -107,13 +109,14 @@
 
 .rapidoActivo {
   background: var(--mana-verde) !important;
-  color: #fff !important;
+  color: var(--tinta-sobre-relleno) !important;
 }
 
 .conteo {
   margin: 0;
   font-size: 0.9rem;
   color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -166,7 +169,7 @@
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta-suave);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 8px 14px;
   font-size: 0.82rem;
   font-weight: 650;
@@ -203,6 +206,7 @@
 .detalleNumero {
   font-size: 1.3rem;
   font-weight: 800;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -215,8 +219,8 @@
 .detalleAnulada {
   margin: 0;
   font-size: 0.85rem;
-  background: rgba(194, 68, 56, 0.08);
-  border: 1px solid rgba(194, 68, 56, 0.3);
+  background: color-mix(in srgb, var(--peligro) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--peligro) 30%, transparent);
   border-radius: var(--radio-chico);
   padding: 10px 12px;
   color: var(--tinta);
@@ -238,12 +242,14 @@
   display: block;
   font-size: 0.75rem;
   color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
 .detalleMonto {
   text-align: right;
   font-weight: 700;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -267,6 +273,7 @@
 
 .detalleTotal b {
   font-size: 1.6rem;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 

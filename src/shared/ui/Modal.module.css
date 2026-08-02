@@ -2,7 +2,7 @@
 .fondo {
   position: fixed;
   inset: 0;
-  background: rgba(20, 32, 26, 0.5);
+  background: var(--velo);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;

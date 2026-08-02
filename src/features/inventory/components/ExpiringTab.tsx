@@ -1,11 +1,15 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
 import { DateField } from '@/shared/ui/DateField';
+import { Modal } from '@/shared/ui/Modal';
 
 import {
+  deleteLot,
   getExpiring,
   getExpiryAlertDays,
+  registerLotWaste,
   setExpiryAlertDays,
-  setProductExpiry,
+  updateLotExpiry,
+  type ExpiringItemDto,
 } from '@/shared/api/inventory';
 import { apiErrorMessage } from '@/shared/api/client';
 import { formatKg } from '@/shared/lib/money';
@@ -29,6 +33,30 @@ export const ExpiringTab: Component = () => {
   const [days, setDays] = createSignal('');
   const [editing, setEditing] = createSignal<string | null>(null);
   const [newDate, setNewDate] = createSignal('');
+  const [merma, setMerma] = createSignal<ExpiringItemDto | null>(null);
+  const [mermaQty, setMermaQty] = createSignal('');
+
+  // La alerta lleva directo a la acción que la resuelve: merma del LOTE en
+  // 2 toques — descuenta stock, queda en el kardex y consume el lote (si se
+  // da de baja completo, deja de alertar solo).
+  async function saveMerma(): Promise<void> {
+    const item = merma();
+    if (item === null) return;
+    const parsed = Number.parseFloat(mermaQty());
+    const quantity = item.saleType === 'weight' ? Math.round(parsed * 1000) : Math.round(parsed);
+    if (Number.isNaN(quantity) || quantity <= 0) return;
+    try {
+      await registerLotWaste(item.lotId, quantity);
+      beepSuccess();
+      showNotice('Merma registrada — quedó en el kardex');
+      setMerma(null);
+      setMermaQty('');
+      void refetch();
+    } catch (cause) {
+      beepError();
+      showNotice(apiErrorMessage(cause, 'No se pudo registrar la merma.'));
+    }
+  }
 
   const daysValue = () => (days() !== '' ? days() : String(alertDays()?.days ?? 7));
 
@@ -46,17 +74,29 @@ export const ExpiringTab: Component = () => {
     }
   }
 
-  async function updateExpiry(productId: string, expiryDate: string | null): Promise<void> {
+  async function changeLotDate(lotId: string, expiryDate: string): Promise<void> {
     try {
-      await setProductExpiry(productId, expiryDate);
+      await updateLotExpiry(lotId, expiryDate);
       beepSuccess();
-      showNotice(expiryDate === null ? 'Fecha de vencimiento quitada' : 'Fecha actualizada');
+      showNotice('Fecha del lote actualizada');
       setEditing(null);
       setNewDate('');
       void refetch();
     } catch (cause) {
       beepError();
       showNotice(apiErrorMessage(cause, 'No se pudo actualizar la fecha.'));
+    }
+  }
+
+  async function removeLotAlert(lotId: string): Promise<void> {
+    try {
+      await deleteLot(lotId);
+      beepSuccess();
+      showNotice('Lote quitado de la alerta (el stock no cambia)');
+      void refetch();
+    } catch (cause) {
+      beepError();
+      showNotice(apiErrorMessage(cause, 'No se pudo quitar el lote.'));
     }
   }
 
@@ -90,7 +130,8 @@ export const ExpiringTab: Component = () => {
           <thead>
             <tr>
               <th>Producto</th>
-              <th class={tabla.num}>Stock</th>
+              <th class={tabla.num}>Del lote quedan</th>
+              <th>Llegó</th>
               <th>Vence</th>
               <th>Estado</th>
               <th />
@@ -102,10 +143,9 @@ export const ExpiringTab: Component = () => {
                 <tr>
                   <td class={tabla.nombre}>{item.name}</td>
                   <td class={tabla.num}>
-                    {item.saleType === 'unit'
-                      ? `${item.stockQuantity} unid.`
-                      : formatKg(item.stockQuantity)}
+                    {item.saleType === 'unit' ? `${item.quantity} unid.` : formatKg(item.quantity)}
                   </td>
+                  <td class={tabla.sub}>{formatDay(item.receivedAt)}</td>
                   <td class={tabla.sub}>{formatDay(item.expiryDate)}</td>
                   <td>
                     <span
@@ -121,15 +161,24 @@ export const ExpiringTab: Component = () => {
                   </td>
                   <td class={tabla.acciones}>
                     <Show
-                      when={editing() === item.productId}
+                      when={editing() === item.lotId}
                       fallback={
                         <>
-                          <button type="button" onClick={() => setEditing(item.productId)}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMermaQty('');
+                              setMerma(item);
+                            }}
+                          >
+                            Registrar merma
+                          </button>
+                          <button type="button" onClick={() => setEditing(item.lotId)}>
                             Cambiar fecha
                           </button>
                           <button
                             type="button"
-                            onClick={() => void updateExpiry(item.productId, null)}
+                            onClick={() => void removeLotAlert(item.lotId)}
                           >
                             Quitar
                           </button>
@@ -145,7 +194,7 @@ export const ExpiringTab: Component = () => {
                       <button
                         type="button"
                         disabled={newDate() === ''}
-                        onClick={() => void updateExpiry(item.productId, newDate())}
+                        onClick={() => void changeLotDate(item.lotId, newDate())}
                       >
                         OK
                       </button>
@@ -166,6 +215,57 @@ export const ExpiringTab: Component = () => {
           </p>
         </Show>
       </div>
+
+      <Show when={merma()}>
+        {(item) => (
+          <Modal
+            size="sm"
+            title={`Merma de ${item().name}`}
+            onClose={() => setMerma(null)}
+            footer={
+              <div class={forms.acciones}>
+                <button type="button" class={forms.secundario} onClick={() => setMerma(null)}>
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  class={forms.primario}
+                  disabled={mermaQty() === '' || Number.parseFloat(mermaQty()) <= 0}
+                  onClick={() => void saveMerma()}
+                >
+                  Registrar merma
+                </button>
+              </div>
+            }
+          >
+            <div class={forms.form}>
+              <div class={forms.campo}>
+                <span class={forms.etiqueta}>
+                  {item().saleType === 'weight' ? 'Kilos a dar de baja' : 'Unidades a dar de baja'}
+                </span>
+                <input
+                  class={forms.input}
+                  type="number"
+                  min="0"
+                  step={item().saleType === 'weight' ? '0.1' : '1'}
+                  value={mermaQty()}
+                  onInput={(event) => setMermaQty(event.currentTarget.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && void saveMerma()}
+                  autofocus
+                />
+              </div>
+              <p class={forms.nota}>
+                De este lote quedan:{' '}
+                {item().saleType === 'unit'
+                  ? `${item().quantity} unid.`
+                  : formatKg(item().quantity)}
+                . Descuenta stock y queda en el kardex como vencimiento. Si das de baja el lote
+                completo, deja de alertar solo.
+              </p>
+            </div>
+          </Modal>
+        )}
+      </Show>
     </section>
   );
 };

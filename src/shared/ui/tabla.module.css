@@ -63,10 +63,10 @@
 
 /* Chip-botón: muestra el conteo y, al tocarlo, filtra la tabla. */
 .alertaBajo {
-  background: rgba(232, 161, 61, 0.16);
-  color: #8a5a13;
-  border: 1px solid var(--mana-ambar);
-  border-radius: 999px;
+  background: var(--advertencia-fondo);
+  color: var(--advertencia-tinta);
+  border: 1px solid var(--advertencia-borde);
+  border-radius: var(--radio-chip);
   padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 700;
@@ -75,19 +75,19 @@
 }
 
 .alertaBajo:hover {
-  background: rgba(232, 161, 61, 0.28);
+  background: color-mix(in srgb, var(--alerta) 12%, var(--advertencia-fondo));
 }
 
 .alertaBajoActiva {
   background: var(--advertencia-tinta);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
 }
 
 .sinMinimo {
   font-size: 0.72rem;
   color: var(--advertencia-tinta);
   background: var(--advertencia-fondo);
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
   padding: 2px 8px;
   white-space: nowrap;
 }
@@ -96,7 +96,7 @@
   border: 1.5px solid var(--mana-verde);
   background: var(--superficie-panel);
   color: var(--mana-verde);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 12px 20px;
   font-weight: 700;
   font-size: 0.95rem;
@@ -105,9 +105,9 @@
 
 .nuevo {
   background: var(--mana-verde);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 12px 20px;
   font-weight: 700;
   font-size: 0.95rem;
@@ -133,7 +133,6 @@
 .tabla th {
   text-align: left;
   font-size: 0.75rem;
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--tinta-suave);
   padding: 12px 14px;
@@ -154,15 +153,16 @@
 /* Seguir la fila con la vista: zebra sutil + resalte al pasar por encima.
    (Los estados propios — inactivo/anulada — pisan estos fondos.) */
 .tabla tbody tr:nth-child(even) td {
-  background: rgba(31, 38, 30, 0.022);
+  background: color-mix(in srgb, var(--tinta) 3%, transparent);
 }
 
 .tabla tbody tr:hover td {
-  background: rgba(30, 107, 78, 0.05);
+  background: color-mix(in srgb, var(--mana-verde) 6%, transparent);
 }
 
 .num {
   text-align: right;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -230,26 +230,28 @@
 
 .stock {
   font-weight: 700;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
 .stockBajo {
-  color: #8a5a13;
-  background: rgba(232, 161, 61, 0.18);
-  border-radius: 999px;
+  color: var(--advertencia-tinta);
+  background: var(--advertencia-fondo);
+  border-radius: var(--radio-chip);
   padding: 3px 10px;
 }
 
 .stockCero {
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
   background: var(--peligro);
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
   padding: 3px 10px;
 }
 
 .margen {
   font-weight: 700;
   color: var(--mana-verde);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -274,7 +276,7 @@
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 7px 12px;
   font-size: 0.8rem;
   font-weight: 600;
@@ -307,6 +309,7 @@
   gap: 16px;
   font-size: 0.85rem;
   color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -314,7 +317,7 @@
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 9px 18px;
   font-weight: 600;
   min-height: 42px;
@@ -371,11 +374,13 @@
 
 /* Saldo positivo (a favor): verde — es buena noticia, no una alerta. */
 .positivo {
-  font-weight: 700;
-  color: #1e6b34;
-  background: #e2f4e5;
-  border-radius: 999px;
+  font-weight: 600;
+  color: var(--chip-exito-tinta);
+  background: var(--chip-exito-fondo);
+  border: 1px solid var(--chip-exito-borde);
+  border-radius: var(--radio-chip);
   padding: 2px 8px;
   white-space: nowrap;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }

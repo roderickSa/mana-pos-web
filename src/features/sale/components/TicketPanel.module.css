@@ -1,7 +1,9 @@
+/* Anchos en rem: con A+/A++ el panel crece con el texto y el total nunca
+   se recorta. */
 .panel {
   flex: 1;
-  min-width: 340px;
-  max-width: 420px;
+  min-width: 22rem;
+  max-width: 26rem;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -78,6 +80,7 @@
 }
 
 .cabecera h2 {
+  font-family: var(--fuente-dato);
   font-size: 0.95rem;
   margin: 0;
   text-transform: uppercase;
@@ -95,7 +98,7 @@
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta-suave);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 6px 14px;
   font-size: 0.78rem;
   font-weight: 650;
@@ -110,6 +113,7 @@
 .lineas {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px 0;
 }
 
@@ -117,7 +121,7 @@
    Todos los nombres arrancan en el mismo eje X; los importes terminan juntos. */
 .linea {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 84px 32px;
+  grid-template-columns: minmax(0, 1fr) auto 5.5rem 32px;
   column-gap: 8px;
   padding: 8px 8px 8px 15px;
   border-bottom: 1px dashed var(--linea);
@@ -128,7 +132,7 @@
 
 .lineaSel {
   border-left-color: var(--mana-verde);
-  background: rgba(30, 107, 78, 0.06);
+  background: color-mix(in srgb, var(--mana-verde) 8%, transparent);
 }
 
 .info {
@@ -145,8 +149,9 @@
 }
 
 .detalle {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -182,6 +187,7 @@
   min-width: 26px;
   text-align: center;
   font-weight: 700;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -189,12 +195,13 @@
 .peso {
   font-size: 0.8rem;
   font-weight: 700;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   color: var(--tinta-suave);
   padding: 6px 10px;
   border: 1px solid var(--linea);
   background: var(--superficie-panel);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   min-height: 34px;
   white-space: nowrap;
 }
@@ -205,8 +212,8 @@
 }
 
 .monto {
-  font-weight: 700;
-  font-family: var(--fuente-voucher);
+  font-weight: 600;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -232,7 +239,7 @@
 }
 
 .quitar:hover {
-  background: rgba(194, 68, 56, 0.08);
+  background: color-mix(in srgb, var(--peligro) 10%, transparent);
 }
 
 /* Pantalla táctil: no hay hover — la ✕ y los steppers viven siempre visibles
@@ -243,7 +250,7 @@
     width: 44px;
     height: 44px;
     font-size: 1.05rem;
-    background: rgba(194, 68, 56, 0.07);
+    background: color-mix(in srgb, var(--peligro) 8%, transparent);
   }
 
   .paso {
@@ -257,7 +264,7 @@
   }
 
   .linea {
-    grid-template-columns: minmax(0, 1fr) auto 84px 48px;
+    grid-template-columns: minmax(0, 1fr) auto 5.5rem 48px;
     padding-top: 10px;
     padding-bottom: 10px;
   }
@@ -270,44 +277,49 @@
   margin: 28px 16px;
 }
 
-/* El total es el elemento tipográfico más grande de toda la vista Vender. */
+/* El totalizador: único bloque oscuro de la pantalla — ancla la composición
+   y es lo primero que encuentra el ojo al levantar la vista. */
 .total {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 18px 4px;
-  border-top: 2px solid var(--tinta);
-  margin: 0 12px;
+  padding: 14px 18px 16px;
+  margin: 8px 12px 12px;
+  background: var(--totalizador-fondo);
+  border-radius: var(--radio);
+  color: var(--totalizador-tinta);
 }
 
 .totalEtiqueta {
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-family: var(--fuente-dato);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--tinta-suave);
+  letter-spacing: 0.14em;
+  color: var(--totalizador-etiqueta);
 }
 
 .totalMonto {
   font-size: clamp(2.4rem, 3.4vw, 3.2rem);
-  font-weight: 700;
-  line-height: 1.05;
-  font-family: var(--fuente-voucher);
+  font-weight: 600;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .cobrar {
-  background: var(--mana-ambar);
-  color: var(--mana-ambar-tinta);
+  background: var(--accion);
+  color: var(--tinta-sobre-relleno);
   border: none;
   border-radius: var(--radio);
   padding: 18px;
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: 0.01em;
-  box-shadow: 0 3px 0 rgba(31, 38, 30, 0.18);
+  box-shadow: var(--sombra-boton);
   min-height: 56px;
 }
 

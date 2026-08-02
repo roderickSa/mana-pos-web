@@ -30,6 +30,7 @@
   margin: 0;
   font-size: 0.88rem;
   color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -71,6 +72,7 @@
   font-weight: 700;
   color: var(--tinta-suave);
   text-transform: uppercase;
+  font-family: var(--fuente-dato);
   letter-spacing: 0.06em;
 }
 
@@ -80,6 +82,7 @@
   padding: 14px;
   font-size: 1.6rem;
   font-family: var(--fuente-voucher);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   width: 100%;
 }
@@ -98,9 +101,10 @@
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 10px 16px;
   font-weight: 700;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   min-height: 44px;
 }
@@ -112,6 +116,7 @@
 .vueltoPreview {
   font-size: 1.1rem;
   color: var(--tinta);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -132,17 +137,17 @@
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta-suave);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 12px 22px;
   font-weight: 600;
   min-height: 48px;
 }
 
 .cobrar {
-  background: var(--mana-ambar);
-  color: var(--mana-ambar-tinta);
+  background: var(--accion);
+  color: var(--tinta-sobre-relleno);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 12px 26px;
   font-weight: 800;
   font-size: 1rem;
@@ -175,6 +180,7 @@
   font-size: 0.85rem;
   color: var(--tinta-suave);
   text-transform: uppercase;
+  font-family: var(--fuente-dato);
   letter-spacing: 0.08em;
   font-weight: 700;
 }
@@ -182,6 +188,7 @@
 .vueltoGrande b {
   font-size: 3rem;
   font-family: var(--fuente-voucher);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   color: var(--mana-verde-hondo);
   line-height: 1.1;
@@ -195,10 +202,10 @@
 
 .aviso {
   margin: 0;
-  background: rgba(232, 161, 61, 0.16);
-  border: 1px solid var(--mana-ambar);
+  background: var(--advertencia-fondo);
+  border: 1px solid var(--advertencia-borde);
   border-radius: var(--radio-chico);
   padding: 10px 14px;
   font-size: 0.9rem;
-  color: #8a5a13;
+  color: var(--advertencia-tinta);
 }

@@ -8,7 +8,9 @@ import { CreditView } from '@/features/credit/CreditView';
 import { CashView } from '@/features/cash/CashView';
 import { LoginView } from '@/features/login/LoginView';
 import { SettingsView } from '@/features/settings/SettingsView';
-import { currentUser, endSession } from '@/shared/state/session';
+import { HomeView } from '@/features/home/HomeView';
+import { currentUser, endSession, isManager, isOwner } from '@/shared/state/session';
+import { logoutSession } from '@/shared/api/users';
 import { clearPreferences, loadPreferencesFor } from '@/shared/state/preferences';
 import { showNotice } from '@/shared/state/notices';
 import { createEffect, createResource, onCleanup, onMount } from 'solid-js';
@@ -39,6 +41,10 @@ const App: Component = () => {
     } else {
       loadPreferencesFor(user.id);
     }
+    // Cambio de sesión: nadie hereda la vista del usuario anterior (p. ej.
+    // el dueño en Ajustes → Respaldo). El dueño arranca en su panel de
+    // inicio; encargado y cajera, en Vender.
+    setView(user !== null && user.role === 'owner' ? 'inicio' : 'venta');
   });
 
   // F10 = bloquear pantalla: vuelve al login sin perder el ticket en curso
@@ -46,6 +52,7 @@ const App: Component = () => {
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'F10' && currentUser() !== null) {
       event.preventDefault();
+      void logoutSession().catch(() => undefined);
       endSession();
       showNotice('Pantalla bloqueada — el ticket en curso sigue guardado');
     }
@@ -64,7 +71,11 @@ const App: Component = () => {
         <TopBar view={view()} onNavigate={setView} />
         <StaleShiftBanner onGoToCash={() => setView('caja')} />
 
+      <main class={styles.contenido}>
       <Switch>
+        <Match when={view() === 'inicio' && isOwner()}>
+          <HomeView onNavigate={setView} />
+        </Match>
         <Match when={view() === 'venta'}>
           <SaleView onGoToCash={() => setView('caja')} />
         </Match>
@@ -77,16 +88,19 @@ const App: Component = () => {
         <Match when={view() === 'fiado'}>
           <CreditView />
         </Match>
-        <Match when={view() === 'inventario'}>
+        {/* Doble candado: aunque la vista quedara apuntando aquí, sin rol
+            de encargado no se monta (el API además rechaza los datos). */}
+        <Match when={view() === 'inventario' && isManager()}>
           <InventoryView />
         </Match>
-        <Match when={view() === 'compras'}>
+        <Match when={view() === 'compras' && isManager()}>
           <PurchasesView />
         </Match>
-        <Match when={view() === 'ajustes'}>
+        <Match when={view() === 'ajustes' && isManager()}>
           <SettingsView />
         </Match>
       </Switch>
+      </main>
 
       <StatusBar />
       </div>

@@ -1,9 +1,11 @@
+/* Este archivo pinta sobre --mana-verde-hondo, oscuro en AMBOS temas: los
+   blancos con alpha de aquí son seguros para modo noche a propósito. */
 .topbar {
   display: flex;
   align-items: center;
   gap: 10px;
   background: var(--mana-verde-hondo);
-  color: #f2f5ef;
+  color: var(--sobre-marca);
   padding: 8px 16px;
   min-height: 52px;
 }
@@ -12,19 +14,19 @@
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: #fff;
+  color: var(--sobre-marca-pleno);
   margin-right: 6px;
 }
 
 .acento {
-  color: var(--mana-ambar);
+  color: var(--marca-acento);
 }
 
 .nav {
   display: flex;
   gap: 4px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 4px;
 }
 
@@ -32,7 +34,7 @@
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.75);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 8px 18px;
   font-size: 0.9rem;
   font-weight: 700;
@@ -40,7 +42,7 @@
 }
 
 .navActiva {
-  background: #fff;
+  background: var(--sobre-marca-pleno);
   color: var(--mana-verde-hondo);
 }
 
@@ -49,7 +51,7 @@
   align-items: center;
   gap: 8px;
   background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 6px 14px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -69,7 +71,7 @@
 }
 
 .aviso {
-  background: #fff;
+  background: var(--sobre-marca-pleno);
   color: var(--mana-verde-hondo);
 }
 
@@ -80,6 +82,7 @@
 .reloj {
   font-size: 0.85rem;
   opacity: 0.85;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
@@ -87,29 +90,33 @@
    debe ser el botón de cobrar. */
 .caja {
   background: rgba(255, 255, 255, 0.14);
-  color: #f2f5ef;
+  color: var(--sobre-marca);
   border: 1px solid rgba(255, 255, 255, 0.28);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
 .cajaCerrada {
   background: rgba(255, 255, 255, 0.12);
-  color: #f2f5ef;
+  color: var(--sobre-marca);
 }
 
 .salir {
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--sobre-marca);
+  /* ⚙ y compañía: glifo de texto, no emoji — hereda el blanco del header. */
+  font-variant-emoji: text;
 }
 
 .accesActivo {
-  background: #fff;
+  background: var(--sobre-marca-pleno);
   color: var(--mana-verde-hondo);
 }
 
 .salir:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .chip small {

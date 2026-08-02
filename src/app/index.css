@@ -43,7 +43,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-  outline: 3px solid var(--mana-ambar);
+  outline: 3px solid var(--mana-verde);
   outline-offset: 2px;
 }
 
@@ -98,4 +98,19 @@ body {
     align-items: center;
     gap: 10px;
   }
+}
+
+/* Títulos de sección en Plex Condensed; las etiquetas-micro (mono, caja alta)
+   se definen en cada módulo y pisan esta regla. */
+h1,
+h2,
+h3 {
+  font-family: var(--fuente-display);
+  letter-spacing: -0.01em;
+}
+
+/* El anillo de foco es para teclado: tras un clic/toque no debe quedarse. */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
 }

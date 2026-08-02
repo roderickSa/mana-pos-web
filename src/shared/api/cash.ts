@@ -10,6 +10,8 @@ export interface CashSessionDto {
   closedAt: string | null;
   expectedCashCents: number | null;
   countedCashCents: number | null;
+  closedBy: string | null;
+  closingNote: string | null;
 }
 
 export interface CashBreakdownDto {
@@ -67,8 +69,12 @@ export async function getCashHistory(): Promise<CashSessionDto[]> {
   return getJson('/cash/history');
 }
 
-export async function closeCash(countedCashCents: number, userId: string): Promise<CloseResultDto> {
-  return sendJson('POST', '/cash/close', { countedCashCents, userId });
+export async function closeCash(
+  countedCashCents: number,
+  userId: string,
+  note: string | null,
+): Promise<CloseResultDto> {
+  return sendJson('POST', '/cash/close', { countedCashCents, userId, note });
 }
 
 export async function printLastCloseSummary(): Promise<{ message: string }> {

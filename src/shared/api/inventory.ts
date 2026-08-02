@@ -72,12 +72,16 @@ export async function searchMovements(filters: {
   return getJson(`/inventory/movements?${params.toString()}`);
 }
 
+// Un LOTE por vencer: cada entrada con fecha es un lote propio, y quantity
+// es lo que le queda tras asumir rotación (lo más próximo se vende primero).
 export interface ExpiringItemDto {
+  lotId: string;
   productId: string;
   name: string;
   saleType: 'unit' | 'weight';
-  stockQuantity: number;
+  quantity: number;
   expiryDate: string;
+  receivedAt: string;
   daysLeft: number;
 }
 
@@ -90,11 +94,18 @@ export async function getExpiring(): Promise<ExpiringListDto> {
   return getJson('/inventory/expiring');
 }
 
-export async function setProductExpiry(
-  productId: string,
-  expiryDate: string | null,
-): Promise<void> {
-  await sendJson('POST', '/inventory/expiry', { productId, expiryDate });
+export async function updateLotExpiry(lotId: string, expiryDate: string): Promise<void> {
+  await sendJson('PUT', `/inventory/lots/${lotId}`, { expiryDate });
+}
+
+// Quita el lote de la alerta (fecha mal capturada). NO toca stock.
+export async function deleteLot(lotId: string): Promise<void> {
+  await sendJson('DELETE', `/inventory/lots/${lotId}`);
+}
+
+// Merma del lote: descuenta stock (kardex 'vencimiento') y consume el lote.
+export async function registerLotWaste(lotId: string, quantity: number): Promise<MovementDto> {
+  return sendJson('POST', `/inventory/lots/${lotId}/waste`, { quantity });
 }
 
 export async function getExpiryAlertDays(): Promise<{ days: number }> {

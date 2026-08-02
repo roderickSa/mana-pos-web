@@ -21,7 +21,7 @@
 
 .input:focus {
   border-color: var(--mana-verde);
-  box-shadow: 0 0 0 3px rgba(30, 107, 78, 0.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mana-verde) 12%, transparent);
 }
 
 /* Puntito de estado: verde cuando el buscador está armado para escanear. */
@@ -39,7 +39,7 @@
 
 .form:focus-within .armado {
   background: var(--exito);
-  box-shadow: 0 0 0 3px rgba(63, 164, 99, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--exito) 20%, transparent);
 }
 
 /* Multiplicador activo: 3* → el siguiente producto entra ×3. */
@@ -49,10 +49,11 @@
   top: 50%;
   transform: translateY(-50%);
   background: var(--mana-verde-hondo);
-  color: #fff;
+  color: var(--sobre-marca-pleno);
   font-weight: 800;
   font-size: 0.85rem;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
   padding: 3px 10px;
 }

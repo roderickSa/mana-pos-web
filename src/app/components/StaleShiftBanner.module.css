@@ -3,9 +3,9 @@
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: #fdf3d7;
-  color: #6b4a00;
-  border-bottom: 1px solid #ecd9a0;
+  background: var(--advertencia-fondo);
+  color: var(--advertencia-tinta);
+  border-bottom: 1px solid color-mix(in srgb, var(--advertencia-tinta) 25%, var(--advertencia-fondo));
   font-size: 0.92rem;
 }
 
@@ -21,10 +21,10 @@
 .accion {
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid #d9b95c;
+  border: 1px solid color-mix(in srgb, var(--advertencia-tinta) 40%, var(--advertencia-fondo));
   border-radius: 10px;
-  background: #fff;
-  color: #6b4a00;
+  background: var(--superficie-panel);
+  color: var(--advertencia-tinta);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -32,5 +32,5 @@
 }
 
 .accion:active {
-  background: #f7e7b8;
+  background: color-mix(in srgb, var(--alerta) 15%, var(--superficie-panel));
 }

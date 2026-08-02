@@ -5,7 +5,8 @@ import { cashRefreshVersion } from '@/shared/state/cash-refresh';
 import { getCashStatus } from '@/shared/api/cash';
 import { getDevicesStatus } from '@/shared/api/devices';
 import { formatSoles } from '@/shared/lib/money';
-import { currentUser, endSession, isManager } from '@/shared/state/session';
+import { currentUser, endSession, isManager, isOwner } from '@/shared/state/session';
+import { logoutSession } from '@/shared/api/users';
 import {
   bigTextEnabled,
   bigTextLevel,
@@ -37,26 +38,45 @@ async function cashInDrawer(): Promise<number | null> {
   }
 }
 
-export type View = 'venta' | 'caja' | 'ventas' | 'fiado' | 'inventario' | 'compras' | 'ajustes';
+const ROLE_LABEL: Record<'owner' | 'manager' | 'cashier', string> = {
+  owner: 'dueño',
+  manager: 'encargado',
+  cashier: 'cajera',
+};
+
+export type View =
+  | 'inicio'
+  | 'venta'
+  | 'caja'
+  | 'ventas'
+  | 'fiado'
+  | 'inventario'
+  | 'compras'
+  | 'ajustes';
 
 // La cajera solo ve lo operativo; lo administrativo (reportes, costos,
-// usuarios) es del encargado. Ajustes (con Equipos, Voucher, IGV y los
-// catálogos maestros) va como engrane a la derecha: no es de uso diario.
-const VIEWS: Array<{ key: View; label: string; managerOnly: boolean }> = [
-  { key: 'venta', label: 'Vender', managerOnly: false },
-  { key: 'caja', label: 'Caja', managerOnly: false },
+// usuarios) es del encargado. Inicio (el pulso del negocio) es del dueño.
+// Ajustes (con Equipos, Voucher, IGV y los catálogos maestros) va como
+// engrane a la derecha: no es de uso diario.
+const VIEWS: Array<{ key: View; label: string; managerOnly: boolean; ownerOnly: boolean }> = [
+  { key: 'inicio', label: 'Inicio', managerOnly: false, ownerOnly: true },
+  { key: 'venta', label: 'Vender', managerOnly: false, ownerOnly: false },
+  { key: 'caja', label: 'Caja', managerOnly: false, ownerOnly: false },
   // La cajera ve Ventas pero SOLO las de hoy (la vista se encarga de fijarlo).
-  { key: 'ventas', label: 'Ventas', managerOnly: false },
-  { key: 'fiado', label: 'Fiado', managerOnly: false },
-  { key: 'inventario', label: 'Inventario', managerOnly: true },
-  { key: 'compras', label: 'Compras', managerOnly: true },
+  { key: 'ventas', label: 'Ventas', managerOnly: false, ownerOnly: false },
+  { key: 'fiado', label: 'Fiado', managerOnly: false, ownerOnly: false },
+  { key: 'inventario', label: 'Inventario', managerOnly: true, ownerOnly: false },
+  { key: 'compras', label: 'Compras', managerOnly: true, ownerOnly: false },
 ];
 
 export const TopBar: Component<{
   view: View;
   onNavigate: (view: View) => void;
 }> = (props) => {
-  const visibleViews = () => VIEWS.filter((item) => !item.managerOnly || isManager());
+  const visibleViews = () =>
+    VIEWS.filter(
+      (item) => (!item.managerOnly || isManager()) && (!item.ownerOnly || isOwner()),
+    );
   const [now, setNow] = createSignal(new Date());
   const [cashTick, setCashTick] = createSignal(0);
   const [cash] = createResource(
@@ -126,7 +146,7 @@ export const TopBar: Component<{
           aria-label="Ajustes"
           onClick={() => props.onNavigate('ajustes')}
         >
-          ⚙
+          ⚙︎
         </button>
       </Show>
       <span
@@ -139,7 +159,9 @@ export const TopBar: Component<{
       <span class={styles.chip}>
         <span class={styles.avatar}>{(currentUser()?.name ?? '?').charAt(0)}</span>
         {currentUser()?.name ?? '—'}
-        <small>· {isManager() ? 'encargado' : 'cajera'}</small>
+        <small>
+          · {ROLE_LABEL[currentUser()?.role ?? 'cashier']}
+        </small>
       </span>
       <button
         type="button"
@@ -171,7 +193,12 @@ export const TopBar: Component<{
         type="button"
         class={`${styles.chip} ${styles.salir}`}
         title="Bloquear pantalla (F10) — el ticket en curso se conserva"
-        onClick={endSession}
+        onClick={() => {
+          // Revoca el token en el API y limpia el estado local; si el API no
+          // responde, salir igual — la sesión expira sola a las 12h.
+          void logoutSession().catch(() => undefined);
+          endSession();
+        }}
       >
         Salir
       </button>

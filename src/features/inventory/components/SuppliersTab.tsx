@@ -11,6 +11,16 @@ import { Modal } from '@/shared/ui/Modal';
 import styles from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 
+const DIAS: Array<{ key: string; label: string }> = [
+  { key: 'lun', label: 'Lun' },
+  { key: 'mar', label: 'Mar' },
+  { key: 'mie', label: 'Mié' },
+  { key: 'jue', label: 'Jue' },
+  { key: 'vie', label: 'Vie' },
+  { key: 'sab', label: 'Sáb' },
+  { key: 'dom', label: 'Dom' },
+];
+
 const SupplierFormModal: Component<{
   supplier: SupplierDto | null;
   onDone: (message: string) => void;
@@ -20,7 +30,16 @@ const SupplierFormModal: Component<{
   const [name, setName] = createSignal(editing?.name ?? '');
   const [phone, setPhone] = createSignal(editing?.phone ?? '');
   const [notes, setNotes] = createSignal(editing?.notes ?? '');
+  const [visitDays, setVisitDays] = createSignal<string[]>(editing?.visitDays ?? []);
+  const [contactName, setContactName] = createSignal(editing?.contactName ?? '');
+  const [paymentTerms, setPaymentTerms] = createSignal(editing?.paymentTerms ?? '');
   const [active, setActive] = createSignal(editing?.active ?? true);
+
+  function toggleDay(day: string): void {
+    setVisitDays((days) =>
+      days.includes(day) ? days.filter((item) => item !== day) : [...days, day],
+    );
+  }
   const [error, setError] = createSignal('');
 
   async function save(): Promise<void> {
@@ -29,6 +48,9 @@ const SupplierFormModal: Component<{
       name: name().trim(),
       phone: phone().trim() === '' ? null : phone().trim(),
       notes: notes().trim() === '' ? null : notes().trim(),
+      visitDays: visitDays(),
+      contactName: contactName().trim() === '' ? null : contactName().trim(),
+      paymentTerms: paymentTerms().trim() === '' ? null : paymentTerms().trim(),
       active: active(),
     };
     try {
@@ -67,6 +89,44 @@ const SupplierFormModal: Component<{
               value={notes()}
               onInput={(event) => setNotes(event.currentTarget.value)}
               placeholder="p. ej. visita los martes"
+            />
+          </div>
+        </div>
+        <div class={forms.campo}>
+          <span class={forms.etiqueta}>Días de visita (alimentan la sugerencia de órdenes)</span>
+          <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap' }}>
+            <For each={DIAS}>
+              {(day) => (
+                <button
+                  type="button"
+                  class={visitDays().includes(day.key) ? forms.primario : forms.secundario}
+                  style={{ 'min-width': '52px', padding: '8px 10px' }}
+                  aria-pressed={visitDays().includes(day.key)}
+                  onClick={() => toggleDay(day.key)}
+                >
+                  {day.label}
+                </button>
+              )}
+            </For>
+          </div>
+        </div>
+        <div class={forms.fila}>
+          <div class={forms.campo}>
+            <span class={forms.etiqueta}>Persona de contacto (opcional)</span>
+            <input
+              class={forms.input}
+              value={contactName()}
+              onInput={(event) => setContactName(event.currentTarget.value)}
+              placeholder="p. ej. Sr. Julio"
+            />
+          </div>
+          <div class={forms.campo}>
+            <span class={forms.etiqueta}>Condiciones de pago (opcional)</span>
+            <input
+              class={forms.input}
+              value={paymentTerms()}
+              onInput={(event) => setPaymentTerms(event.currentTarget.value)}
+              placeholder="p. ej. contado / crédito 15 días"
             />
           </div>
         </div>
@@ -125,6 +185,8 @@ export const SuppliersTab: Component = () => {
             <tr>
               <th>Proveedor</th>
               <th>Teléfono</th>
+              <th>Visita</th>
+              <th>Contacto</th>
               <th>Notas</th>
               <th>Estado</th>
               <th />
@@ -136,6 +198,10 @@ export const SuppliersTab: Component = () => {
                 <tr classList={{ [styles.inactivo]: !supplier.active }}>
                   <td class={styles.nombre}>{supplier.name}</td>
                   <td class={styles.sub}>{supplier.phone ?? '—'}</td>
+                  <td class={styles.sub}>
+                    {supplier.visitDays.length === 0 ? '—' : supplier.visitDays.join(', ')}
+                  </td>
+                  <td class={styles.sub}>{supplier.contactName ?? '—'}</td>
                   <td class={styles.sub}>{supplier.notes ?? '—'}</td>
                   <td class={styles.sub}>{supplier.active ? 'activo' : 'inactivo'}</td>
                   <td class={styles.acciones}>

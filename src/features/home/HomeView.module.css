@@ -1,0 +1,87 @@
+.vista {
+  padding: 20px 24px;
+  max-width: 62rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.encabezado {
+  margin-bottom: 16px;
+}
+
+.titulo {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.sub {
+  margin: 2px 0 0;
+  color: var(--tinta-suave);
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 12px;
+}
+
+/* Cada card ES un botón: te lleva al módulo que explica la cifra. */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 18px 20px;
+  min-height: 8rem;
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-suave);
+  text-align: left;
+  color: var(--tinta);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.tarjeta:hover {
+  border-color: var(--mana-verde);
+}
+
+.alerta {
+  border-color: var(--advertencia-borde);
+  background: var(--advertencia-fondo);
+}
+
+.alerta .etiqueta,
+.alerta .detalle {
+  color: var(--advertencia-tinta);
+}
+
+.etiqueta {
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-family: var(--fuente-dato);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--tinta-suave);
+}
+
+.cifra {
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.cifraChica {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: auto;
+}
+
+.detalle {
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+}

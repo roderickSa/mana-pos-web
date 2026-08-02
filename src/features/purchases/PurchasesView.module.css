@@ -1,31 +1,36 @@
 .estado {
   display: inline-block;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
+  border: 1px solid var(--chip-neutro-borde);
   font-size: 12px;
-  font-weight: 700;
-  background: #eef1f4;
-  color: #444c56;
+  font-weight: 600;
+  background: var(--chip-neutro-fondo);
+  color: var(--chip-neutro-tinta);
 }
 
 .estadoAbierta {
-  background: #e3efff;
-  color: #1c4f9c;
+  background: var(--chip-info-fondo);
+  border-color: var(--chip-info-borde);
+  color: var(--chip-info-tinta);
 }
 
 .estadoParcial {
-  background: #fdf3d7;
-  color: #8a6100;
+  background: var(--advertencia-fondo);
+  border-color: var(--advertencia-borde);
+  color: var(--advertencia-tinta);
 }
 
 .estadoRecibida {
-  background: #e2f4e5;
-  color: #1e6b34;
+  background: var(--chip-exito-fondo);
+  border-color: var(--chip-exito-borde);
+  color: var(--chip-exito-tinta);
 }
 
 .estadoCancelada {
-  background: #fbe5e5;
-  color: #99303a;
+  background: var(--chip-peligro-fondo);
+  border-color: var(--chip-peligro-borde);
+  color: var(--chip-peligro-tinta);
 }
 
 .lineas {
@@ -40,9 +45,9 @@
   gap: 8px;
   align-items: end;
   padding: 10px;
-  border: 1px solid #dde3ea;
+  border: 1px solid var(--linea);
   border-radius: 10px;
-  background: #fafbfc;
+  background: var(--superficie-app);
 }
 
 .lineaNombre {
@@ -54,22 +59,22 @@
 
 .lineaSub {
   font-size: 12px;
-  color: #5a616c;
+  color: var(--tinta-suave);
 }
 
 .quitar {
   min-width: 44px;
   min-height: 44px;
-  border: 1px solid #dde3ea;
+  border: 1px solid var(--linea);
   border-radius: 10px;
-  background: #fff;
+  background: var(--superficie-panel);
   font-size: 16px;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 .quitar:active {
-  background: #fbe5e5;
+  background: var(--chip-peligro-fondo);
 }
 
 .resultados {
@@ -78,7 +83,7 @@
   gap: 4px;
   max-height: 220px;
   overflow-y: auto;
-  border: 1px solid #dde3ea;
+  border: 1px solid var(--linea);
   border-radius: 10px;
   padding: 6px;
 }
@@ -100,12 +105,13 @@
 
 .resultado:hover,
 .resultado:active {
-  background: #eef4f0;
+  background: var(--mana-verde-suave);
 }
 
 .totalOrden {
   font-size: 20px;
   font-weight: 800;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 

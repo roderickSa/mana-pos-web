@@ -41,7 +41,7 @@ export const InventoryView: Component = () => {
           <ProductsTab />
         </Match>
         <Match when={tab() === 'ajustes'}>
-          <AdjustmentsTab />
+          <AdjustmentsTab onGoToKardex={() => setTab('kardex')} />
         </Match>
         <Match when={tab() === 'vencer'}>
           <ExpiringTab />

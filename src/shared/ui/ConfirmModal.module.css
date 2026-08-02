@@ -1,8 +1,8 @@
 .destructivo {
   background: var(--peligro);
-  color: #fff;
+  color: var(--tinta-sobre-relleno);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 12px 22px;
   font-weight: 700;
   font-size: 0.95rem;

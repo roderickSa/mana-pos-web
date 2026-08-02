@@ -1,49 +1,91 @@
 /* Tokens de diseño Maná — única fuente de verdad de color/tipo/espaciado.
-   Para retocar el look, tocar SOLO este archivo. */
+   Sistema visual v2 («un color, un trabajo»): cada color tiene UN rol. Si un
+   componente necesita un color que no está aquí, se crea el token — nunca un
+   literal. Para retocar el look, tocar SOLO este archivo. */
 :root {
-  /* Marca */
-  --mana-verde-hondo: #14503a;
-  --mana-verde: #1e6b4e;
-  --mana-verde-suave: #e4efe8;
-  --mana-ambar: #e8a13d;
-  --mana-ambar-tinta: #3a2a0e;
-  /* Advertencias (sin mínimo, por vencer): ámbar suave, distinto del CTA.
-     El ámbar pleno queda reservado para la acción de cobrar. */
-  --advertencia-fondo: #f7ead0;
-  --advertencia-tinta: #6b4a00;
+  /* Marca y acentos */
+  /* Header en verde profundo de marca — el ink (#10231a) queda reservado
+     para el totalizador, que debe ser el ÚNICO bloque tinta de la pantalla. */
+  --mana-verde-hondo: #0d4a2f;
+  --mana-verde: #0b6e3f; /* identidad · pestaña activa · positivo (NO precios) */
+  --mana-verde-suave: #eaf4ee;
+  --accion: #c2410c; /* UN solo trabajo: Cobrar (4.9:1 con texto blanco) */
+  --alerta: #a16207; /* advertencias: sin mínimo, por vencer, sin conexión */
+  --marca-acento: #e8a13d; /* UN solo trabajo: el acento del wordmark Maná */
 
-  /* Superficies */
-  --superficie-app: #eff3ec;
+  /* Advertencias (chips ámbar) */
+  --advertencia-fondo: #fbf3e2;
+  --advertencia-tinta: #7a4c05;
+  --advertencia-borde: #e4d2a8;
+
+  /* Superficies — fondo neutro cálido, sin tinte verde */
+  --superficie-app: #f7f7f5;
   --superficie-panel: #ffffff;
   --superficie-voucher: #fdfcf8;
 
   /* Tinta */
-  --tinta: #1f261e;
-  /* Texto secundario ≥6:1 sobre blanco: se lee bajo luz de tienda. */
-  --tinta-suave: #5a655c;
-  --linea: #dbe2d8;
+  --tinta: #10231a; /* verde-negro: mantiene el ADN sin ser un verde más */
+  --tinta-suave: #6b7570; /* secundario: pasa 4.5:1 sobre blanco */
+  --linea: #dedfda;
 
   /* Semánticos */
-  --peligro: #c24438;
-  --exito: #3fa463;
+  --peligro: #b02a1f;
+  --exito: #0b6e3f; /* positivo = verde de marca: un color, un trabajo */
 
-  /* Categorías */
+  /* Texto sobre rellenos de acento (verde/rojo/acción): en claro los rellenos
+     son oscuros → texto blanco; en noche se aclaran → tinta oscura. */
+  --tinta-sobre-relleno: #ffffff;
+
+  /* Sobre la franja de marca (verde hondo, oscuro en AMBOS temas): fijos. */
+  --sobre-marca: #f2f5ef;
+  --sobre-marca-pleno: #ffffff;
+
+  /* Chips de estado (órdenes, avisos): fondo suave + borde + tinta legible. */
+  --chip-neutro-fondo: #f7f7f5;
+  --chip-neutro-tinta: #3a4741;
+  --chip-neutro-borde: #dedfda;
+  --chip-info-fondo: #e3efff;
+  --chip-info-tinta: #1c4f9c;
+  --chip-info-borde: #bfd8f2;
+  --chip-exito-fondo: #eaf4ee;
+  --chip-exito-tinta: #0b5730;
+  --chip-exito-borde: #b9d8c7;
+  --chip-peligro-fondo: #fbebe9;
+  --chip-peligro-tinta: #8c2018;
+  --chip-peligro-borde: #e8c0bb;
+
+  /* Totalizador: el único bloque oscuro de la pantalla de venta — ancla. */
+  --totalizador-fondo: #10231a;
+  --totalizador-tinta: #ffffff;
+  --totalizador-etiqueta: #6e8c7c;
+
+  /* Velos de modales y bloqueos. */
+  --velo: rgba(16, 35, 26, 0.5);
+  --velo-claro: rgba(247, 247, 245, 0.55);
+  --sombra-boton: 0 3px 0 rgba(16, 35, 26, 0.18);
+
+  /* Categorías: barra de 3px en el borde del tile, no color de ícono. */
   --cat-fruta: #57a05c;
-  --cat-abarrote: #e8a13d;
-  --cat-bebida: #4a88b5;
+  --cat-abarrote: #8a6d3b;
+  --cat-bebida: #3b82a8;
   --cat-limpieza: #8a7fb5;
   --cat-pan: #b5824a;
 
-  /* Tipografía */
-  --fuente-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --fuente-voucher: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  /* Tipografía — IBM Plex (self-hosted, ver src/index.tsx):
+     Sans = UI · Mono = dinero/cantidades/etiquetas · Condensed = títulos. */
+  --fuente-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-dato: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  --fuente-voucher: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  --fuente-display: 'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif;
 
-  /* Métricas */
-  --radio: 12px;
-  --radio-chico: 8px;
+  /* Forma: sin píldoras — 4 chips · 6 botones/inputs · 8 cards/modales. */
+  --radio: 8px;
+  --radio-chico: 6px;
+  --radio-boton: 6px;
+  --radio-chip: 4px;
   --toque-min: 48px;
-  --sombra-suave: 0 1px 3px rgba(31, 38, 30, 0.1);
-  --sombra-panel: 0 6px 24px rgba(31, 38, 30, 0.08);
+  --sombra-suave: 0 1px 3px rgba(16, 35, 26, 0.1);
+  --sombra-panel: 0 6px 24px rgba(16, 35, 26, 0.08);
 }
 
 /* Modo texto grande (toggle A+ por usuario): toda la app usa rem, así que
@@ -57,24 +99,43 @@
 }
 
 /* Modo noche (toggle 🌙 por usuario): la tienda opera de noche con la
-   pantalla como fuente principal de luz. Base verde oscuro de marca, texto
-   claro; como toda la app pinta con tokens, basta re-mapearlos aquí. */
+   pantalla como fuente principal de luz. Mismos roles, distintos valores;
+   como toda la app pinta con tokens, basta re-mapearlos aquí. */
 :root.noche {
-  --mana-verde-hondo: #0d3527;
-  --mana-verde: #4cae83;
-  --mana-verde-suave: #1b3a2d;
-  --mana-ambar: #e8a13d;
-  --mana-ambar-tinta: #2a1e08;
-  --advertencia-fondo: #3a2f14;
-  --advertencia-tinta: #e8c477;
-  --superficie-app: #131b16;
-  --superficie-panel: #1c2620;
-  --superficie-voucher: #202a24;
-  --tinta: #e6ece5;
-  --tinta-suave: #a3b0a4;
-  --linea: #35423a;
-  --peligro: #e06a5e;
-  --exito: #57c07c;
+  --mana-verde-hondo: #12281c;
+  --mana-verde: #3da36b; /* sube para contraste */
+  --mana-verde-suave: #1b2e23;
+  --accion: #e2661f;
+  --alerta: #c99a3f;
+  --advertencia-fondo: #33290f;
+  --advertencia-tinta: #e4c878;
+  --advertencia-borde: #55471e;
+  --superficie-app: #0c1611;
+  --superficie-panel: #152119;
+  --superficie-voucher: #182420;
+  --tinta: #edefec;
+  --tinta-suave: #9aa39d;
+  --linea: #2a3830;
+  --peligro: #e06456;
+  --exito: #3da36b;
+  --tinta-sobre-relleno: #0c1611;
+  --chip-neutro-fondo: #202b26;
+  --chip-neutro-tinta: #b9c3bd;
+  --chip-neutro-borde: #2f3c35;
+  --chip-info-fondo: #1b2a3e;
+  --chip-info-tinta: #9dc1f0;
+  --chip-info-borde: #2e4562;
+  --chip-exito-fondo: #17301f;
+  --chip-exito-tinta: #7fce9b;
+  --chip-exito-borde: #2a4a35;
+  --chip-peligro-fondo: #3a1d1a;
+  --chip-peligro-tinta: #f0a099;
+  --chip-peligro-borde: #5c2f2a;
+  --totalizador-fondo: #0b1811;
+  --totalizador-tinta: #edefec;
+  --velo: rgba(0, 0, 0, 0.6);
+  --velo-claro: rgba(10, 16, 12, 0.6);
+  --sombra-boton: 0 3px 0 rgba(0, 0, 0, 0.5);
   --sombra-suave: 0 1px 3px rgba(0, 0, 0, 0.4);
   --sombra-panel: 0 6px 24px rgba(0, 0, 0, 0.45);
 }

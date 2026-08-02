@@ -81,7 +81,7 @@ export const MergeModal: Component<{
                 <button
                   type="button"
                   class={styles.primario}
-                  style={{ background: '#b3261e' }}
+                  style={{ background: 'var(--peligro)' }}
                   disabled={merging()}
                   onClick={() => void confirmMerge()}
                 >

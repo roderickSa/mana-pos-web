@@ -9,6 +9,7 @@
   min-height: 60px;
   font-size: 1.35rem;
   font-weight: 700;
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   border: 1px solid var(--linea, #dde3ea);
   border-radius: 12px;
@@ -31,8 +32,8 @@
   font-weight: 800;
   border: none;
   border-radius: 12px;
-  background: var(--mana-verde, #1e6b34);
-  color: #fff;
+  background: var(--mana-verde);
+  color: var(--tinta-sobre-relleno);
   cursor: pointer;
   touch-action: manipulation;
 }

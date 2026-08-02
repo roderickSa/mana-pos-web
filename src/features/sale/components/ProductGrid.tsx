@@ -14,6 +14,21 @@ const CATEGORY_CLASS: Record<string, string> = {
   pan: styles.catPan,
 };
 
+// La presentación al final del nombre («… 400 g», «… 1.5 L», «… x6») es lo
+// que distingue productos hermanos: se separa como línea propia del tile
+// para que el truncado a 2 líneas nunca se la coma.
+const PRESENTACION = /\s+((?:\d+(?:[.,]\d+)?\s*(?:kg|g|gr|l|lt|ml|cc|oz|un|und|unid)\.?)|(?:x\s?\d+))$/i;
+
+function splitPresentation(name: string): { base: string; pres: string | null } {
+  const trimmed = name.trim();
+  const match = PRESENTACION.exec(trimmed);
+  const pres = match?.[1];
+  if (match === null || pres === undefined || match.index === 0) {
+    return { base: trimmed, pres: null };
+  }
+  return { base: trimmed.slice(0, match.index), pres };
+}
+
 const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto) => void }> = (
   props,
 ) => {
@@ -42,14 +57,14 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
   return (
     <button
       type="button"
-      class={styles.card}
+      class={`${styles.card} ${CATEGORY_CLASS[props.product.category] ?? styles.catAbarrote}`}
       classList={{ [styles.cardBaja]: low(), [styles.cardAgotada]: out() }}
       disabled={out()}
       aria-disabled={out()}
       onClick={() => props.onTap(props.product)}
     >
       <span class={styles.filaAlta}>
-        <span class={`${styles.thumb} ${CATEGORY_CLASS[props.product.category] ?? styles.catAbarrote}`}>
+        <span class={styles.thumb}>
           <Show
             when={props.product.imagePath}
             fallback={<CategoryIcon category={props.product.category} />}
@@ -65,7 +80,10 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
           )}
         </Show>
       </span>
-      <span class={styles.nombre}>{props.product.name}</span>
+      <span class={styles.nombre}>{splitPresentation(props.product.name).base}</span>
+      <Show when={splitPresentation(props.product.name).pres}>
+        {(pres) => <span class={styles.pres}>{pres()}</span>}
+      </Show>
       {/* Pie en dos filas: el precio nunca se parte; el detalle va debajo. */}
       <span class={styles.pie}>
         <span class={styles.precio}>

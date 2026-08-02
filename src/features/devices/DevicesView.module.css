@@ -9,12 +9,12 @@
 
 .banner {
   margin: 0;
-  background: rgba(232, 161, 61, 0.14);
-  border: 1px solid var(--mana-ambar);
+  background: var(--advertencia-fondo);
+  border: 1px solid var(--alerta);
   border-radius: var(--radio);
   padding: 12px 16px;
   font-size: 0.9rem;
-  color: #8a5a13;
+  color: var(--advertencia-tinta);
 }
 
 .banner code {
@@ -76,13 +76,14 @@
   font-size: 2.4rem;
   font-weight: 800;
   font-family: var(--fuente-voucher);
+  font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   color: var(--mana-verde-hondo);
 }
 
 .estadoChip {
   align-self: flex-start;
-  border-radius: 999px;
+  border-radius: var(--radio-chip);
   padding: 4px 12px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -96,15 +97,15 @@
 }
 
 .estadoDev {
-  background: rgba(232, 161, 61, 0.16);
-  color: #8a5a13;
+  background: var(--advertencia-fondo);
+  color: var(--advertencia-tinta);
 }
 
 .tarjeta button {
   border: 1.5px solid var(--mana-verde);
   background: var(--superficie-panel);
   color: var(--mana-verde);
-  border-radius: 999px;
+  border-radius: var(--radio-boton);
   padding: 11px 18px;
   font-weight: 700;
   font-size: 0.9rem;

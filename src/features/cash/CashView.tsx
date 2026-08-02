@@ -9,7 +9,7 @@ import {
   type CashSessionDto,
   type CloseResultDto, getCashHistory, printLastCloseSummary,
 } from '@/shared/api/cash';
-import { apiErrorMessage } from '@/shared/api/client';
+import { ApiError, apiErrorMessage } from '@/shared/api/client';
 import { formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { METHOD_LABELS } from '@/shared/lib/labels';
 import { formatDateTime, formatTime } from '@/shared/lib/dates';
@@ -19,6 +19,7 @@ import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { currentUserName } from '@/shared/state/session';
 import { Modal } from '@/shared/ui/Modal';
 import forms from '@/shared/ui/forms.module.css';
+import tablaCss from '@/shared/ui/tabla.module.css';
 import styles from './CashView.module.css';
 
 const MOVEMENT_LABELS: Record<'withdrawal' | 'expense' | 'deposit', string> = {
@@ -215,26 +216,47 @@ const ClosingsHistory: Component<{ version: number }> = (props) => {
     <Show when={(history() ?? []).length > 0}>
       <div class={styles.movimientos}>
         <h3>Cierres anteriores</h3>
-        <For each={history() ?? []}>
-          {(session) => (
-            <p class={forms.nota} style={{ 'border-bottom': '1px dashed var(--linea)', padding: '6px 0' }}>
-              {session.closedAt === null ? '—' : formatDateTime(session.closedAt)}
-              {' · '}
-              {session.shift === 'morning' ? 'mañana' : 'tarde'} · esperado{' '}
-              {formatSoles(session.expectedCashCents ?? 0)} · contado{' '}
-              {formatSoles(session.countedCashCents ?? 0)} ·{' '}
-              <b
-                style={{
-                  color: difference(session) === 0 ? 'var(--exito)' : 'var(--peligro)',
-                }}
-              >
-                {difference(session) === 0
-                  ? 'cuadró'
-                  : `${difference(session) > 0 ? '+' : ''}${formatSoles(difference(session))}`}
-              </b>
-            </p>
-          )}
-        </For>
+        {/* Información tabular en tabla real: la diferencia es columna propia. */}
+        <table class={tablaCss.tabla}>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Turno</th>
+              <th class={tablaCss.num}>Esperado</th>
+              <th class={tablaCss.num}>Contado</th>
+              <th class={tablaCss.num}>Diferencia</th>
+              <th>Contó</th>
+              <th>Nota</th>
+            </tr>
+          </thead>
+          <tbody>
+            <For each={history() ?? []}>
+              {(session) => (
+                <tr>
+                  <td class={tablaCss.sub}>
+                    {session.closedAt === null ? '—' : formatDateTime(session.closedAt)}
+                  </td>
+                  <td class={tablaCss.sub}>{session.shift === 'morning' ? 'mañana' : 'tarde'}</td>
+                  <td class={tablaCss.num}>{formatSoles(session.expectedCashCents ?? 0)}</td>
+                  <td class={tablaCss.num}>{formatSoles(session.countedCashCents ?? 0)}</td>
+                  <td
+                    class={tablaCss.num}
+                    style={{
+                      color: difference(session) === 0 ? 'var(--exito)' : 'var(--peligro)',
+                      'font-weight': '700',
+                    }}
+                  >
+                    {difference(session) === 0
+                      ? 'cuadró'
+                      : `${difference(session) > 0 ? '+' : ''}${formatSoles(difference(session))}`}
+                  </td>
+                  <td class={tablaCss.sub}>{session.closedBy ?? '—'}</td>
+                  <td class={tablaCss.sub}>{session.closingNote ?? '—'}</td>
+                </tr>
+              )}
+            </For>
+          </tbody>
+        </table>
       </div>
     </Show>
   );
@@ -329,17 +351,33 @@ const CloseModal: Component<{
 }> = (props) => {
   const [counted, setCounted] = createSignal('');
   const [error, setError] = createSignal('');
+  const [saving, setSaving] = createSignal(false);
+  const [note, setNote] = createSignal('');
+  // El corte sigue siendo ciego: la nota solo aparece cuando el API detecta
+  // descuadre (409 NOTE_REQUIRED) y recién ahí se revela la diferencia.
+  const [noteRequired, setNoteRequired] = createSignal(false);
 
   async function save(): Promise<void> {
     const cents = solesInputToCents(counted());
-    if (cents === null) return;
+    // El guard evita el doble-Enter que duplicaba cierres (visto el 31-jul).
+    if (cents === null || saving()) return;
+    setSaving(true);
     try {
-      const result = await closeCash(cents, currentUserName());
+      const result = await closeCash(
+        cents,
+        currentUserName(),
+        note().trim() === '' ? null : note().trim(),
+      );
       beepSuccess();
       props.onClosed(result);
     } catch (cause) {
       beepError();
+      if (cause instanceof ApiError && cause.code === 'NOTE_REQUIRED') {
+        setNoteRequired(true);
+      }
       setError(apiErrorMessage(cause, 'No se pudo cerrar la caja.'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -364,6 +402,18 @@ const CloseModal: Component<{
           />
           <Keypad value={counted()} onChange={setCounted} allowDecimal />
         </div>
+        <Show when={noteRequired()}>
+          <div class={forms.campo}>
+            <span class={forms.etiqueta}>Motivo del descuadre (obligatorio)</span>
+            <input
+              class={forms.input}
+              value={note()}
+              placeholder="p. ej. faltó sencillo del vuelto"
+              onInput={(event) => setNote(event.currentTarget.value)}
+              onKeyDown={(event) => event.key === 'Enter' && void save()}
+            />
+          </div>
+        </Show>
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
@@ -371,7 +421,12 @@ const CloseModal: Component<{
           <button type="button" class={forms.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={forms.primario} onClick={() => void save()}>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={saving()}
+            onClick={() => void save()}
+          >
             Cerrar caja
           </button>
         </div>
