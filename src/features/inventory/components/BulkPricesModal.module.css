@@ -1,0 +1,32 @@
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tabs button {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: var(--radio-chico);
+  padding: 8px 14px;
+  font-weight: 650;
+  min-height: 40px;
+}
+
+.tabActiva {
+  border-color: var(--mana-verde) !important;
+  color: var(--mana-verde) !important;
+  background: color-mix(in srgb, var(--mana-verde) 8%, transparent) !important;
+}
+
+.filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+/* Fila desmarcada en la lista de sugerencias: sigue visible pero apagada. */
+.excluida td {
+  opacity: 0.45;
+}

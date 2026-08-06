@@ -70,6 +70,16 @@
   --cat-bebida: #3b82a8;
   --cat-limpieza: #8a7fb5;
   --cat-pan: #b5824a;
+  /* Paleta elegible por categoría (Ajustes → Categorías). Mismos tonos
+     apagados de la familia --cat-*: acentúan sin gritar. */
+  --cat-verde: #57a05c;
+  --cat-marron: #8a6d3b;
+  --cat-azul: #3b82a8;
+  --cat-morado: #8a7fb5;
+  --cat-ambar: #b5824a;
+  --cat-rojo: #b05c5c;
+  --cat-turquesa: #3b9a8f;
+  --cat-rosado: #b06a95;
 
   /* Tipografía — IBM Plex (self-hosted, ver src/index.tsx):
      Sans = UI · Mono = dinero/cantidades/etiquetas · Condensed = títulos. */

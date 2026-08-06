@@ -15,7 +15,7 @@ import {
 import { registerEntry } from '@/shared/api/inventory';
 import { createSupplier, listSuppliers } from '@/shared/api/suppliers';
 import type { ProductDto } from '@/shared/types';
-import { centsToSolesInput, formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
+import { centsToSolesInput, formatKg, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import { activeCategories } from '@/shared/state/categories';
@@ -194,9 +194,12 @@ export const ProductFormModal: Component<{
     return priceValue !== null && effectiveCost() > 0 && priceValue < effectiveCost();
   };
 
+  // El precio de venta va en pasos de 10 céntimos (el costo puede ser exacto).
+  const priceIsDime = () => isDimeCents(solesInputToCents(price()) ?? 0);
   const valid = () =>
     name().trim() !== '' &&
     (solesInputToCents(price()) ?? 0) > 0 &&
+    priceIsDime() &&
     (saleType() !== 'unit' || packEmpty() || packComplete());
 
   async function save(allowDuplicateName = false): Promise<void> {
@@ -476,8 +479,10 @@ export const ProductFormModal: Component<{
             />
           </div>
         </div>
-        <p class={styles.nota} classList={{ [styles.error]: marginNegative() }}>
-          {marginLabel()}
+        <p class={styles.nota} classList={{ [styles.error]: marginNegative() || !priceIsDime() }}>
+          {!priceIsDime() && price().trim() !== ''
+            ? 'El precio va en pasos de 10 céntimos (S/ 0.10 es la moneda mínima).'
+            : marginLabel()}
           {marginNegative() ? ' — el precio está por debajo del costo' : ''}
         </p>
         <Show when={costIsExplicitZero()}>

@@ -2,10 +2,12 @@ import { For, Show, type Component } from 'solid-js';
 
 import { formatKg, formatSoles } from '@/shared/lib/money';
 import { reservedQuantity } from '@/features/sale/state/ticket';
+import { activeCategories } from '@/shared/state/categories';
 import type { ProductDto } from '@/shared/types';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import styles from './ProductGrid.module.css';
 
+// Fallback para categorías sin color elegido (creadas antes de la tarea 85).
 const CATEGORY_CLASS: Record<string, string> = {
   'frutas-verduras': styles.catFruta,
   abarrotes: styles.catAbarrote,
@@ -13,6 +15,12 @@ const CATEGORY_CLASS: Record<string, string> = {
   limpieza: styles.catLimpieza,
   pan: styles.catPan,
 };
+
+// Apariencia configurada en Ajustes → Categorías (ícono + color por slug).
+function categoryLook(slug: string): { icon: string | null; color: string | null } {
+  const category = activeCategories().find((item) => item.slug === slug);
+  return { icon: category?.icon ?? null, color: category?.color ?? null };
+}
 
 // La presentación al final del nombre («… 400 g», «… 1.5 L», «… x6») es lo
 // que distingue productos hermanos: se separa como línea propia del tile
@@ -57,8 +65,17 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
   return (
     <button
       type="button"
-      class={`${styles.card} ${CATEGORY_CLASS[props.product.category] ?? styles.catAbarrote}`}
+      class={`${styles.card} ${
+        categoryLook(props.product.category).color === null
+          ? (CATEGORY_CLASS[props.product.category] ?? styles.catAbarrote)
+          : ''
+      }`}
       classList={{ [styles.cardBaja]: low(), [styles.cardAgotada]: out() }}
+      style={
+        categoryLook(props.product.category).color === null
+          ? undefined
+          : { '--cat': `var(--cat-${categoryLook(props.product.category).color})` }
+      }
       disabled={out()}
       aria-disabled={out()}
       onClick={() => props.onTap(props.product)}
@@ -67,7 +84,12 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
         <span class={styles.thumb}>
           <Show
             when={props.product.imagePath}
-            fallback={<CategoryIcon category={props.product.category} />}
+            fallback={
+              <CategoryIcon
+                category={props.product.category}
+                icon={categoryLook(props.product.category).icon}
+              />
+            }
           >
             {(imagePath) => <img src={imagePath()} alt="" loading="lazy" />}
           </Show>
@@ -75,7 +97,7 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
         <Show when={props.product.shortCode}>
           {(code) => (
             <kbd class={styles.codigoCorto} title={`Código corto: teclea ${code()} y Enter`}>
-              {code()}
+              #{code()}
             </kbd>
           )}
         </Show>

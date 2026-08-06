@@ -11,7 +11,7 @@ import {
   type CustomerAccountDto,
 } from '@/shared/api/customers';
 import { apiErrorMessage } from '@/shared/api/client';
-import { formatSoles, solesInputToCents } from '@/shared/lib/money';
+import { DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
 import { beepError, beepSuccess } from '@/shared/lib/sounds';
@@ -137,6 +137,10 @@ const AbonoModal: Component<{
   async function save(): Promise<void> {
     const cents = solesInputToCents(amount());
     if (cents === null || cents <= 0) return;
+    if (!isDimeCents(cents)) {
+      setError(DIME_MESSAGE);
+      return;
+    }
     try {
       const result = await registerAbono(props.account.id, cents, method(), currentUserName());
       beepSuccess();
@@ -242,13 +246,16 @@ const StatementModal: Component<{ account: CustomerAccountDto; onClose: () => vo
   );
 };
 
-export const CreditView: Component = () => {
+// Clientes es el módulo; el fiado es una de sus caras. Directorio = la
+// libreta completa (crear, editar, contacto); Fiado = solo la cobranza.
+export const ClientesView: Component = () => {
+  const [tab, setTab] = createSignal<'directorio' | 'fiado'>('directorio');
   const [query, setQuery] = createSignal('');
-  const [onlyDebtors, setOnlyDebtors] = createSignal(false);
+  const [onlyDebtors, setOnlyDebtors] = createSignal(true);
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
 
   const [accounts, { refetch }] = createResource(
-    () => ({ query: query(), onlyDebtors: onlyDebtors() }),
+    () => ({ query: query(), onlyDebtors: tab() === 'fiado' && onlyDebtors() }),
     (params) => listCustomers(params.query, params.onlyDebtors),
   );
 
@@ -266,121 +273,169 @@ export const CreditView: Component = () => {
     (accounts() ?? []).reduce((sum, account) => sum + Math.max(0, -account.balanceCents), 0);
 
   return (
-    <section class={tabla.vista}>
-      <div class={tabla.encabezado}>
-        <input
-          ref={focusOnMount}
-          class={tabla.buscador}
-          type="text"
-          placeholder="Buscar cliente…"
-          value={query()}
-          onInput={(event) => setQuery(event.currentTarget.value)}
-        />
-        <label class={forms.check} style={{ 'white-space': 'nowrap' }}>
-          <input
-            type="checkbox"
-            checked={onlyDebtors()}
-            onChange={(event) => setOnlyDebtors(event.currentTarget.checked)}
-          />
-          Solo deudores
-        </label>
-        <span class={tabla.alertaBajo}>Deuda total: {formatSoles(totalDebt())}</span>
-        <Show when={totalInFavor() > 0}>
-          <span class={tabla.positivo}>{formatSoles(totalInFavor())} a favor de clientes</span>
-        </Show>
-        <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
-          + Nuevo cliente
+    <div class={tabla.contenedorTabs}>
+      <nav class={tabla.subnav} aria-label="Secciones de clientes">
+        <button
+          type="button"
+          class={tabla.subtab}
+          classList={{ [tabla.subtabActiva]: tab() === 'directorio' }}
+          onClick={() => setTab('directorio')}
+        >
+          Directorio
         </button>
-      </div>
+        <button
+          type="button"
+          class={tabla.subtab}
+          classList={{ [tabla.subtabActiva]: tab() === 'fiado' }}
+          onClick={() => setTab('fiado')}
+        >
+          Fiado
+        </button>
+      </nav>
 
-      <div class={tabla.tablaContenedor}>
-        <table class={tabla.tabla}>
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Teléfono</th>
-              <th class={tabla.num}>Límite</th>
-              <th class={tabla.num}>Deuda</th>
-              <th>Debe desde</th>
-              <th class={tabla.num}>Disponible</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <For each={accounts() ?? []}>
-              {(account) => (
-                <tr>
-                  <td>
-                    <div class={tabla.nombre}>{account.name}</div>
-                    <div class={tabla.sub}>{account.document ?? ''}</div>
-                  </td>
-                  <td class={tabla.sub}>{account.phone ?? '—'}</td>
-                  <td class={tabla.num}>{formatSoles(account.creditLimitCents)}</td>
-                  <td class={tabla.num}>
-                    <span
-                      class={tabla.stock}
-                      classList={{
-                        [tabla.stockCero]: account.balanceCents > 0,
-                        [tabla.positivo]: account.balanceCents < 0,
-                      }}
-                    >
-                      {account.balanceCents < 0
-                        ? `${formatSoles(-account.balanceCents)} a favor`
-                        : formatSoles(account.balanceCents)}
-                    </span>
-                  </td>
-                  <td class={tabla.sub}>
-                    {account.debtSince === null || account.balanceCents <= 0
-                      ? '—'
-                      : debtSinceLabel(account.debtSince)}
-                  </td>
-                  <td class={`${tabla.num} ${tabla.sub}`}>{formatSoles(account.availableCents)}</td>
-                  <td class={tabla.acciones}>
-                    <button
-                      type="button"
-                      disabled={account.balanceCents <= 0}
-                      onClick={() => setModal({ kind: 'abono', account })}
-                    >
-                      Abonar
-                    </button>
-                    <Show when={account.phone !== null && account.balanceCents > 0}>
-                      <a
-                        class={tabla.sub}
-                        style={{ 'margin-right': '6px' }}
-                        href={whatsappReminderUrl(account)}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Recordatorio de deuda por WhatsApp con mensaje pre-armado"
-                      >
-                        WhatsApp
-                      </a>
-                    </Show>
-                    <button type="button" onClick={() => setModal({ kind: 'statement', account })}>
-                      Estado de cuenta
-                    </button>
-                    <button type="button" onClick={() => setModal({ kind: 'edit', account })}>
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              )}
-            </For>
-          </tbody>
-        </table>
-        <Show when={!accounts.loading && (accounts() ?? []).length === 0}>
-          <div class={tabla.vacio}>
-            <Show when={!onlyDebtors()} fallback={<p>Nadie debe nada. 🎉</p>}>
-              <p>Aún no hay clientes de fiado.</p>
-              <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
-                + Crear el primer cliente
-              </button>
+      <section class={tabla.vista}>
+        <div class={tabla.encabezado}>
+          <input
+            ref={focusOnMount}
+            class={tabla.buscador}
+            type="text"
+            placeholder="Buscar cliente…"
+            value={query()}
+            onInput={(event) => setQuery(event.currentTarget.value)}
+          />
+          <Show when={tab() === 'fiado'}>
+            <label class={forms.check} style={{ 'white-space': 'nowrap' }}>
+              <input
+                type="checkbox"
+                checked={onlyDebtors()}
+                onChange={(event) => setOnlyDebtors(event.currentTarget.checked)}
+              />
+              Solo deudores
+            </label>
+            <span class={tabla.alertaBajo}>Deuda total: {formatSoles(totalDebt())}</span>
+            <Show when={totalInFavor() > 0}>
+              <span class={tabla.positivo}>{formatSoles(totalInFavor())} a favor de clientes</span>
             </Show>
-          </div>
-        </Show>
-      </div>
+          </Show>
+          <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
+            + Nuevo cliente
+          </button>
+        </div>
 
-      {renderModal(modal(), closeAndRefresh, () => setModal({ kind: 'none' }))}
-    </section>
+        <div class={tabla.tablaContenedor}>
+          <table class={tabla.tabla}>
+            <thead>
+              <Show
+                when={tab() === 'fiado'}
+                fallback={
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Documento</th>
+                    <th class={tabla.num}>Límite de fiado</th>
+                    <th class={tabla.num}>Deuda</th>
+                    <th>Acciones</th>
+                  </tr>
+                }
+              >
+                <tr>
+                  <th>Cliente</th>
+                  <th>Teléfono</th>
+                  <th class={tabla.num}>Deuda</th>
+                  <th>Debe desde</th>
+                  <th class={tabla.num}>Disponible</th>
+                  <th>Acciones</th>
+                </tr>
+              </Show>
+            </thead>
+            <tbody>
+              <For each={accounts() ?? []}>
+                {(account) => (
+                  <tr>
+                    <td>
+                      <div class={tabla.nombre}>{account.name}</div>
+                      <Show when={tab() === 'fiado'}>
+                        <div class={tabla.sub}>{account.document ?? ''}</div>
+                      </Show>
+                    </td>
+                    <td class={tabla.sub}>{account.phone ?? '—'}</td>
+                    <Show when={tab() === 'directorio'}>
+                      <td class={tabla.sub}>{account.document ?? '—'}</td>
+                      <td class={tabla.num}>{formatSoles(account.creditLimitCents)}</td>
+                    </Show>
+                    <td class={tabla.num}>
+                      <span
+                        class={tabla.stock}
+                        classList={{
+                          [tabla.stockCero]: account.balanceCents > 0,
+                          [tabla.positivo]: account.balanceCents < 0,
+                        }}
+                      >
+                        {account.balanceCents < 0
+                          ? `${formatSoles(-account.balanceCents)} a favor`
+                          : formatSoles(account.balanceCents)}
+                      </span>
+                    </td>
+                    <Show when={tab() === 'fiado'}>
+                      <td class={tabla.sub}>
+                        {account.debtSince === null || account.balanceCents <= 0
+                          ? '—'
+                          : debtSinceLabel(account.debtSince)}
+                      </td>
+                      <td class={`${tabla.num} ${tabla.sub}`}>{formatSoles(account.availableCents)}</td>
+                    </Show>
+                    <td class={tabla.acciones}>
+                      <Show when={tab() === 'fiado'}>
+                        <button
+                          type="button"
+                          disabled={account.balanceCents <= 0}
+                          onClick={() => setModal({ kind: 'abono', account })}
+                        >
+                          Abonar
+                        </button>
+                        <Show when={account.phone !== null && account.balanceCents > 0}>
+                          <a
+                            class={tabla.sub}
+                            style={{ 'margin-right': '6px' }}
+                            href={whatsappReminderUrl(account)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Recordatorio de deuda por WhatsApp con mensaje pre-armado"
+                          >
+                            WhatsApp
+                          </a>
+                        </Show>
+                      </Show>
+                      <button type="button" onClick={() => setModal({ kind: 'statement', account })}>
+                        Estado de cuenta
+                      </button>
+                      <button type="button" onClick={() => setModal({ kind: 'edit', account })}>
+                        Editar
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </For>
+            </tbody>
+          </table>
+          <Show when={!accounts.loading && (accounts() ?? []).length === 0}>
+            <div class={tabla.vacio}>
+              <Show
+                when={!(tab() === 'fiado' && onlyDebtors())}
+                fallback={<p>Nadie debe nada. 🎉</p>}
+              >
+                <p>Aún no hay clientes registrados.</p>
+                <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
+                  + Crear el primer cliente
+                </button>
+              </Show>
+            </div>
+          </Show>
+        </div>
+
+        {renderModal(modal(), closeAndRefresh, () => setModal({ kind: 'none' }))}
+      </section>
+    </div>
   );
 };
 

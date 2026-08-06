@@ -19,3 +19,15 @@ export function solesInputToCents(value: string): number | null {
   }
   return Math.round(parsed * 100);
 }
+
+// El efectivo peruano no baja de 10 céntimos: lo que se cobra o paga en
+// físico va en pasos de S/ 0.10.
+export function roundToDimeCents(cents: number): number {
+  return Math.round(cents / 10) * 10;
+}
+
+export function isDimeCents(cents: number): boolean {
+  return cents % 10 === 0;
+}
+
+export const DIME_MESSAGE = 'Los montos van en pasos de 10 céntimos (S/ 0.10).';

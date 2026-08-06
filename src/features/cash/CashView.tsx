@@ -10,7 +10,7 @@ import {
   type CloseResultDto, getCashHistory, printLastCloseSummary,
 } from '@/shared/api/cash';
 import { ApiError, apiErrorMessage } from '@/shared/api/client';
-import { formatSoles, solesInputToCents } from '@/shared/lib/money';
+import { DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { METHOD_LABELS } from '@/shared/lib/labels';
 import { formatDateTime, formatTime } from '@/shared/lib/dates';
 import { bumpCashRefresh, cashRefreshVersion } from '@/shared/state/cash-refresh';
@@ -22,10 +22,11 @@ import forms from '@/shared/ui/forms.module.css';
 import tablaCss from '@/shared/ui/tabla.module.css';
 import styles from './CashView.module.css';
 
-const MOVEMENT_LABELS: Record<'withdrawal' | 'expense' | 'deposit', string> = {
+const MOVEMENT_LABELS: Record<'withdrawal' | 'expense' | 'deposit' | 'refund', string> = {
   withdrawal: 'Retiro',
   expense: 'Gasto',
   deposit: 'Ingreso',
+  refund: 'Devolución',
 };
 
 type ModalState =
@@ -54,6 +55,11 @@ export const CashView: Component = () => {
   async function doOpen(): Promise<void> {
     const cents = solesInputToCents(opening() === '' ? '0' : opening());
     if (cents === null) return;
+    if (!isDimeCents(cents)) {
+      beepError();
+      showNotice(DIME_MESSAGE);
+      return;
+    }
     try {
       await openCash(shift(), cents, currentUserName());
       beepSuccess();
@@ -147,6 +153,9 @@ export const CashView: Component = () => {
                         <div><span>Ingresos de efectivo</span><b>{formatSoles(open().breakdown.depositsCents)}</b></div>
                         <div><span>Retiros</span><b>−{formatSoles(open().breakdown.withdrawalsCents)}</b></div>
                         <div><span>Gastos</span><b>−{formatSoles(open().breakdown.expensesCents)}</b></div>
+                        <Show when={open().breakdown.refundsCents > 0}>
+                          <div><span>Devoluciones</span><b>−{formatSoles(open().breakdown.refundsCents)}</b></div>
+                        </Show>
                       </div>
                     </div>
 
@@ -274,6 +283,10 @@ const MovementModal: Component<{
   async function save(): Promise<void> {
     const cents = solesInputToCents(amount());
     if (cents === null || cents <= 0 || concept().trim() === '') return;
+    if (!isDimeCents(cents)) {
+      setError(DIME_MESSAGE);
+      return;
+    }
     try {
       const result = await registerCashMovement(props.movementKind, cents, concept().trim(), currentUserName());
       beepSuccess();
@@ -361,6 +374,11 @@ const CloseModal: Component<{
     const cents = solesInputToCents(counted());
     // El guard evita el doble-Enter que duplicaba cierres (visto el 31-jul).
     if (cents === null || saving()) return;
+    if (!isDimeCents(cents)) {
+      beepError();
+      showNotice(DIME_MESSAGE);
+      return;
+    }
     setSaving(true);
     try {
       const result = await closeCash(

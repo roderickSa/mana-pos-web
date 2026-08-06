@@ -49,5 +49,7 @@ export interface TicketLine {
   quantity: number;
   weightGrams: number | null;
   weightSource: 'scale' | 'manual' | null;
+  // Descuento de la línea en céntimos; totalCents ya lo tiene restado.
+  discountCents: number;
   totalCents: number;
 }

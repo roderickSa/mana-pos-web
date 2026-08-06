@@ -1,0 +1,83 @@
+/* Flechas de orden: la lista ES el orden de las pestañas de Vender. */
+.orden {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.orden button {
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: var(--radio-chico);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.orden button:disabled {
+  opacity: 0.35;
+}
+
+.orden button:not(:disabled):hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
+/* Vista previa del estilo: el ícono pintado con el color elegido. */
+.estilo {
+  display: inline-flex;
+  align-items: center;
+}
+
+.estiloIcono {
+  width: 30px;
+  height: 30px;
+  display: inline-block;
+}
+
+/* Pickers del modal de edición: opciones a tamaño dedo. */
+.pickerIconos,
+.pickerColores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.opcionIcono {
+  width: 52px;
+  height: 52px;
+  padding: 10px;
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: var(--radio-chico);
+}
+
+.opcionColor {
+  width: 44px;
+  height: 44px;
+  border: 3px solid transparent;
+  border-radius: var(--radio-chico);
+}
+
+.opcionActiva {
+  border-color: var(--mana-verde) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mana-verde) 35%, transparent);
+  color: var(--mana-verde);
+}
+
+/* Eliminar: destructivo, en rojo pleno como el patrón de anular. */
+.eliminar {
+  background: var(--peligro);
+  color: var(--tinta-sobre-relleno);
+  border: none;
+  border-radius: var(--radio-boton);
+  padding: 10px 22px;
+  font-weight: 700;
+  min-height: 44px;
+}
+
+.eliminar:disabled {
+  opacity: 0.45;
+}

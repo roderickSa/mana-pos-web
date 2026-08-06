@@ -20,3 +20,14 @@
   background: var(--mana-verde);
   color: var(--tinta-sobre-relleno);
 }
+
+/* Atajo de teclado del método, discreto bajo el nombre. */
+.atajo {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.68rem;
+  font-family: var(--fuente-dato);
+  color: var(--tinta-suave);
+  background: none;
+  border: none;
+}

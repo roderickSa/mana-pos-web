@@ -12,7 +12,11 @@ import {
   resumeHeldTicket,
   selectLine,
   selectedLineIndex,
+  ticketCustomer,
+  ticketDiscountCents,
   ticketLines,
+  ticketLinesTotalCents,
+  ticketRoundingCents,
   ticketTotalCents,
   undoRemoveLine,
 } from '@/features/sale/state/ticket';
@@ -27,6 +31,11 @@ export const TicketPanel: Component<{
   onReprintLast: () => void;
   onHelp: () => void;
   onEditWeight: (line: TicketLine) => void;
+  onDiscountLine: (line: TicketLine) => void;
+  onDiscountTicket: () => void;
+  onLineActions: (line: TicketLine) => void;
+  onCancelSale: () => void;
+  onCustomer: () => void;
 }> = (props) => (
   <aside class={styles.panel}>
     <div class={styles.voucher}>
@@ -59,7 +68,11 @@ export const TicketPanel: Component<{
             <div
               class={styles.linea}
               classList={{ [styles.lineaSel]: selectedLineIndex() === index() }}
-              onClick={() => selectLine(index())}
+              onClick={() => {
+                // Tap en la fila = panel de acciones grandes (táctil primero).
+                selectLine(index());
+                props.onLineActions(line);
+              }}
             >
               <span class={styles.info}>
                 <span class={styles.nombre}>{line.product.name}</span>
@@ -67,6 +80,9 @@ export const TicketPanel: Component<{
                   {line.product.saleType === 'weight'
                     ? `${formatSoles(line.product.pricePerKgCents)} por kg`
                     : `${formatSoles(line.product.priceCents)} c/u`}
+                  <Show when={line.discountCents > 0}>
+                    <span class={styles.dcto}> · dcto −{formatSoles(line.discountCents)}</span>
+                  </Show>
                 </span>
               </span>
               <span class={styles.cantidad}>
@@ -115,6 +131,18 @@ export const TicketPanel: Component<{
               <span class={styles.monto}>{formatSoles(line.totalCents)}</span>
               <button
                 type="button"
+                class={styles.descontar}
+                aria-label={`Descuento a ${line.product.name}`}
+                title="Descuento a esta línea"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  props.onDiscountLine(line);
+                }}
+              >
+                %
+              </button>
+              <button
+                type="button"
                 class={styles.quitar}
                 aria-label={`Quitar ${line.product.name}`}
                 onClick={(event) => {
@@ -137,9 +165,55 @@ export const TicketPanel: Component<{
 
       {/* aria-live: el lector de pantalla anuncia el total con cada cambio. */}
       <div class={styles.total} aria-live="polite">
-        <span class={styles.totalEtiqueta}>Total</span>
-        <span class={styles.totalMonto}>{formatSoles(ticketTotalCents())}</span>
+        <Show when={ticketDiscountCents() > 0 || ticketRoundingCents() !== 0}>
+          <div class={styles.totalDesglose}>
+            <span>Subtotal {formatSoles(ticketLinesTotalCents())}</span>
+            <Show when={ticketDiscountCents() > 0}>
+              <span>Descuento −{formatSoles(ticketDiscountCents())}</span>
+            </Show>
+            <Show when={ticketRoundingCents() !== 0}>
+              <span>
+                Redondeo {ticketRoundingCents() > 0 ? '+' : '−'}
+                {formatSoles(Math.abs(ticketRoundingCents()))}
+              </span>
+            </Show>
+          </div>
+        </Show>
+        <div class={styles.totalFila}>
+          <span class={styles.totalEtiqueta}>Total</span>
+          <span class={styles.totalMonto}>{formatSoles(ticketTotalCents())}</span>
+        </div>
       </div>
+    </div>
+
+    <div class={styles.espera}>
+      <button
+        type="button"
+        class={styles.esperaBoton}
+        classList={{ [styles.clienteActivo]: ticketCustomer() !== null }}
+        title="Poner la venta a nombre de un cliente (opcional)"
+        onClick={props.onCustomer}
+      >
+        {ticketCustomer() === null ? '👤 Cliente' : `👤 ${ticketCustomer()?.name ?? ''}`}
+      </button>
+      <button
+        type="button"
+        class={styles.esperaBoton}
+        disabled={ticketLines().length === 0}
+        title="Descuento a toda la venta (lo autoriza el encargado)"
+        onClick={props.onDiscountTicket}
+      >
+        % Descuento a la venta{ticketDiscountCents() > 0 ? ` −${formatSoles(ticketDiscountCents())}` : ''}
+      </button>
+      <button
+        type="button"
+        class={`${styles.esperaBoton} ${styles.cancelarVenta}`}
+        disabled={ticketLines().length === 0}
+        title="Cancela la venta en curso (los tickets en espera no se tocan)"
+        onClick={props.onCancelSale}
+      >
+        ✕ Cancelar venta
+      </button>
     </div>
 
     <div class={styles.espera}>
@@ -180,7 +254,11 @@ export const TicketPanel: Component<{
       disabled={ticketLines().length === 0}
       onClick={props.onCharge}
     >
-      Cobrar (F4)
+      {props.payment === 'Efectivo'
+        ? 'Cobrar en efectivo (F4)'
+        : props.payment === 'Fiado'
+          ? 'Fiar la venta (F4)'
+          : `Cobrar con ${props.payment} (F4)`}
     </button>
   </aside>
 );

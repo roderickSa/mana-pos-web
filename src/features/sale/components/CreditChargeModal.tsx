@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
 
 import { listCustomers, type CustomerAccountDto } from '@/shared/api/customers';
 import { formatSoles } from '@/shared/lib/money';
@@ -9,6 +9,8 @@ import styles from './CreditChargeModal.module.css';
 // aquí solo se muestra el disponible para decidir rápido.
 export const CreditChargeModal: Component<{
   totalCents: number;
+  // Cliente ya elegido para la venta: se preselecciona (misma persona).
+  initialCustomerId: string | null;
   onConfirm: (customerId: string) => Promise<void>;
   onClose: () => void;
 }> = (props) => {
@@ -18,6 +20,12 @@ export const CreditChargeModal: Component<{
   const [error, setError] = createSignal('');
 
   const [customers] = createResource(query, (search) => listCustomers(search, false));
+
+  createEffect(() => {
+    if (selected() !== null || props.initialCustomerId === null) return;
+    const match = (customers() ?? []).find((customer) => customer.id === props.initialCustomerId);
+    if (match !== undefined) setSelected(match);
+  });
 
   async function confirm(): Promise<void> {
     const customer = selected();
@@ -65,7 +73,7 @@ export const CreditChargeModal: Component<{
             }}
           </For>
           <Show when={!customers.loading && (customers() ?? []).length === 0}>
-            <p class={styles.vacio}>No hay clientes con ese nombre. Créalo en la sección Fiado.</p>
+            <p class={styles.vacio}>No hay clientes con ese nombre. Créalo en el módulo Clientes.</p>
           </Show>
         </div>
 

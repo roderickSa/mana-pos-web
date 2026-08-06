@@ -96,13 +96,14 @@
   pointer-events: none;
 }
 
-/* El stock es dato de fondo: chico, gris, en la esquina del pie.
-   Solo levanta la voz cuando está bajo o en cero. */
+/* El stock es dato de fondo pero legible con luz de mediodía:
+   solo levanta la voz cuando está bajo o en cero. */
 .stock {
   margin-left: auto;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--tinta-suave);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--tinta);
+  opacity: 0.75;
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

@@ -121,7 +121,7 @@
    Todos los nombres arrancan en el mismo eje X; los importes terminan juntos. */
 .linea {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 5.5rem 32px;
+  grid-template-columns: minmax(0, 1fr) auto 5.5rem 32px 32px;
   column-gap: 8px;
   padding: 8px 8px 8px 15px;
   border-bottom: 1px dashed var(--linea);
@@ -131,8 +131,9 @@
 }
 
 .lineaSel {
-  border-left-color: var(--mana-verde);
-  background: color-mix(in srgb, var(--mana-verde) 8%, transparent);
+  border-left: 4px solid var(--mana-verde);
+  background: color-mix(in srgb, var(--mana-verde) 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--mana-verde) 45%, transparent);
 }
 
 .info {
@@ -242,6 +243,42 @@
   background: color-mix(in srgb, var(--peligro) 10%, transparent);
 }
 
+/* El % de descuento sigue el mismo patrón que la ✕: visible al pasar
+   el mouse o con la fila seleccionada. */
+.descontar {
+  border: none;
+  background: none;
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
+  font-weight: 700;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radio-chico);
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.linea:hover .descontar,
+.lineaSel .descontar {
+  opacity: 1;
+}
+
+.descontar:hover {
+  background: color-mix(in srgb, var(--tinta) 8%, transparent);
+}
+
+/* Descuento aplicado a la línea, junto al precio unitario. */
+.dcto {
+  color: var(--alerta);
+  font-weight: 650;
+}
+
+/* Cancelar la venta completa: visible pero en rojo de peligro contenido. */
+.cancelarVenta:not(:disabled) {
+  color: var(--peligro);
+  border-color: color-mix(in srgb, var(--peligro) 45%, transparent);
+}
+
 /* Pantalla táctil: no hay hover — la ✕ y los steppers viven siempre visibles
    y a tamaño dedo (≥44px), con aire entre targets vecinos. */
 @media (pointer: coarse) {
@@ -251,6 +288,14 @@
     height: 44px;
     font-size: 1.05rem;
     background: color-mix(in srgb, var(--peligro) 8%, transparent);
+  }
+
+  .descontar {
+    opacity: 1;
+    width: 44px;
+    height: 44px;
+    font-size: 1.05rem;
+    background: color-mix(in srgb, var(--tinta) 6%, transparent);
   }
 
   .paso {
@@ -264,7 +309,7 @@
   }
 
   .linea {
-    grid-template-columns: minmax(0, 1fr) auto 5.5rem 48px;
+    grid-template-columns: minmax(0, 1fr) auto 5.5rem 48px 48px;
     padding-top: 10px;
     padding-bottom: 10px;
   }
@@ -281,14 +326,32 @@
    y es lo primero que encuentra el ojo al levantar la vista. */
 .total {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
   padding: 14px 18px 16px;
   margin: 8px 12px 12px;
   background: var(--totalizador-fondo);
   border-radius: var(--radio);
   color: var(--totalizador-tinta);
+}
+
+.totalFila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Con descuento o redondeo, el total muestra de dónde sale el número. */
+.totalDesglose {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 0.8rem;
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+  color: var(--totalizador-etiqueta);
 }
 
 .totalEtiqueta {
@@ -379,4 +442,11 @@
     min-height: 44px;
     padding: 9px 14px;
   }
+}
+
+/* Con cliente elegido, el botón lo muestra en verde de marca. */
+.clienteActivo {
+  border-color: var(--mana-verde) !important;
+  color: var(--mana-verde) !important;
+  background: color-mix(in srgb, var(--mana-verde) 8%, transparent) !important;
 }

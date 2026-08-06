@@ -29,3 +29,8 @@
 .spacer {
   flex: 1;
 }
+
+/* Equipos simulados (modo desarrollo): ámbar de advertencia, no estado normal. */
+.dev {
+  color: var(--advertencia-tinta);
+}

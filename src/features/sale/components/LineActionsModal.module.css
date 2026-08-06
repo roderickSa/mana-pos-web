@@ -1,0 +1,44 @@
+.cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 2px;
+}
+
+.resumen {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Botones a tamaño dedo: el panel existe para no fallar el toque. */
+.accion {
+  min-height: 56px;
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: var(--radio-chico);
+  font-size: 1rem;
+  font-weight: 650;
+  text-align: left;
+  padding: 0 18px;
+}
+
+.accion:hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
+.quitar {
+  margin-top: 10px;
+  min-height: 56px;
+  border: 1.5px solid color-mix(in srgb, var(--peligro) 45%, transparent);
+  background: color-mix(in srgb, var(--peligro) 8%, transparent);
+  color: var(--peligro);
+  border-radius: var(--radio-chico);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0 18px;
+}

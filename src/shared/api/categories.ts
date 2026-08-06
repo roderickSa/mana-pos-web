@@ -4,6 +4,10 @@ export interface CategoryDto {
   slug: string;
   name: string;
   active: boolean;
+  sortOrder: number;
+  // Llaves del set fijo (CategoryIcon / tokens --cat-*); null = default.
+  icon: string | null;
+  color: string | null;
   productCount?: number;
 }
 
@@ -18,7 +22,15 @@ export async function createCategory(name: string): Promise<CategoryDto> {
 
 export async function updateCategory(
   slug: string,
-  changes: { name?: string; active?: boolean },
+  changes: { name?: string; active?: boolean; icon?: string; color?: string },
 ): Promise<CategoryDto> {
   return sendJson('PUT', `/catalog/categories/${encodeURIComponent(slug)}`, changes);
+}
+
+export async function reorderCategories(slugs: string[]): Promise<void> {
+  await sendJson('PUT', '/catalog/categories/order', { slugs });
+}
+
+export async function deleteCategory(slug: string, reassignTo: string): Promise<{ movedProducts: number }> {
+  return sendJson('DELETE', `/catalog/categories/${slug}`, { reassignTo });
 }

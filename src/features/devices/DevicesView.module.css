@@ -119,3 +119,93 @@
 .tarjeta button:disabled {
   opacity: 0.5;
 }
+
+/* Configuración de la impresora dentro de su tarjeta. */
+.configImpresora {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--linea);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.configFila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.configEtiqueta {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--fuente-dato);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+  min-width: 140px;
+}
+
+.configSelect {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio-chico);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  padding: 0 10px;
+  font-size: 0.9rem;
+}
+
+.configRefrescar {
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: var(--radio-chico);
+  font-size: 1.1rem;
+}
+
+.configAnchos {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.configAnchos button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  border-radius: var(--radio-chico);
+  font-weight: 700;
+}
+
+.anchoActivo {
+  border-color: var(--mana-verde) !important;
+  color: var(--mana-verde) !important;
+  background: color-mix(in srgb, var(--mana-verde) 8%, transparent) !important;
+}
+
+.configGuardar {
+  min-height: 44px;
+  padding: 0 22px;
+  border: none;
+  border-radius: var(--radio-boton);
+  background: var(--mana-verde);
+  color: var(--tinta-sobre-relleno);
+  font-weight: 700;
+}
+
+.configGuardar:disabled {
+  opacity: 0.5;
+}
+
+.configNota {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+}

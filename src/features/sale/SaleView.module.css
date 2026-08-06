@@ -98,3 +98,18 @@
   padding: 1px 6px;
   background: var(--superficie-panel);
 }
+
+/* Cerrar la leyenda del código corto: chico pero tocable. */
+.leyendaCerrar {
+  margin-left: 10px;
+  border: none;
+  background: none;
+  color: var(--tinta-suave);
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: var(--radio-chico);
+}
+
+.leyendaCerrar:hover {
+  background: color-mix(in srgb, var(--tinta) 8%, transparent);
+}

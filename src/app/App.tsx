@@ -4,7 +4,7 @@ import { InventoryView } from '@/features/inventory/InventoryView';
 import { PurchasesView } from '@/features/purchases/PurchasesView';
 import { SaleView } from '@/features/sale/SaleView';
 import { SalesHistoryView } from '@/features/sales-history/SalesHistoryView';
-import { CreditView } from '@/features/credit/CreditView';
+import { ClientesView } from '@/features/credit/CreditView';
 import { CashView } from '@/features/cash/CashView';
 import { LoginView } from '@/features/login/LoginView';
 import { SettingsView } from '@/features/settings/SettingsView';
@@ -85,8 +85,8 @@ const App: Component = () => {
         <Match when={view() === 'ventas'}>
           <SalesHistoryView />
         </Match>
-        <Match when={view() === 'fiado'}>
-          <CreditView />
+        <Match when={view() === 'clientes'}>
+          <ClientesView />
         </Match>
         {/* Doble candado: aunque la vista quedara apuntando aquí, sin rol
             de encargado no se monta (el API además rechaza los datos). */}

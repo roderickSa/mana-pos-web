@@ -3,7 +3,7 @@ import { Keypad } from '@/shared/ui/Keypad';
 
 import type { CheckoutResponseDto, PaymentPart } from '@/shared/api/sales';
 import { CHARGE_METHOD_TO_API } from '@/shared/lib/labels';
-import { formatSoles, solesInputToCents } from '@/shared/lib/money';
+import { DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { Modal } from '@/shared/ui/Modal';
 import styles from './ChargeModal.module.css';
 
@@ -55,7 +55,13 @@ export const ChargeModal: Component<{
 
   const secondCents = () => solesInputToCents(secondAmount()) ?? 0;
   const firstCents = () => props.totalCents - secondCents();
-  const splitValid = () => secondCents() > 0 && secondCents() < props.totalCents;
+  const splitValid = () =>
+    secondCents() > 0 && secondCents() < props.totalCents && isDimeCents(secondCents());
+  // El efectivo peruano no baja de S/ 0.10: lo recibido va en pasos de 10 céntimos.
+  const receivedIsDime = () => {
+    const cents = receivedCents();
+    return cents === null || isDimeCents(cents);
+  };
   const otherMethods = () =>
     (['Efectivo', 'Yape', 'Tarjeta'] as const).filter((method) => method !== props.method);
 
@@ -74,6 +80,7 @@ export const ChargeModal: Component<{
     }
     const cents = props.method === 'Efectivo' && !exact ? receivedCents() : null;
     if (props.method === 'Efectivo' && !exact && cents !== null && cents < props.totalCents) return;
+    if (cents !== null && !isDimeCents(cents)) return;
     setCharging(true);
     const result = await props.onConfirm(cents);
     setCharging(false);
@@ -124,7 +131,9 @@ export const ChargeModal: Component<{
                     ? `${props.method}: ${formatSoles(firstCents())} · ${secondMethod()}: ${formatSoles(secondCents())}`
                     : secondAmount() === ''
                       ? 'Ingresa cuánto paga con el segundo método.'
-                      : 'El monto debe ser mayor a 0 y menor que el total.'}
+                      : !isDimeCents(secondCents())
+                        ? DIME_MESSAGE
+                        : 'El monto debe ser mayor a 0 y menor que el total.'}
                 </p>
               </div>
             </Show>
@@ -164,7 +173,10 @@ export const ChargeModal: Component<{
                 </For>
               </div>
               <Keypad value={received()} onChange={setReceived} allowDecimal />
-              <Show when={receivedCents() !== null && previewChange() >= 0}>
+              <Show when={!receivedIsDime()}>
+                <p class={styles.nota}>{DIME_MESSAGE}</p>
+              </Show>
+              <Show when={receivedIsDime() && receivedCents() !== null && previewChange() >= 0}>
                 <div class={styles.vueltoPreview}>
                   Vuelto: <b>{formatSoles(previewChange())}</b>
                 </div>

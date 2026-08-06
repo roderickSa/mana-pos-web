@@ -1,7 +1,7 @@
 import { createSignal, Show, type Component } from 'solid-js';
 
 import { updateProduct } from '@/shared/api/products';
-import { formatSoles } from '@/shared/lib/money';
+import { formatSoles, isDimeCents } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
@@ -17,7 +17,9 @@ export const PriceModal: Component<{
   const [error, setError] = createSignal('');
 
   const newPriceCents = () => Math.round(Number.parseFloat(price()) * 100);
-  const valid = () => !Number.isNaN(newPriceCents()) && newPriceCents() > 0;
+  // El precio de venta va en pasos de 10 céntimos (S/0.10 es la moneda mínima).
+  const valid = () =>
+    !Number.isNaN(newPriceCents()) && newPriceCents() > 0 && isDimeCents(newPriceCents());
   const newMargin = () => {
     if (!valid()) return null;
     const margin = newPriceCents() - costOf(props.product);

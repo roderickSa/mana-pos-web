@@ -17,9 +17,14 @@ import { showNotice } from '@/shared/state/notices';
 import { bumpCashRefresh, cashRefreshVersion } from '@/shared/state/cash-refresh';
 import { currentUserName } from '@/shared/state/session';
 import type { ProductDto, TicketLine, WeightProductDto } from '@/shared/types';
+import { ConfirmModal } from '@/shared/ui/ConfirmModal';
 import { CategoryTabs } from './components/CategoryTabs';
 import { ChargeModal } from './components/ChargeModal';
 import { CreditChargeModal } from './components/CreditChargeModal';
+import { DiscountModal, type DiscountTarget } from './components/DiscountModal';
+import { CustomerPickModal } from './components/CustomerPickModal';
+import { LineActionsModal } from './components/LineActionsModal';
+import { QuantityModal } from './components/QuantityModal';
 import { PriceCheckModal } from './components/PriceCheckModal';
 import { ProductGrid } from './components/ProductGrid';
 import { SearchBox } from './components/SearchBox';
@@ -30,9 +35,15 @@ import {
   addUnitProduct,
   addWeightProduct,
   adjustSelectedQuantity,
+  discountAuthorizedBy,
   moveSelection,
+  removeLine,
   removeSelectedLine,
+  setLineQuantity,
+  setTicketCustomer,
   startNewTicket,
+  ticketCustomer,
+  ticketDiscountCents,
   ticketId,
   ticketLines,
   ticketTotalCents,
@@ -43,6 +54,8 @@ import styles from './SaleView.module.css';
 
 type ChargeMethod = 'Efectivo' | 'Yape' | 'Tarjeta';
 
+const LEGEND_DISMISSED_KEY = 'mana-pos-leyenda-codigo-oculta';
+
 export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   const [query, setQuery] = createSignal('');
   const [category, setCategory] = createSignal<string | null>('__mostrador');
@@ -52,10 +65,18 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   const [reweighingLine, setReweighingLine] = createSignal<TicketLine | null>(null);
   const [charging, setCharging] = createSignal<ChargeMethod | null>(null);
   const [creditCharging, setCreditCharging] = createSignal(false);
+  const [discounting, setDiscounting] = createSignal<DiscountTarget | null>(null);
+  const [lineActions, setLineActions] = createSignal<TicketLine | null>(null);
+  const [quantityEditing, setQuantityEditing] = createSignal<TicketLine | null>(null);
+  const [cancelingSale, setCancelingSale] = createSignal(false);
+  const [customerPicking, setCustomerPicking] = createSignal(false);
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [priceCheck, setPriceCheck] = createSignal(false);
   const [multiplier, setMultiplier] = createSignal(1);
   const [lastSale, setLastSale] = createSignal<{ id: string; number: number } | null>(null);
+  const [legendDismissed, setLegendDismissed] = createSignal(
+    localStorage.getItem(LEGEND_DISMISSED_KEY) === '1',
+  );
   let searchInput: HTMLInputElement | undefined;
 
   // Al escribir se busca en TODO el catálogo: la pestaña activa solo filtra
@@ -94,8 +115,19 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     weighing() !== null ||
     reweighingLine() !== null ||
     creditCharging() ||
+    discounting() !== null ||
+    lineActions() !== null ||
+    quantityEditing() !== null ||
+    cancelingSale() ||
+    customerPicking() ||
     helpOpen() ||
     priceCheck();
+
+  const checkoutDiscounts = () => ({
+    ticketDiscountCents: ticketDiscountCents(),
+    authorizedBy: discountAuthorizedBy(),
+    customerId: ticketCustomer()?.id ?? null,
+  });
 
   // Tras cada acción el buscador recupera el foco: escanear siempre funciona.
   function focusSearch(): void {
@@ -182,6 +214,8 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
       void refetch();
     } else if (cause instanceof ApiError && cause.code === 'PRODUCT_NOT_SELLABLE') {
       showNotice('Un producto del ticket ya no está disponible. Quítalo y vuelve a cobrar.');
+    } else if (cause instanceof ApiError && cause.code === 'DISCOUNT_NEEDS_MANAGER') {
+      showNotice('El descuento necesita el PIN del encargado — ábrelo desde el botón % del ticket.');
     } else if (cause instanceof ApiError && cause.serverMessage !== null) {
       showNotice(cause.serverMessage);
     } else {
@@ -201,6 +235,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         receivedCents,
         null,
         currentUserName(),
+        checkoutDiscounts(),
       );
       onSaleCompleted(response);
       return response;
@@ -217,6 +252,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         ticketLines(),
         payments,
         currentUserName(),
+        checkoutDiscounts(),
       );
       onSaleCompleted(response);
       return response;
@@ -247,6 +283,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         null,
         customerId,
         currentUserName(),
+        checkoutDiscounts(),
       );
       startNewTicket();
       setLastSale({ id: response.id, number: response.number });
@@ -299,10 +336,17 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     }
     // Con un modal abierto, el teclado es del modal (Esc lo cierra allí).
     if (modalOpen()) return;
-    if (event.key === 'F9') {
+    // Supr = alias de F9: quitar la línea seleccionada.
+    if (event.key === 'F9' || event.key === 'Delete') {
       event.preventDefault();
       const removed = removeSelectedLine();
       if (removed !== null) showNotice(`Se quitó ${removed.product.name} — Ctrl+Z lo devuelve`);
+      return;
+    }
+    // F5/F6/F7 eligen el método de pago sin soltar el teclado.
+    if (event.key === 'F5' || event.key === 'F6' || event.key === 'F7') {
+      event.preventDefault();
+      setPayment(event.key === 'F5' ? 'Yape' : event.key === 'F6' ? 'Tarjeta' : 'Fiado');
       return;
     }
     if (event.key === 'F4') {
@@ -406,11 +450,26 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           query={query()}
           onTap={onProductTap}
         />
-        {/* Leyenda de los badges numéricos: son teclas, no adornos. */}
-        <p class={styles.leyendaAtajos}>
-          <kbd>12</kbd> = código corto: tecléalo y Enter para agregar sin buscar. Escanear siempre
-          funciona, aunque el producto no esté a la vista.
-        </p>
+        {/* Leyenda de los badges numéricos: útil al empezar, descartable
+            después (persistido — no vuelve a aparecer). */}
+        <Show when={!legendDismissed()}>
+          <p class={styles.leyendaAtajos}>
+            <kbd>#12</kbd> = código corto: tecléalo y Enter para agregar sin buscar. Escanear
+            siempre funciona, aunque el producto no esté a la vista.
+            <button
+              type="button"
+              class={styles.leyendaCerrar}
+              aria-label="Ocultar esta ayuda"
+              title="Ocultar (no vuelve a aparecer)"
+              onClick={() => {
+                setLegendDismissed(true);
+                localStorage.setItem(LEGEND_DISMISSED_KEY, '1');
+              }}
+            >
+              ✕
+            </button>
+          </p>
+        </Show>
       </section>
 
       <TicketPanel
@@ -429,6 +488,11 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         onEditWeight={(line) => {
           if (line.product.saleType === 'weight') setReweighingLine(line);
         }}
+        onDiscountLine={(line) => setDiscounting({ kind: 'line', line })}
+        onDiscountTicket={() => setDiscounting({ kind: 'ticket' })}
+        onLineActions={(line) => setLineActions(line)}
+        onCancelSale={() => setCancelingSale(true)}
+        onCustomer={() => setCustomerPicking(true)}
       />
 
       <Show when={weighing()}>
@@ -473,6 +537,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
       <Show when={creditCharging()}>
         <CreditChargeModal
           totalCents={ticketTotalCents()}
+          initialCustomerId={ticketCustomer()?.id ?? null}
           onConfirm={confirmCreditCharge}
           onClose={() => {
             setCreditCharging(false);
@@ -490,6 +555,111 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
             onConfirmSplit={confirmSplitCharge}
             onClose={() => {
               setCharging(null);
+              focusSearch();
+            }}
+          />
+        )}
+      </Show>
+
+      <Show when={lineActions()}>
+        {(line) => (
+          <LineActionsModal
+            line={line()}
+            onQuantity={() => {
+              setQuantityEditing(line());
+              setLineActions(null);
+            }}
+            onWeight={() => {
+              if (line().product.saleType === 'weight') setReweighingLine(line());
+              setLineActions(null);
+            }}
+            onDiscount={() => {
+              setDiscounting({ kind: 'line', line: line() });
+              setLineActions(null);
+            }}
+            onRemove={() => {
+              const removed = removeLine(line().lineId);
+              setLineActions(null);
+              if (removed !== null) {
+                showNotice(`Se quitó ${removed.product.name} — «Deshacer» lo devuelve`);
+              }
+              focusSearch();
+            }}
+            onClose={() => {
+              setLineActions(null);
+              focusSearch();
+            }}
+          />
+        )}
+      </Show>
+
+      <Show when={quantityEditing()}>
+        {(line) => (
+          <QuantityModal
+            line={line()}
+            onConfirm={(quantity) => {
+              setLineQuantity(line().lineId, quantity);
+              setQuantityEditing(null);
+              beepOk();
+              focusSearch();
+            }}
+            onClose={() => {
+              setQuantityEditing(null);
+              focusSearch();
+            }}
+          />
+        )}
+      </Show>
+
+      <Show when={customerPicking()}>
+        <CustomerPickModal
+          hasCustomer={ticketCustomer() !== null}
+          onPick={(customer) => {
+            setTicketCustomer(customer);
+            setCustomerPicking(false);
+            showNotice(`Venta a nombre de ${customer.name}`);
+            focusSearch();
+          }}
+          onClear={() => {
+            setTicketCustomer(null);
+            setCustomerPicking(false);
+            focusSearch();
+          }}
+          onClose={() => {
+            setCustomerPicking(false);
+            focusSearch();
+          }}
+        />
+      </Show>
+
+      <Show when={cancelingSale()}>
+        <ConfirmModal
+          title="¿Cancelar la venta en curso?"
+          confirmLabel="Sí, cancelar venta"
+          onConfirm={() => {
+            startNewTicket();
+            setCancelingSale(false);
+            showNotice('Venta cancelada — el ticket quedó vacío.');
+            focusSearch();
+          }}
+          onClose={() => {
+            setCancelingSale(false);
+            focusSearch();
+          }}
+        >
+          <p>
+            Se vacía el ticket actual (líneas y descuentos). Los tickets en espera no se tocan y
+            no se registra ninguna venta.
+          </p>
+        </ConfirmModal>
+      </Show>
+
+      <Show when={discounting()}>
+        {(target) => (
+          <DiscountModal
+            target={target()}
+            onClose={() => {
+              setDiscounting(null);
               focusSearch();
             }}
           />

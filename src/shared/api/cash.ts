@@ -21,12 +21,14 @@ export interface CashBreakdownDto {
   withdrawalsCents: number;
   expensesCents: number;
   depositsCents: number;
+  // Devoluciones pagadas en efectivo desde el cajón.
+  refundsCents: number;
   currentCashCents: number;
 }
 
 export interface CashMovementDto {
   id: string;
-  kind: 'withdrawal' | 'expense' | 'deposit';
+  kind: 'withdrawal' | 'expense' | 'deposit' | 'refund';
   amountCents: number;
   concept: string;
   userId: string;

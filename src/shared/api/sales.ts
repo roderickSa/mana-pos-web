@@ -19,12 +19,23 @@ export interface PaymentPart {
   customerId?: string | null;
 }
 
+export interface CheckoutDiscounts {
+  ticketDiscountCents: number;
+  // Encargado que autorizó (PIN verificado); null si no hizo falta.
+  authorizedBy: string | null;
+  // Cliente opcional de la venta (no solo fiado).
+  customerId?: string | null;
+}
+
+const NO_DISCOUNTS: CheckoutDiscounts = { ticketDiscountCents: 0, authorizedBy: null };
+
 // El backend acepta hasta 4 pagos que sumen el total (multi-tender).
 export async function checkoutSaleWithPayments(
   ticketId: string,
   lines: TicketLine[],
   payments: PaymentPart[],
   userName = 'cajera',
+  discounts: CheckoutDiscounts = NO_DISCOUNTS,
 ): Promise<CheckoutResponseDto> {
   const payload = {
     ticketId,
@@ -35,11 +46,20 @@ export async function checkoutSaleWithPayments(
             productId: line.product.id,
             grams: line.weightGrams,
             weightSource: line.weightSource ?? 'manual',
+            discountCents: line.discountCents,
           }
-        : { saleType: 'unit', productId: line.product.id, quantity: line.quantity },
+        : {
+            saleType: 'unit',
+            productId: line.product.id,
+            quantity: line.quantity,
+            discountCents: line.discountCents,
+          },
     ),
     userId: userName,
     payments,
+    ticketDiscountCents: discounts.ticketDiscountCents,
+    discountAuthorizedBy: discounts.authorizedBy,
+    customerId: discounts.customerId ?? null,
   };
   return sendJson('POST', '/sales/checkout', payload);
 }
@@ -52,6 +72,7 @@ export async function checkoutSale(
   receivedCents: number | null,
   customerId: string | null = null,
   userName = 'cajera',
+  discounts: CheckoutDiscounts = NO_DISCOUNTS,
 ): Promise<CheckoutResponseDto> {
   const payment: PaymentPart =
     method === 'cash'
@@ -59,7 +80,7 @@ export async function checkoutSale(
       : method === 'credit'
         ? { method, amountCents: totalCents, customerId }
         : { method, amountCents: totalCents };
-  return checkoutSaleWithPayments(ticketId, lines, [payment], userName);
+  return checkoutSaleWithPayments(ticketId, lines, [payment], userName, discounts);
 }
 
 export interface TicketListItemDto {
@@ -70,6 +91,7 @@ export interface TicketListItemDto {
   chargedAt: string | null;
   methods: string[];
   userId: string;
+  customerName: string | null;
 }
 
 export interface SalesPageDto {
@@ -139,6 +161,13 @@ export interface TicketDetailDto {
   number: number;
   status: string;
   totalCents: number;
+  linesTotalCents: number;
+  subtotalCents: number;
+  // Ajuste del redondeo final a S/0.10 (positivo o negativo).
+  roundingCents: number;
+  discountCents: number;
+  lineDiscountsCents: number;
+  discountAuthorizedBy: string | null;
   userId: string;
   createdAt: string;
   chargedAt: string | null;
@@ -146,14 +175,48 @@ export interface TicketDetailDto {
   voidedBy: string | null;
   voidReason: string | null;
   lines: Array<{
+    id: string;
     description: string;
     quantity: number | null;
     grams: number | null;
     unitPriceCents: number;
+    discountCents: number;
     totalCents: number;
   }>;
   payments: Array<{ method: string; amountCents: number }>;
   igv: IgvBreakdownDto;
+  refunds: RefundDto[];
+  refundedCents: number;
+  customerId: string | null;
+  customerName: string | null;
+}
+
+export interface RefundDto {
+  id: string;
+  ticketId: string;
+  reason: string;
+  registeredBy: string;
+  // true = el dinero volvió como abono al fiado, no en efectivo.
+  refundedToCredit: boolean;
+  totalCents: number;
+  createdAt: string;
+  lines: Array<{
+    ticketLineId: string;
+    description: string;
+    quantity: number;
+    amountCents: number;
+  }>;
+  // Presente solo en la respuesta de registrar (constancia impresa o aviso).
+  printerWarning?: string | null;
+}
+
+export async function refundTicketRequest(
+  ticketId: string,
+  lines: Array<{ ticketLineId: string; quantity: number }>,
+  reason: string,
+  registeredBy: string,
+): Promise<RefundDto> {
+  return sendJson('POST', `/sales/tickets/${ticketId}/refunds`, { lines, reason, registeredBy });
 }
 
 export async function getTicketDetail(ticketId: string): Promise<TicketDetailDto> {

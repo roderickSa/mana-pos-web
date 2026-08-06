@@ -49,7 +49,7 @@ export type View =
   | 'venta'
   | 'caja'
   | 'ventas'
-  | 'fiado'
+  | 'clientes'
   | 'inventario'
   | 'compras'
   | 'ajustes';
@@ -64,7 +64,7 @@ const VIEWS: Array<{ key: View; label: string; managerOnly: boolean; ownerOnly: 
   { key: 'caja', label: 'Caja', managerOnly: false, ownerOnly: false },
   // La cajera ve Ventas pero SOLO las de hoy (la vista se encarga de fijarlo).
   { key: 'ventas', label: 'Ventas', managerOnly: false, ownerOnly: false },
-  { key: 'fiado', label: 'Fiado', managerOnly: false, ownerOnly: false },
+  { key: 'clientes', label: 'Clientes', managerOnly: false, ownerOnly: false },
   { key: 'inventario', label: 'Inventario', managerOnly: true, ownerOnly: false },
   { key: 'compras', label: 'Compras', managerOnly: true, ownerOnly: false },
 ];
@@ -159,9 +159,17 @@ export const TopBar: Component<{
       <span class={styles.chip}>
         <span class={styles.avatar}>{(currentUser()?.name ?? '?').charAt(0)}</span>
         {currentUser()?.name ?? '—'}
-        <small>
-          · {ROLE_LABEL[currentUser()?.role ?? 'cashier']}
-        </small>
+        {/* Si el nombre ES el rol («Encargado»), el chip repetido sobra. */}
+        <Show
+          when={
+            (currentUser()?.name ?? '').toLocaleLowerCase() !==
+            ROLE_LABEL[currentUser()?.role ?? 'cashier']
+          }
+        >
+          <small>
+            · {ROLE_LABEL[currentUser()?.role ?? 'cashier']}
+          </small>
+        </Show>
       </span>
       <button
         type="button"

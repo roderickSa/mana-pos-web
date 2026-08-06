@@ -1,0 +1,4 @@
+/* El botón de quitar se separa del par Cancelar/Aplicar. */
+.quitar {
+  margin-right: auto;
+}

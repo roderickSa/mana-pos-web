@@ -95,7 +95,7 @@ export const HomeView: Component<{ onNavigate: (view: View) => void }> = (props)
           <span class={styles.detalle}>productos cerca de su fecha</span>
         </button>
 
-        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('fiado')}>
+        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('clientes')}>
           <span class={styles.etiqueta}>Fiado por cobrar</span>
           <span class={styles.cifra}>{formatSoles(deudaTotal())}</span>
           <span class={styles.detalle}>{cantidadDeudores()} clientes deben</span>

@@ -32,3 +32,21 @@ export async function printTestPage(): Promise<DeviceActionResultDto> {
 export async function openDrawer(): Promise<DeviceActionResultDto> {
   return sendJson('POST', '/devices/drawer/open');
 }
+
+export interface PrinterConfigDto {
+  // null = usar la impresora por defecto (variable de entorno / auto).
+  printerName: string | null;
+  paperWidthMm: 58 | 80;
+}
+
+export async function getSystemPrinters(): Promise<{ items: string[] }> {
+  return getJson('/devices/printers');
+}
+
+export async function getPrinterConfig(): Promise<PrinterConfigDto> {
+  return getJson('/devices/printer-config');
+}
+
+export async function updatePrinterConfig(config: PrinterConfigDto): Promise<PrinterConfigDto> {
+  return sendJson('PUT', '/devices/printer-config', config);
+}

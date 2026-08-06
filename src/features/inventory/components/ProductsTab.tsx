@@ -14,6 +14,7 @@ import { ActionsMenu, type ProductAction } from './ActionsMenu';
 import { CountModal } from './CountModal';
 import { ImportModal } from './ImportModal';
 import { MergeModal } from './MergeModal';
+import { BulkPricesModal } from './BulkPricesModal';
 import { PriceModal } from './PriceModal';
 import { ProductFormModal } from './ProductFormModal';
 import { costOf, minimumOf, priceOf, stockOf } from './product-units';
@@ -25,6 +26,7 @@ type ModalState =
   | { kind: 'none' }
   | { kind: 'create'; initialBarcode: string | null }
   | { kind: 'import' }
+  | { kind: 'bulk-prices' }
   | { kind: ProductAction; product: ProductDto };
 
 function stockLabel(product: ProductDto): string {
@@ -183,6 +185,14 @@ export const ProductsTab: Component = () => {
           onClick={() => setModal({ kind: 'import' })}
         >
           Importar Excel
+        </button>
+        <button
+          type="button"
+          class={styles.importar}
+          title="Cambio masivo de precios y sugerencias por margen"
+          onClick={() => setModal({ kind: 'bulk-prices' })}
+        >
+          Precios…
         </button>
         <button
           type="button"
@@ -390,6 +400,13 @@ function renderModal(state: ModalState, onDone: (message: string) => void, onClo
       );
     case 'import':
       return <ImportModal onDone={onDone} onClose={onClose} />;
+    case 'bulk-prices':
+      return (
+        <BulkPricesModal
+          onApplied={() => onDone('Precios actualizados.')}
+          onClose={onClose}
+        />
+      );
     case 'edit':
       return (
         <ProductFormModal product={state.product} initialBarcode={null} onDone={onDone} onClose={onClose} />
