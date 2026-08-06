@@ -15,7 +15,7 @@ import {
 import { registerEntry } from '@/shared/api/inventory';
 import { createSupplier, listSuppliers } from '@/shared/api/suppliers';
 import type { ProductDto } from '@/shared/types';
-import { centsToSolesInput, formatKg, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
+import { centsToSolesInput, DIME_MESSAGE, formatKg, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import { activeCategories } from '@/shared/state/categories';
@@ -202,6 +202,17 @@ export const ProductFormModal: Component<{
     priceIsDime() &&
     (saleType() !== 'unit' || packEmpty() || packComplete());
 
+  // Qué le falta al formulario, dicho en cristiano bajo el botón: un botón
+  // apagado sin explicación parece un bug.
+  const missingHint = () => {
+    if (name().trim() === '') return 'Falta el nombre del producto.';
+    if ((solesInputToCents(price()) ?? 0) <= 0) return 'Falta el precio de venta.';
+    if (!priceIsDime()) return DIME_MESSAGE;
+    if (saleType() === 'unit' && !packEmpty() && !packComplete())
+      return 'Completa (o vacía) los datos del pack: unidades y costo por caja.';
+    return null;
+  };
+
   async function save(allowDuplicateName = false): Promise<void> {
     const priceValue = solesInputToCents(price());
     if (!valid() || priceValue === null || saving()) return;
@@ -295,7 +306,7 @@ export const ProductFormModal: Component<{
       >
         <div class={styles.acciones}>
           <span class={styles.etiqueta} style={{ 'margin-right': 'auto', 'align-self': 'center' }}>
-            Esc cerrar
+            {missingHint() ?? 'Esc cerrar'}
           </span>
           <button type="button" class={styles.secundario} onClick={props.onClose}>
             Cancelar
@@ -317,6 +328,7 @@ export const ProductFormModal: Component<{
     <Modal
       size="lg"
       title={editing === null ? 'Nuevo producto' : `Editar — ${editing.name}`}
+      dismissOnBackdrop={false}
       onClose={props.onClose}
       footer={footer}
     >

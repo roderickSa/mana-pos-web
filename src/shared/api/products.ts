@@ -58,18 +58,30 @@ export async function searchProducts(
   return getJson(`/catalog/products?${params.toString()}`);
 }
 
+export interface ProductPageExtras {
+  category?: string;
+  orderBy?: 'name' | 'price' | 'stock' | 'margin';
+  orderDir?: 'asc' | 'desc';
+}
+
 export async function searchProductsPage(
   query: string,
   page: number,
   perPage: number,
   lowStockOnly = false,
   noCostOnly = false,
+  extras: ProductPageExtras = {},
 ): Promise<ProductsPageDto> {
   const params = new URLSearchParams();
   if (query.trim() !== '') params.set('query', query);
   params.set('includeInactive', 'true');
   if (lowStockOnly) params.set('lowStock', 'true');
   if (noCostOnly) params.set('noCost', 'true');
+  if (extras.category !== undefined && extras.category !== '') params.set('category', extras.category);
+  if (extras.orderBy !== undefined) {
+    params.set('orderBy', extras.orderBy);
+    params.set('orderDir', extras.orderDir ?? 'asc');
+  }
   params.set('page', String(page));
   params.set('perPage', String(perPage));
   return getJson(`/catalog/products?${params.toString()}`);

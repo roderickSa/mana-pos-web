@@ -19,7 +19,7 @@
   border-radius: var(--radio-chico) var(--radio-chico) 0 0;
   padding: 10px 20px;
   font-size: 0.9rem;
-  font-weight: 650;
+  font-weight: 600;
   min-height: 44px;
 }
 
@@ -84,7 +84,7 @@
 }
 
 .sinMinimo {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--advertencia-tinta);
   background: var(--advertencia-fondo);
   border-radius: var(--radio-chip);
@@ -201,7 +201,7 @@
 }
 
 .nombre {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .sub {
@@ -229,7 +229,7 @@
 }
 
 .stock {
-  font-weight: 700;
+  font-weight: 600;
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
@@ -249,7 +249,7 @@
 }
 
 .margen {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--mana-verde);
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
@@ -330,7 +330,7 @@
 
 /* Pantalla táctil: los botones de acción por fila y la paginación crecen a
    tamaño dedo (≥44px) — con mouse se quedan compactos. */
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .alertaBajo {
     min-height: 48px;
   }
@@ -365,7 +365,7 @@
   }
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   /* 8px mínimos entre acciones vecinas: un dedo no es un cursor. */
   .acciones button + button {
     margin-left: 8px;
@@ -383,4 +383,41 @@
   white-space: nowrap;
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
+}
+
+/* Botón de export CSV/Excel de una vista de tabla (mismo look que Ventas). */
+.descargar {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid var(--mana-verde);
+  background: var(--superficie-panel);
+  color: var(--mana-verde);
+  border-radius: var(--radio-boton);
+  padding: 11px 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  min-height: var(--toque-min);
+}
+
+.descargar:hover {
+  background: var(--mana-verde-suave);
+}
+
+/* Encabezado ordenable: el th entero es botón, con ▲/▼ del orden activo. */
+.ordenable {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  padding: 0;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.ordenable:hover {
+  color: var(--mana-verde);
 }

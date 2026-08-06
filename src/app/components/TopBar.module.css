@@ -12,7 +12,7 @@
 
 .marca {
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--sobre-marca-pleno);
   margin-right: 6px;
@@ -67,7 +67,7 @@
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .aviso {
@@ -124,7 +124,7 @@
   opacity: 0.75;
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .navBoton {
     min-height: 46px;
     padding: 10px 20px;

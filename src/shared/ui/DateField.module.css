@@ -13,16 +13,16 @@
 .boton {
   min-width: 44px;
   min-height: 44px;
-  border: 1px solid var(--linea, #dde3ea);
+  border: 1px solid var(--linea);
   border-radius: 10px;
-  background: var(--superficie-panel, #fff);
+  background: var(--superficie-panel);
   font-size: 16px;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 .boton:active {
-  background: var(--mana-verde-suave, #e2f4e5);
+  background: var(--mana-verde-suave);
 }
 
 /* Input nativo oculto: solo existe para anclar el calendario del navegador. */
@@ -36,4 +36,17 @@
   pointer-events: none;
   border: none;
   padding: 0;
+}
+
+/* Rótulo del filtro (Desde/Hasta): pequeño, sobre el campo. */
+.rotulo {
+  position: absolute;
+  top: -0.65rem;
+  left: 10px;
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+  background: var(--superficie-app);
+  padding: 0 4px;
+  border-radius: 4px;
+  pointer-events: none;
 }

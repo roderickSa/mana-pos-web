@@ -34,6 +34,9 @@ export const DateField: Component<{
   value: string;
   onChange: (iso: string) => void;
   inputClass: string;
+  // Rótulo sobre el campo ("Desde", "Hasta"): dos fechas juntas sin rotular
+  // obligan a adivinar cuál es cuál.
+  label?: string;
   style?: JSX.CSSProperties;
 }> = (props) => {
   const [text, setText] = createSignal(isoToDisplay(props.value));
@@ -78,11 +81,13 @@ export const DateField: Component<{
 
   return (
     <div class={styles.campo} style={props.style}>
+      {props.label === undefined ? null : <span class={styles.rotulo}>{props.label}</span>}
       <input
         class={`${props.inputClass} ${styles.texto}`}
         type="text"
         inputmode="numeric"
         placeholder="dd/mm/aaaa"
+        aria-label={props.label}
         maxLength={10}
         value={text()}
         onInput={(event) => onInput(event.currentTarget.value)}

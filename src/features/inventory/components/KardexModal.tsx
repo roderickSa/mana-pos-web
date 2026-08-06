@@ -54,6 +54,9 @@ export const KardexModal: Component<{
                     >
                       {movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity} {unit}
                     </span>
+                    <span class={styles.saldo} title="Saldo después del movimiento">
+                      = {movement.balanceAfter} {unit}
+                    </span>
                     <span class={styles.detalle}>
                       {formatDateTime(movement.createdAt)}
                       {' · '}

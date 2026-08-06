@@ -41,11 +41,13 @@ function toLocalISODate(date: Date): string {
 
 export const SalesHistoryView: Component = () => {
   // La cajera solo consulta las ventas de HOY: el rango queda fijo y sin
-  // filtros de fecha. El histórico completo es del encargado.
+  // filtros de fecha. El encargado también arranca en HOY (los resúmenes
+  // cuadran con la caja del día); los chips y las fechas le abren el resto,
+  // y borrar ambas fechas muestra el histórico completo.
   const todayOnly = !isManager();
   const today = toLocalISODate(new Date());
-  const [from, setFrom] = createSignal(todayOnly ? today : '');
-  const [to, setTo] = createSignal(todayOnly ? today : '');
+  const [from, setFrom] = createSignal(today);
+  const [to, setTo] = createSignal(today);
   const [method, setMethod] = createSignal('');
   const [status, setStatus] = createSignal('');
   const [page, setPage] = createSignal(1);
@@ -210,6 +212,7 @@ export const SalesHistoryView: Component = () => {
         </div>
         <DateField
           inputClass={forms.input}
+          label="Desde"
           style={{ 'max-width': '210px' }}
           value={from()}
           onChange={(iso) => {
@@ -219,6 +222,7 @@ export const SalesHistoryView: Component = () => {
         />
         <DateField
           inputClass={forms.input}
+          label="Hasta"
           style={{ 'max-width': '210px' }}
           value={to()}
           onChange={(iso) => {
@@ -423,7 +427,11 @@ export const SalesHistoryView: Component = () => {
 
       <Show when={voiding()}>
         {(ticket) => (
-          <Modal title={`Anular venta #${ticket().number}`} onClose={closeVoidModal}>
+          <Modal
+            title={`Anular venta #${ticket().number}`}
+            dismissOnBackdrop={false}
+            onClose={closeVoidModal}
+          >
             <div class={forms.form}>
               <p class={forms.nota}>
                 Se anula la venta de <b>{formatSoles(ticket().totalCents)}</b> y el stock vuelve al
@@ -650,7 +658,12 @@ const RefundModal: Component<{
   }
 
   return (
-    <Modal size="lg" title={`Devolver de la venta #${props.ticket.number}`} onClose={props.onClose}>
+    <Modal
+      size="lg"
+      title={`Devolver de la venta #${props.ticket.number}`}
+      dismissOnBackdrop={false}
+      onClose={props.onClose}
+    >
       <div class={forms.form}>
         <p class={forms.nota}>
           {paidWithCredit()

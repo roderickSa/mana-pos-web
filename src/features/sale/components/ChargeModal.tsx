@@ -126,6 +126,9 @@ export const ChargeModal: Component<{
                     autofocus
                   />
                 </div>
+                {/* Mismo teclado que el efectivo: una sola forma de teclear
+                    montos en toda la pantalla de cobro. */}
+                <Keypad value={secondAmount()} onChange={setSecondAmount} allowDecimal />
                 <p class={styles.divididoResto} classList={{ [styles.divididoError]: !splitValid() && secondAmount() !== '' }}>
                   {splitValid()
                     ? `${props.method}: ${formatSoles(firstCents())} · ${secondMethod()}: ${formatSoles(secondCents())}`
@@ -140,12 +143,15 @@ export const ChargeModal: Component<{
             <Show when={!split() && props.method === 'Efectivo'}>
               <div class={styles.campo}>
                 <span class={styles.etiqueta}>¿Con cuánto paga? (vacío = exacto)</span>
+                {/* Sin monto de ejemplo como placeholder: un "5.70" gris se
+                    lee como valor ya tecleado y el cajero cobra creyendo que
+                    registró lo recibido. */}
                 <input
                   class={styles.recibido}
                   type="number"
                   step="0.10"
                   min="0"
-                  placeholder={ (props.totalCents / 100).toFixed(2) }
+                  placeholder="pago exacto"
                   value={received()}
                   onInput={(event) => setReceived(event.currentTarget.value)}
                   onKeyDown={(event) => {

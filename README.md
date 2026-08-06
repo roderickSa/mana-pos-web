@@ -15,21 +15,34 @@ src/
     index.css, theme.css → tokens de diseño (colores, tipografías, radios) — tocar SOLO theme.css para reestilizar
     components/          → piezas del shell: TopBar, StatusBar
   features/
+    login/               → pantalla de PIN
     sale/                → pantalla de venta (POS)
       SaleView.tsx
-      components/        → SearchBox, CategoryTabs, ProductGrid, TicketPanel, PaymentPicker, WeightModal
+      components/        → SearchBox, CategoryTabs, ProductGrid, TicketPanel, PaymentPicker,
+                           WeightModal, ChargeModal (cobro/vuelto/dividido), CreditChargeModal,
+                           DiscountModal, LineActionsModal, QuantityModal, CustomerPickModal,
+                           PriceCheckModal, ShortcutsHelp
       state/ticket.ts    → estado de la venta en curso (store de Solid)
-    inventory/           → pantalla de inventario
-      InventoryView.tsx
-      components/        → un modal por operación: PriceModal, CountModal, EntryModal,
-                           AdjustmentModal, KardexModal, ProductFormModal + ActionsMenu
+    sales-history/       → historial de ventas, detalle voucher, anular, devolver
+    cash/                → caja por turnos, movimientos, cierre a ciegas, cierres anteriores
+    credit/              → módulo Clientes (Directorio + Fiado, abonos, WhatsApp)
+    inventory/           → inventario: productos, precios masivos, entradas, ajustes,
+                           por vencer, kardex, categorías (un modal por operación)
+    purchases/           → órdenes de compra y recepción
+    devices/             → estado de equipos, impresora configurable, pruebas
+    settings/            → Ajustes (voucher, IGV, respaldo) — compone tabs de otras features
+    users/               → gestión de usuarios y PINs
+    home/                → panel de inicio del dueño
   shared/
-    api/                 → un archivo por recurso: client (errores/helpers), products, inventory, suppliers
-    ui/                  → componentes genéricos: Modal, CategoryIcon
+    api/                 → un archivo por recurso: client (errores/helpers/auth), products,
+                           inventory, sales, cash, customers, purchases, categories, prices,
+                           devices, settings, suppliers, users
+    ui/                  → componentes genéricos: Modal (focus trap, velo opcional), ConfirmModal,
+                           Keypad, DateField, ProductPicker, CategoryIcon
                            + CSS compartido: forms.module.css (formularios/modales)
                            y tabla.module.css (vistas con tabla, subtabs, paginación)
-    lib/                 → utilidades puras: money, dates, labels, categories
-    state/               → estado transversal: notices (toasts)
+    lib/                 → utilidades puras: money (redondeo a S/0.10), dates, labels, sounds, focus
+    state/               → estado transversal: session, notices, categories, cash-refresh, preferences
     types.ts             → DTOs de la API
 ```
 
@@ -43,11 +56,17 @@ src/
 
 ### Convenciones UI
 
-- Botones táctiles ≥ 44px; una operación = un modal (precio y stock se actualizan por separado).
+- Botones táctiles ≥ 44px vía `@media (any-pointer: coarse)` (red global en `app/index.css`
+  + refuerzos por módulo). `any-pointer`, no `pointer`: la PC de tienda tiene mouse Y touch.
+- Colores SOLO desde tokens de `app/theme.css` («un color, un trabajo»); modo noche incluido.
+- Tipografía IBM Plex self-hosted; pesos usados = pesos cargados (sin bold sintético).
+- Una operación = un modal; los modales con formulario largo no se cierran por clic en el velo.
 - La barra de búsqueda solo busca (nombre o código de barras); las acciones viven en el menú «Acciones» de cada fila.
+- Dinero en el front: `shared/lib/money.ts` (`roundToDimeCents`, `isDimeCents`); el server es autoritativo.
+- Sonidos (`shared/lib/sounds.ts`): bip = acción, doble bip = operación completada, grave = error.
 
 ## Comandos
 
-- `npm run dev` — dev server con proxy a la API (localhost:3210)
-- `npx tsc --noEmit -p tsconfig.app.json` — typecheck
-- `npm run build` — build de producción
+- `npx vite --port 5173 --strictPort` — dev server con proxy a la API (localhost:3210)
+- `npx tsc -b` — typecheck (SIEMPRE desde la raíz del repo)
+- `npm run build` — build de producción (el api la sirve en :3210 modo kiosko)

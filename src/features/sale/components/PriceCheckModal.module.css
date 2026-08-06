@@ -31,13 +31,13 @@
 
 .nombre {
   font-size: 1.05rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 /* El precio se lee desde el otro lado del mostrador. */
 .precio {
   font-size: 3.4rem;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.1;
   color: var(--mana-verde-hondo);
   font-family: var(--fuente-dato);
@@ -47,7 +47,7 @@
 .noEncontrado {
   margin: 0;
   color: var(--peligro);
-  font-weight: 650;
+  font-weight: 600;
   text-align: center;
 }
 

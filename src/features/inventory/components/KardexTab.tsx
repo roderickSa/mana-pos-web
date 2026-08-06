@@ -2,7 +2,8 @@ import { createResource, createSignal, For, Show, type Component } from 'solid-j
 import { focusOnMount } from '@/shared/lib/focus';
 import { DateField } from '@/shared/ui/DateField';
 
-import { searchMovements } from '@/shared/api/inventory';
+import { movementsExportUrl, searchMovements } from '@/shared/api/inventory';
+import { downloadFile } from '@/shared/api/client';
 import { getTicketDetail, type TicketDetailDto } from '@/shared/api/sales';
 import { formatSoles } from '@/shared/lib/money';
 import { showNotice } from '@/shared/state/notices';
@@ -22,11 +23,19 @@ import forms from '@/shared/ui/forms.module.css';
 
 const PER_PAGE = 25;
 
+function localISODate(daysAgo = 0): string {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export const KardexTab: Component = () => {
   const [query, setQuery] = createSignal('');
   const [kind, setKind] = createSignal('');
-  const [from, setFrom] = createSignal('');
-  const [to, setTo] = createSignal('');
+  // Con la tienda en marcha el historial completo son miles de filas: se
+  // abre en los últimos 7 días y las fechas abren el resto (vacías = todo).
+  const [from, setFrom] = createSignal(localISODate(6));
+  const [to, setTo] = createSignal(localISODate());
   const [page, setPage] = createSignal(1);
   const [ticketId, setTicketId] = createSignal<string | null>(null);
   const [ticket] = createResource(ticketId, (id) =>
@@ -77,6 +86,7 @@ export const KardexTab: Component = () => {
         </select>
         <DateField
           inputClass={forms.input}
+          label="Desde"
           style={{ 'max-width': '210px' }}
           value={from()}
           onChange={(iso) => {
@@ -86,6 +96,7 @@ export const KardexTab: Component = () => {
         />
         <DateField
           inputClass={forms.input}
+          label="Hasta"
           style={{ 'max-width': '210px' }}
           value={to()}
           onChange={(iso) => {
@@ -93,6 +104,19 @@ export const KardexTab: Component = () => {
             resetPage();
           }}
         />
+        <span style={{ flex: '1' }} />
+        <button
+          type="button"
+          class={styles.descargar}
+          onClick={() =>
+            void downloadFile(
+              movementsExportUrl({ query: query(), kind: kind(), from: from(), to: to() }),
+              'kardex-mana.csv',
+            ).catch(() => showNotice('No se pudo descargar el CSV.'))
+          }
+        >
+          ⬇ Descargar CSV
+        </button>
       </div>
 
       <div class={styles.tablaContenedor}>

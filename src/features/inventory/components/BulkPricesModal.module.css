@@ -10,7 +10,7 @@
   color: var(--tinta-suave);
   border-radius: var(--radio-chico);
   padding: 8px 14px;
-  font-weight: 650;
+  font-weight: 600;
   min-height: 40px;
 }
 
@@ -29,4 +29,18 @@
 /* Fila desmarcada en la lista de sugerencias: sigue visible pero apagada. */
 .excluida td {
   opacity: 0.45;
+}
+
+/* Paso de confirmación del cambio masivo: obliga a leer el número antes
+   de aplicar — es la acción más riesgosa del sistema. */
+.confirmar {
+  border: 2px solid var(--alerta);
+  background: color-mix(in srgb, var(--alerta) 12%, transparent);
+  border-radius: var(--radio);
+  padding: 14px 16px;
+}
+
+.confirmarTitulo {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
 }

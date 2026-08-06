@@ -1,6 +1,19 @@
-import { onCleanup, onMount, Show, type JSX, type Component } from 'solid-js';
+import { createUniqueId, onCleanup, onMount, Show, type JSX, type Component } from 'solid-js';
 
 import styles from './Modal.module.css';
+
+// Modalidad de entrada global: el foco solo se restaura al abridor cuando se
+// navegó con teclado — un .focus() programático tras un toque re-enciende el
+// anillo verde y el botón queda "seleccionado" en pantalla.
+let lastInputWasKeyboard = false;
+document.addEventListener(
+  'keydown',
+  (event) => {
+    if (event.key === 'Tab') lastInputWasKeyboard = true;
+  },
+  true,
+);
+document.addEventListener('pointerdown', () => (lastInputWasKeyboard = false), true);
 
 // Escala única de anchos: cada modal declara el que corresponde a su
 // contenido, nunca un número propio.
@@ -24,19 +37,25 @@ export const Modal: Component<{
   // Footer fijo con los botones; si no se pasa, el cuerpo va solo.
   footer?: JSX.Element;
   size?: ModalSize;
+  // Formularios largos: un toque accidental fuera del cuadro NO debe
+  // descartar lo tecleado — esos modales se cierran solo con ✕ o Esc.
+  dismissOnBackdrop?: boolean;
   onClose: () => void;
   children: JSX.Element;
 }> = (props) => {
   let modalRef: HTMLDivElement | undefined;
   let pieRef: HTMLElement | undefined;
-  // Al cerrar, el foco vuelve al elemento que abrió el modal.
+  const titleId = createUniqueId();
+  // Al cerrar, el foco vuelve al elemento que abrió el modal (solo con
+  // teclado — ver lastInputWasKeyboard).
   const opener = document.activeElement;
+  const openedByKeyboard = lastInputWasKeyboard;
 
   function focusables(): HTMLElement[] {
     if (modalRef === undefined) return [];
     return [
       ...modalRef.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]',
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
       ),
     ];
   }
@@ -91,21 +110,29 @@ export const Modal: Component<{
   });
   onCleanup(() => {
     document.removeEventListener('keydown', onKeyDown);
-    if (opener instanceof HTMLElement) opener.focus();
+    if (openedByKeyboard && opener instanceof HTMLElement && opener.isConnected) {
+      opener.focus({ preventScroll: true });
+    }
   });
 
   return (
-    <div class={styles.fondo} onClick={props.onClose}>
+    <div
+      class={styles.fondo}
+      onClick={() => {
+        if (props.dismissOnBackdrop !== false) props.onClose();
+      }}
+    >
       <div
         ref={modalRef}
         class={`${styles.modal} ${SIZE_CLASS[props.size ?? 'md']}`}
         role="dialog"
-        aria-label={props.title}
+        aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
       >
         <header class={styles.cabecera}>
           <div class={styles.titulos}>
-            <h3>{props.title}</h3>
+            <h3 id={titleId}>{props.title}</h3>
             <Show when={props.subtitle}>
               <div class={styles.subtitulo}>{props.subtitle}</div>
             </Show>

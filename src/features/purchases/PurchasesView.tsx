@@ -16,6 +16,7 @@ import { linkProductSupplier, searchProducts } from '@/shared/api/products';
 import { listSuppliers } from '@/shared/api/suppliers';
 import { centsToSolesInput, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
+import { formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
 import { currentUser } from '@/shared/state/session';
 import type { ProductDto } from '@/shared/types';
@@ -44,15 +45,6 @@ function statusClass(status: PurchaseOrderStatus): string {
   return `${styles.estado} ${byStatus[status]}`;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-PE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 // Línea en edición: para productos con caja se pide en cajas; para el resto
 // en unidades; para pesables en kilos. Todo se convierte al crear la orden.
@@ -180,7 +172,7 @@ const OrdersList: Component<{
             {(order) => (
               <tr>
                 <td class={tabla.num}>#{order.number}</td>
-                <td class={tabla.sub}>{formatDate(order.createdAt)}</td>
+                <td class={tabla.sub}>{formatDateTime(order.createdAt)}</td>
                 <td>{order.supplierName}</td>
                 <td class={tabla.num}>{order.linesCount}</td>
                 <td class={tabla.num}>{formatSoles(order.totalCents)}</td>
@@ -385,7 +377,9 @@ const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void }> = (p
       <div class={tabla.encabezado}>
         <h2>Nueva orden de compra</h2>
       </div>
-      <div class={formStyles.form}>
+      {/* Bloque contenido: a ancho completo el nombre quedaba pegado a la
+          izquierda y el costo a 1200px de distancia. */}
+      <div class={formStyles.form} style={{ 'max-width': '860px' }}>
         <div class={formStyles.fila}>
           <div class={formStyles.campo}>
             <span class={formStyles.etiqueta}>Proveedor</span>
@@ -565,9 +559,9 @@ const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void }> = (p
 function quantityText(line: { saleType: 'unit' | 'weight'; quantity: number; packSize: number | null }): string {
   if (line.saleType === 'weight') return `${(line.quantity / 1000).toFixed(3)} kg`;
   if (line.packSize !== null && line.quantity > 0 && line.quantity % line.packSize === 0) {
-    return `${line.quantity} und (${line.quantity / line.packSize} cajas)`;
+    return `${line.quantity} unid. (${line.quantity / line.packSize} cajas)`;
   }
-  return `${line.quantity} und`;
+  return `${line.quantity} unid.`;
 }
 
 const OrderDetailModal: Component<{
@@ -611,12 +605,13 @@ const OrderDetailModal: Component<{
   return (
     <Modal
       size="xl"
+      dismissOnBackdrop={false}
       title={`Orden #${props.order.number} — ${props.supplierName}`}
       subtitle={
         <>
           <span class={statusClass(props.order.status)}>{STATUS_LABEL[props.order.status]}</span>
           <span>
-            {formatDate(props.order.createdAt)} · creada por {props.order.createdBy}
+            {formatDateTime(props.order.createdAt)} · creada por {props.order.createdBy}
             {props.order.notes === null ? '' : ` · ${props.order.notes}`}
           </span>
         </>
@@ -804,7 +799,7 @@ const OrderDetailModal: Component<{
                     }}
                   >
                     <p class={formStyles.nota} style={{ margin: '0 0 4px' }}>
-                      Tanda {index() + 1} · {formatDate(reception.receivedAt)} · recibió{' '}
+                      Tanda {index() + 1} · {formatDateTime(reception.receivedAt)} · recibió{' '}
                       {reception.receivedBy}
                     </p>
                     <For each={reception.lines}>
@@ -822,7 +817,7 @@ const OrderDetailModal: Component<{
                             {orderLine?.saleType === 'weight' ? ' /kg' : ' c/u'}
                             {line.expiryDate === null
                               ? ''
-                              : ` · vence ${formatDate(line.expiryDate).split(',')[0] ?? ''}`}
+                              : ` · vence ${formatDateTime(line.expiryDate).split(',')[0] ?? ''}`}
                           </p>
                         );
                       }}

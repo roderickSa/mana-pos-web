@@ -1,6 +1,7 @@
 import { For, Show, type Component } from 'solid-js';
 
 import { formatKg, formatSoles } from '@/shared/lib/money';
+import { beepOk } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { TicketLine } from '@/shared/types';
 import {
@@ -36,6 +37,9 @@ export const TicketPanel: Component<{
   onLineActions: (line: TicketLine) => void;
   onCancelSale: () => void;
   onCustomer: () => void;
+  // El ✕ de la fila corta la propagación (para no abrir el panel de línea),
+  // así que el refoco global del buscador no lo ve: se avisa explícito.
+  onRemoved: () => void;
 }> = (props) => (
   <aside class={styles.panel}>
     <div class={styles.voucher}>
@@ -149,8 +153,10 @@ export const TicketPanel: Component<{
                   event.stopPropagation();
                   const removed = removeLine(line.lineId);
                   if (removed !== null) {
+                    beepOk();
                     showNotice(`Se quitó ${removed.product.name} — «Deshacer» lo devuelve`);
                   }
+                  props.onRemoved();
                 }}
               >
                 ✕
@@ -260,5 +266,9 @@ export const TicketPanel: Component<{
           ? 'Fiar la venta (F4)'
           : `Cobrar con ${props.payment} (F4)`}
     </button>
+    {/* Un botón apagado sin motivo parece roto: se dice qué falta. */}
+    <Show when={ticketLines().length === 0}>
+      <p class={styles.cobrarPista}>Agrega al menos un producto para cobrar.</p>
+    </Show>
   </aside>
 );

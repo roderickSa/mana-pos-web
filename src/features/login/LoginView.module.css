@@ -20,7 +20,7 @@
 
 .marca {
   font-size: 2.2rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--mana-verde-hondo);
 }
@@ -103,7 +103,7 @@
   background: var(--superficie-panel);
   border-radius: 14px;
   font-size: 1.6rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--tinta);
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;

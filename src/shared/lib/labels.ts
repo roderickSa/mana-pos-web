@@ -16,12 +16,13 @@ export const CHARGE_METHOD_TO_API: Record<'Efectivo' | 'Yape' | 'Tarjeta', 'cash
 
 export const MOVEMENT_KIND_LABELS: Record<string, string> = {
   sale: 'Venta',
-  sale_reversal: 'Devolución',
+  sale_reversal: 'Anulación (repone)',
   purchase: 'Entrada',
   waste: 'Merma',
   expiry: 'Caducidad',
   theft: 'Robo/pérdida',
   count: 'Conteo',
+  refund: 'Devolución',
 };
 
 export function methodLabel(method: string): string {

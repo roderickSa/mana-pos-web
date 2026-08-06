@@ -1,6 +1,7 @@
 import { createSignal, Show, type Component } from 'solid-js';
 
 import { verifyManagerPin } from '@/shared/api/users';
+import { beepError, beepOk } from '@/shared/lib/sounds';
 import { centsToSolesInput, DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { isManager } from '@/shared/state/session';
 import type { TicketLine } from '@/shared/types';
@@ -89,8 +90,10 @@ export const DiscountModal: Component<{
         setError('No se pudo aplicar el descuento. Revisa el monto.');
         return;
       }
+      beepOk();
       props.onClose();
     } catch {
+      beepError();
       setError('PIN incorrecto o sin permiso. Pide al encargado que lo digite.');
     } finally {
       setSaving(false);

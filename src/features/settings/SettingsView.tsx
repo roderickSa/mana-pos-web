@@ -1,6 +1,7 @@
 import { createResource, createSignal, Match, Show, Switch, type Component } from 'solid-js';
 
 import { getIgvConfig, getReceiptConfig, updateIgvConfig, updateReceiptConfig } from '@/shared/api/settings';
+import { getPrinterConfig } from '@/shared/api/devices';
 import { showNotice } from '@/shared/state/notices';
 import { isOwner } from '@/shared/state/session';
 import { UsersView } from '@/features/users/UsersView';
@@ -22,6 +23,27 @@ const VoucherTab: Component = () => {
   const nameValue = () => storeName() ?? config()?.storeName ?? '';
   const extraValue = () => headerExtra() ?? config()?.headerExtra ?? '';
   const footerValue = () => footerMessage() ?? config()?.footerMessage ?? '';
+
+  // El preview respeta el ancho REAL del papel configurado (58 mm = 32
+  // columnas, 80 mm = 48) y corta las líneas igual que la térmica: lo que
+  // aquí se desborda, en el papel también.
+  const [printerCfg] = createResource(() => getPrinterConfig().catch(() => null));
+  const cols = () => (printerCfg()?.paperWidthMm === 80 ? 48 : 32);
+  const dashes = () => '-'.repeat(cols());
+  // Corte duro cada N columnas, como el driver.
+  const wrap = (text: string): string[] => {
+    const width = cols();
+    const lines: string[] = [];
+    for (let i = 0; i < text.length; i += width) lines.push(text.slice(i, i + width));
+    return lines.length === 0 ? [''] : lines;
+  };
+  // «concepto……monto» a ancho exacto, con el nombre recortado si no entra.
+  const amountLine = (left: string, right: string): string => {
+    const width = cols();
+    const maxLeft = width - right.length - 1;
+    const cutLeft = left.length > maxLeft ? left.slice(0, maxLeft) : left;
+    return cutLeft + ' '.repeat(width - cutLeft.length - right.length) + right;
+  };
 
   async function save(): Promise<void> {
     if (nameValue().trim() === '' || footerValue().trim() === '' || saving()) return;
@@ -79,24 +101,33 @@ const VoucherTab: Component = () => {
           </div>
         </div>
 
-        {/* Vista previa del voucher tal como saldrá de la térmica. */}
-        <div class={styles.preview}>
-          <p class={styles.previewNombre}>{nameValue() || 'Nombre de la tienda'}</p>
+        {/* Vista previa al ancho REAL configurado (32 o 48 columnas). */}
+        <div class={styles.preview} style={{ width: `calc(${cols()}ch + 34px)` }}>
+          {wrap(nameValue() || 'Nombre de la tienda').map((line) => (
+            <p class={styles.previewNombre}>{line}</p>
+          ))}
           <Show when={extraValue().trim() !== ''}>
-            <p>{extraValue()}</p>
+            {wrap(extraValue()).map((line) => (
+              <p>{line}</p>
+            ))}
           </Show>
-          <p class={styles.previewLinea}>--------------------------------</p>
+          <p class={styles.previewLinea}>{dashes()}</p>
           <p>Ticket #123 29/07/26 18:30</p>
-          <p>Inca Kola 600 ml{'          '}S/ 3.50</p>
-          <p class={styles.previewLinea}>--------------------------------</p>
-          <p class={styles.previewTotal}>TOTAL{'              '}S/ 3.50</p>
-          <p>Efectivo{'           '}S/ 2.00</p>
-          <p>Yape{'               '}S/ 1.50</p>
-          <p>Recibido{'           '}S/ 5.00</p>
-          <p>Vuelto{'             '}S/ 3.00</p>
-          <p>{footerValue() || 'Mensaje final'}</p>
+          <p>{amountLine('Inca Kola 600 ml', 'S/ 3.50')}</p>
+          <p class={styles.previewLinea}>{dashes()}</p>
+          <p class={styles.previewTotal}>{amountLine('TOTAL', 'S/ 3.50')}</p>
+          <p>{amountLine('Efectivo', 'S/ 2.00')}</p>
+          <p>{amountLine('Yape', 'S/ 1.50')}</p>
+          <p>{amountLine('Recibido', 'S/ 5.00')}</p>
+          <p>{amountLine('Vuelto', 'S/ 3.00')}</p>
+          {wrap(footerValue() || 'Mensaje final').map((line) => (
+            <p>{line}</p>
+          ))}
           <p class={styles.previewLegal}>Comprobante interno - no valido</p>
           <p class={styles.previewLegal}>como comprobante de pago</p>
+          <p class={styles.previewLegal}>
+            {cols()} columnas · papel de {printerCfg()?.paperWidthMm ?? 58} mm
+          </p>
         </div>
       </div>
     </section>

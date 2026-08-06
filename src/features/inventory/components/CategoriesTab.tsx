@@ -158,8 +158,16 @@ export const CategoriesTab: Component = () => {
         <CategoryFormModal
           title="Nueva categoría"
           category={null}
-          onSave={async (name) => {
+          onSave={async (name, icon, color) => {
             const created = await createCategory(name);
+            // Mismo formulario que editar: si eligió estilo, se aplica ya.
+            if (icon !== null || color !== null) {
+              await updateCategory(created.slug, {
+                name,
+                ...(icon !== null ? { icon } : {}),
+                ...(color !== null ? { color } : {}),
+              });
+            }
             done(`Categoría «${created.name}» creada`);
           }}
           onClose={() => setCreating(false)}
@@ -234,9 +242,8 @@ const CategoryFormModal: Component<{
           />
         </div>
 
-        <Show when={props.category !== null}>
-          <div class={forms.campo}>
-            <span class={forms.etiqueta}>Ícono (para tiles sin foto)</span>
+        <div class={forms.campo}>
+          <span class={forms.etiqueta}>Ícono (para tiles sin foto)</span>
             <div class={styles.pickerIconos}>
               <For each={[...CATEGORY_ICON_KEYS]}>
                 {(key) => (
@@ -272,7 +279,6 @@ const CategoryFormModal: Component<{
               </For>
             </div>
           </div>
-        </Show>
 
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>

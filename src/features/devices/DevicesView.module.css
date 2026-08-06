@@ -74,7 +74,7 @@
 .pesoVivo {
   margin: 0;
   font-size: 2.4rem;
-  font-weight: 800;
+  font-weight: 600;
   font-family: var(--fuente-voucher);
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
@@ -139,7 +139,7 @@
 
 .configEtiqueta {
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 600;
   font-family: var(--fuente-dato);
   text-transform: uppercase;
   letter-spacing: 0.06em;

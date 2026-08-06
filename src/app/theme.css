@@ -25,7 +25,7 @@
 
   /* Tinta */
   --tinta: #10231a; /* verde-negro: mantiene el ADN sin ser un verde más */
-  --tinta-suave: #6b7570; /* secundario: pasa 4.5:1 sobre blanco */
+  --tinta-suave: #606a65; /* secundario: pasa 4.5:1 también sobre --superficie-app (5.3:1) */
   --linea: #dedfda;
 
   /* Semánticos */
@@ -57,7 +57,7 @@
   /* Totalizador: el único bloque oscuro de la pantalla de venta — ancla. */
   --totalizador-fondo: #10231a;
   --totalizador-tinta: #ffffff;
-  --totalizador-etiqueta: #6e8c7c;
+  --totalizador-etiqueta: #7fa08e; /* AA sobre --totalizador-fondo */
 
   /* Velos de modales y bloqueos. */
   --velo: rgba(16, 35, 26, 0.5);

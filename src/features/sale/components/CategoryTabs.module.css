@@ -1,7 +1,17 @@
+/* Una sola fila SIEMPRE: con 12+ categorías el wrap empujaba la grilla
+   hacia abajo. El excedente se desliza horizontal (touch y rueda). */
 .tabs {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.tabs > * {
+  flex-shrink: 0;
 }
 
 .tab {

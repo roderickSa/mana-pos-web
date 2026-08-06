@@ -16,12 +16,15 @@ export class ApiError extends Error {
 }
 
 // Adjunta el Bearer de la sesión; el API rechaza con 401 lo que no lo traiga.
-function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  const token = sessionToken();
+function authHeaders(token: string | null, extra: Record<string, string> = {}): Record<string, string> {
   return token === null ? extra : { ...extra, authorization: `Bearer ${token}` };
 }
 
-async function parseError(response: Response, url: string): Promise<never> {
+async function parseError(
+  response: Response,
+  url: string,
+  tokenUsed: string | null,
+): Promise<never> {
   let code = 'UNKNOWN';
   let message: string | null = null;
   try {
@@ -33,9 +36,12 @@ async function parseError(response: Response, url: string): Promise<never> {
   } catch {
     // sin cuerpo JSON
   }
-  // Sesión muerta (expiró o fue revocada): de vuelta al login. El login
-  // mismo responde 401 con PIN malo — ese caso lo maneja su pantalla.
-  if (response.status === 401 && !url.startsWith('/users/login')) {
+  // Sesión muerta (expiró o fue revocada): de vuelta al login. Solo si el 401
+  // es del token VIGENTE: un 401 rezagado de un fetch que salió con el token
+  // de ayer no debe tumbar la sesión que acaba de empezar (pasaba al primer
+  // login tras levantar el server). El login mismo responde 401 con PIN malo
+  // — ese caso lo maneja su pantalla.
+  if (response.status === 401 && !url.startsWith('/users/login') && tokenUsed === sessionToken()) {
     endSession();
     showNotice('Tu sesión expiró — vuelve a entrar con tu PIN.');
   }
@@ -43,16 +49,18 @@ async function parseError(response: Response, url: string): Promise<never> {
 }
 
 export async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: authHeaders() });
-  if (!response.ok) return parseError(response, url);
+  const token = sessionToken();
+  const response = await fetch(url, { headers: authHeaders(token) });
+  if (!response.ok) return parseError(response, url, token);
   return response.json();
 }
 
 // Devuelve null en 404 (para lookups donde "no existe" es un resultado esperado).
 export async function getJsonOrNull<T>(url: string): Promise<T | null> {
-  const response = await fetch(url, { headers: authHeaders() });
+  const token = sessionToken();
+  const response = await fetch(url, { headers: authHeaders(token) });
   if (response.status === 404) return null;
-  if (!response.ok) return parseError(response, url);
+  if (!response.ok) return parseError(response, url, token);
   return response.json();
 }
 
@@ -61,13 +69,16 @@ export async function sendJson<T>(
   url: string,
   body?: unknown,
 ): Promise<T> {
+  const token = sessionToken();
   const response = await fetch(url, {
     method,
     headers:
-      body === undefined ? authHeaders() : authHeaders({ 'content-type': 'application/json' }),
+      body === undefined
+        ? authHeaders(token)
+        : authHeaders(token, { 'content-type': 'application/json' }),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!response.ok) return parseError(response, url);
+  if (!response.ok) return parseError(response, url, token);
   // 204 / cuerpo vacío (asociar proveedor, deletes): no hay JSON que parsear
   // — response.json() lanzaría "Unexpected end of JSON input".
   const text = await response.text();
@@ -82,8 +93,9 @@ export function apiErrorMessage(cause: unknown, fallback: string): string {
 // Descargas autenticadas: un <a href> no manda el Bearer — se baja como blob
 // con el header puesto y se dispara la descarga desde memoria.
 export async function downloadFile(url: string, filename: string): Promise<void> {
-  const response = await fetch(url, { headers: authHeaders() });
-  if (!response.ok) return parseError(response, url);
+  const token = sessionToken();
+  const response = await fetch(url, { headers: authHeaders(token) });
+  if (!response.ok) return parseError(response, url, token);
   const blob = await response.blob();
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);

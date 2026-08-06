@@ -149,7 +149,11 @@ export const EntryModal: Component<{
   }
 
   return (
-    <Modal title={`Entrada de mercancía — ${props.product.name}`} onClose={props.onClose}>
+    <Modal
+      title={`Entrada de mercancía — ${props.product.name}`}
+      dismissOnBackdrop={false}
+      onClose={props.onClose}
+    >
       <div class={styles.form}>
         <Show when={unitProduct !== null}>
           <label class={styles.check}>
@@ -284,7 +288,7 @@ export const EntryModal: Component<{
           <button
             type="button"
             class={styles.primario}
-            disabled={byBoxes() ? totalUnits() <= 0 : false}
+            disabled={enteredQuantity() <= 0}
             onClick={save}
           >
             Registrar entrada

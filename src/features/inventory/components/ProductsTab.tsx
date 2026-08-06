@@ -8,7 +8,7 @@ import { formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
-import { activeCategories } from '@/shared/state/categories';
+import { allCategories } from '@/shared/state/categories';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { ActionsMenu, type ProductAction } from './ActionsMenu';
 import { CountModal } from './CountModal';
@@ -19,6 +19,7 @@ import { PriceModal } from './PriceModal';
 import { ProductFormModal } from './ProductFormModal';
 import { costOf, minimumOf, priceOf, stockOf } from './product-units';
 import styles from '@/shared/ui/tabla.module.css';
+import forms from '@/shared/ui/forms.module.css';
 
 const PER_PAGE = 50;
 
@@ -33,20 +34,54 @@ function stockLabel(product: ProductDto): string {
   return product.saleType === 'unit' ? `${product.stockUnits} unid.` : formatKg(product.stockGrams);
 }
 
+type SortColumn = 'name' | 'price' | 'stock' | 'margin';
+
 export const ProductsTab: Component = () => {
   const [query, setQuery] = createSignal('');
   const [page, setPage] = createSignal(1);
   const [lowOnly, setLowOnly] = createSignal(false);
   const [noCostOnly, setNoCostOnly] = createSignal(false);
+  const [category, setCategory] = createSignal('');
+  const [sortBy, setSortBy] = createSignal<SortColumn | null>(null);
+  const [sortDir, setSortDir] = createSignal<'asc' | 'desc'>('asc');
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
   // Captura de costos en línea: id del producto en edición y su valor.
   const [costEditing, setCostEditing] = createSignal<string | null>(null);
   const [costDraft, setCostDraft] = createSignal('');
 
   const [result, { refetch }] = createResource(
-    () => ({ query: query(), page: page(), lowOnly: lowOnly(), noCostOnly: noCostOnly() }),
-    (params) => searchProductsPage(params.query, params.page, PER_PAGE, params.lowOnly, params.noCostOnly),
+    () => ({
+      query: query(),
+      page: page(),
+      lowOnly: lowOnly(),
+      noCostOnly: noCostOnly(),
+      category: category(),
+      sortBy: sortBy(),
+      sortDir: sortDir(),
+    }),
+    (params) =>
+      searchProductsPage(params.query, params.page, PER_PAGE, params.lowOnly, params.noCostOnly, {
+        category: params.category,
+        ...(params.sortBy === null ? {} : { orderBy: params.sortBy, orderDir: params.sortDir }),
+      }),
   );
+
+  // Clic en encabezado: 1.º asc, 2.º desc, 3.º vuelve al orden normal.
+  function toggleSort(column: SortColumn): void {
+    if (sortBy() !== column) {
+      setSortBy(column);
+      setSortDir('asc');
+    } else if (sortDir() === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortBy(null);
+      setSortDir('asc');
+    }
+    setPage(1);
+  }
+
+  const sortMark = (column: SortColumn) =>
+    sortBy() !== column ? '' : sortDir() === 'asc' ? ' ▲' : ' ▼';
   // Conteos reales en TODO el catálogo (no solo la página visible).
   const [lowTotal, { refetch: refetchLowTotal }] = createResource(async () => {
     const response = await searchProductsPage('', 1, 1, true);
@@ -111,9 +146,10 @@ export const ProductsTab: Component = () => {
     void refetchSuppliers();
   }
 
-  // Nombre bonito de la categoría: el slug es cosa interna.
+  // Nombre bonito de la categoría: el slug es cosa interna. Incluye las
+  // inactivas — sus productos siguen existiendo y merecen nombre.
   const categoryName = (slug: string) =>
-    activeCategories().find((item) => item.slug === slug)?.name ?? slug;
+    allCategories().find((item) => item.slug === slug)?.name ?? slug;
 
   function toggleLowOnly(): void {
     setLowOnly((value) => !value);
@@ -136,6 +172,22 @@ export const ProductsTab: Component = () => {
             setPage(1);
           }}
         />
+        <select
+          class={forms.select}
+          style={{ 'max-width': '190px' }}
+          value={category()}
+          onChange={(event) => {
+            setCategory(event.currentTarget.value);
+            setPage(1);
+          }}
+        >
+          <option value="">Todas las categorías</option>
+          <For each={allCategories()}>
+            {(item) => (
+              <option value={item.slug}>{item.active ? item.name : `${item.name} (inactiva)`}</option>
+            )}
+          </For>
+        </select>
         <Show when={(noCostTotal() ?? 0) > 0 || noCostOnly()}>
           <button
             type="button"
@@ -207,16 +259,32 @@ export const ProductsTab: Component = () => {
         <table class={styles.tabla}>
           <thead>
             <tr>
-              <th>Producto</th>
+              <th>
+                <button type="button" class={styles.ordenable} onClick={() => toggleSort('name')}>
+                  Producto{sortMark('name')}
+                </button>
+              </th>
               <th>Categoría</th>
               <Show when={showSupplierColumn()}>
                 <th>Proveedor</th>
               </Show>
-              <th class={styles.num}>Stock</th>
+              <th class={styles.num}>
+                <button type="button" class={styles.ordenable} onClick={() => toggleSort('stock')}>
+                  Stock{sortMark('stock')}
+                </button>
+              </th>
               <th class={styles.num}>Mínimo</th>
-              <th class={styles.num}>Precio</th>
+              <th class={styles.num}>
+                <button type="button" class={styles.ordenable} onClick={() => toggleSort('price')}>
+                  Precio{sortMark('price')}
+                </button>
+              </th>
               <th class={styles.num}>Costo</th>
-              <th class={styles.num}>Margen</th>
+              <th class={styles.num}>
+                <button type="button" class={styles.ordenable} onClick={() => toggleSort('margin')}>
+                  Margen{sortMark('margin')}
+                </button>
+              </th>
               <th />
             </tr>
           </thead>

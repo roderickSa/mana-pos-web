@@ -15,7 +15,8 @@ export interface MovementDto {
 export interface KardexDto {
   productId: string;
   currentQuantity: number;
-  movements: MovementDto[];
+  // Cada movimiento trae el saldo resultante (anclado en el stock actual).
+  movements: Array<MovementDto & { balanceAfter: number }>;
 }
 
 export async function registerEntry(
@@ -45,6 +46,20 @@ export async function setCount(
 
 export async function getKardex(productId: string): Promise<KardexDto> {
   return getJson(`/inventory/kardex/${productId}`);
+}
+
+export function movementsExportUrl(filters: {
+  query: string;
+  kind: string;
+  from: string;
+  to: string;
+}): string {
+  const params = new URLSearchParams();
+  if (filters.query.trim() !== '') params.set('query', filters.query);
+  if (filters.kind !== '') params.set('kind', filters.kind);
+  if (filters.from !== '') params.set('from', filters.from);
+  if (filters.to !== '') params.set('to', filters.to);
+  return `/inventory/movements/export.csv?${params.toString()}`;
 }
 
 export interface MovementsPageDto {

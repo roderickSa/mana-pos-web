@@ -8,20 +8,20 @@
 .tecla {
   min-height: 60px;
   font-size: 1.35rem;
-  font-weight: 700;
+  font-weight: 600;
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
-  border: 1px solid var(--linea, #dde3ea);
+  border: 1px solid var(--linea);
   border-radius: 12px;
-  background: var(--superficie-panel, #fff);
-  color: var(--tinta, #1d232b);
+  background: var(--superficie-panel);
+  color: var(--tinta);
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
 }
 
 .tecla:active {
-  background: var(--mana-verde-suave, #e2f4e5);
+  background: var(--mana-verde-suave);
   transform: scale(0.97);
 }
 
@@ -29,7 +29,7 @@
   grid-column: 1 / -1;
   min-height: 60px;
   font-size: 1.1rem;
-  font-weight: 800;
+  font-weight: 700;
   border: none;
   border-radius: 12px;
   background: var(--mana-verde);

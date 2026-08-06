@@ -110,12 +110,12 @@
 
 .totalOrden {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .linea {
     grid-template-columns: minmax(0, 1fr) 110px 130px 110px 48px;
   }

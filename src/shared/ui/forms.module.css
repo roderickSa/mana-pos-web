@@ -29,8 +29,8 @@
   margin: 6px 0 0;
   padding-top: 12px;
   border-top: 1px solid var(--linea);
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--tinta-suave);
 }

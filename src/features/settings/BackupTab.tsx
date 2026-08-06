@@ -7,20 +7,16 @@ import {
   setBackupExternalDir,
 } from '@/shared/api/backups';
 import { apiErrorMessage, downloadFile } from '@/shared/api/client';
+import { formatDateOnly, formatTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
 import tabs from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 
 const DAY_MS = 26 * 60 * 60 * 1000; // 26h de gracia sobre el respaldo diario
 
+// Fecha con año + hora: para un respaldo, el año importa.
 function formatMoment(iso: string): string {
-  return new Date(iso).toLocaleString('es-PE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return `${formatDateOnly(iso)}, ${formatTime(iso)}`;
 }
 
 // Respaldo: lo único que separa «se malogró la PC» de «se perdió el negocio».

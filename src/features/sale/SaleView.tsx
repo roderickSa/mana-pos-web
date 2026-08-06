@@ -10,6 +10,7 @@ import {
   type PaymentPart,
 } from '@/shared/api/sales';
 import { getCashStatus } from '@/shared/api/cash';
+import { getExpiring } from '@/shared/api/inventory';
 import { CHARGE_METHOD_TO_API } from '@/shared/lib/labels';
 import { formatSoles } from '@/shared/lib/money';
 import { beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
@@ -134,11 +135,24 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     setTimeout(() => searchInput?.focus(), 40);
   }
 
+  // Lotes vencidos según Inventario: la grilla los marca y al agregar se
+  // avisa (sin bloquear — puede ser el lote nuevo el que está adelante).
+  const [expiring] = createResource(() => getExpiring().catch(() => null));
+  const expiredIds = (): ReadonlySet<string> =>
+    new Set(
+      (expiring()?.items ?? [])
+        .filter((item) => item.daysLeft < 0)
+        .map((item) => item.productId),
+    );
+
   function onProductTap(product: ProductDto): void {
     if (sellingBlocked()) {
       beepError();
       showNotice('La caja está cerrada. Ábrela para empezar a vender.');
       return;
+    }
+    if (expiredIds().has(product.id)) {
+      showNotice(`⚠ ${product.name} tiene un lote VENCIDO según Inventario — revísalo antes de vender.`);
     }
     if (product.saleType === 'weight') {
       setMultiplier(1);
@@ -393,7 +407,11 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     }
   }
 
-  onMount(() => document.addEventListener('keydown', onKeyDown));
+  onMount(() => {
+    document.addEventListener('keydown', onKeyDown);
+    // Al entrar (o volver) al módulo, el buscador queda listo para escanear.
+    focusSearch();
+  });
   onCleanup(() => document.removeEventListener('keydown', onKeyDown));
 
   // El buscador es el corazón de Vender: tras tocar CUALQUIER botón del
@@ -448,6 +466,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           products={products() ?? []}
           loading={products.loading}
           query={query()}
+          expiredIds={expiredIds()}
           onTap={onProductTap}
         />
         {/* Leyenda de los badges numéricos: útil al empezar, descartable
@@ -476,6 +495,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         payment={payment()}
         onPayment={setPayment}
         onCharge={openCharge}
+        onRemoved={focusSearch}
         lastSaleNumber={lastSale()?.number ?? null}
         onReprintLast={() => {
           const sale = lastSale();
@@ -581,6 +601,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
               const removed = removeLine(line().lineId);
               setLineActions(null);
               if (removed !== null) {
+                beepOk();
                 showNotice(`Se quitó ${removed.product.name} — «Deshacer» lo devuelve`);
               }
               focusSearch();
@@ -617,6 +638,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           onPick={(customer) => {
             setTicketCustomer(customer);
             setCustomerPicking(false);
+            beepOk();
             showNotice(`Venta a nombre de ${customer.name}`);
             focusSearch();
           }}
@@ -639,6 +661,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           onConfirm={() => {
             startNewTicket();
             setCancelingSale(false);
+            beepOk();
             showNotice('Venta cancelada — el ticket quedó vacío.');
             focusSearch();
           }}

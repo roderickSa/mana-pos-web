@@ -37,7 +37,11 @@ function splitPresentation(name: string): { base: string; pres: string | null } 
   return { base: trimmed.slice(0, match.index), pres };
 }
 
-const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto) => void }> = (
+const ProductCard: Component<{
+  product: ProductDto;
+  expired: boolean;
+  onTap: (product: ProductDto) => void;
+}> = (
   props,
 ) => {
   // Stock visible = stock del sistema menos lo que ya está en la cesta.
@@ -123,6 +127,11 @@ const ProductCard: Component<{ product: ProductDto; onTap: (product: ProductDto)
           >
             {remainingLabel()}
           </span>
+          {/* Lote vencido según Inventario: se avisa, no se bloquea — la
+              cajera decide (puede ser el lote nuevo el que está adelante). */}
+          <Show when={props.expired}>
+            <span class={styles.vencido}>Vencido</span>
+          </Show>
         </span>
       </span>
     </button>
@@ -133,11 +142,18 @@ export const ProductGrid: Component<{
   products: ProductDto[];
   loading: boolean;
   query: string;
+  expiredIds?: ReadonlySet<string>;
   onTap: (product: ProductDto) => void;
 }> = (props) => (
   <div class={styles.grilla}>
     <For each={props.products}>
-      {(product) => <ProductCard product={product} onTap={props.onTap} />}
+      {(product) => (
+        <ProductCard
+          product={product}
+          expired={props.expiredIds?.has(product.id) === true}
+          onTap={props.onTap}
+        />
+      )}
     </For>
     <Show when={!props.loading && props.products.length === 0}>
       <p class={styles.vacio}>

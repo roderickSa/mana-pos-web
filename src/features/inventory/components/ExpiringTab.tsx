@@ -17,15 +17,9 @@ import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
+import { formatDateOnly } from '@/shared/lib/dates';
 import styles from './ExpiringTab.module.css';
 
-function formatDay(value: string): string {
-  return new Date(value).toLocaleDateString('es-PE', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 export const ExpiringTab: Component = () => {
   const [list, { refetch }] = createResource(getExpiring);
@@ -145,8 +139,8 @@ export const ExpiringTab: Component = () => {
                   <td class={tabla.num}>
                     {item.saleType === 'unit' ? `${item.quantity} unid.` : formatKg(item.quantity)}
                   </td>
-                  <td class={tabla.sub}>{formatDay(item.receivedAt)}</td>
-                  <td class={tabla.sub}>{formatDay(item.expiryDate)}</td>
+                  <td class={tabla.sub}>{formatDateOnly(item.receivedAt)}</td>
+                  <td class={tabla.sub}>{formatDateOnly(item.expiryDate)}</td>
                   <td>
                     <span
                       class={styles.chip}

@@ -225,8 +225,16 @@ export const UsersView: Component = () => {
                   <td class={tabla.sub}>{user.active ? 'activo' : 'inactivo'}</td>
                   <td class={tabla.acciones}>
                     {/* Cuentas de dueño: solo otro dueño las toca (el API
-                        también lo bloquea — esto solo evita el 403). */}
-                    <Show when={isOwner() || user.role !== 'owner'}>
+                        también lo bloquea — esto solo evita el 403). Sin
+                        permiso, la fila explica por qué no hay botones. */}
+                    <Show
+                      when={isOwner() || user.role !== 'owner'}
+                      fallback={
+                        <span class={tabla.sub} title="Las cuentas de dueño solo las edita otro dueño">
+                          solo el dueño edita esta cuenta
+                        </span>
+                      }
+                    >
                       <button type="button" onClick={() => setModal({ kind: 'edit', user })}>
                         Editar
                       </button>

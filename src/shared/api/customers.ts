@@ -35,6 +35,30 @@ export async function listCustomers(query: string, onlyDebtors: boolean): Promis
   return getJson(`/customers?${params.toString()}`);
 }
 
+export interface CustomersPageDto {
+  items: CustomerAccountDto[];
+  total: number;
+  page: number;
+  perPage: number;
+  // Totales de TODO el resultado filtrado (no solo la página visible).
+  totalDebtCents: number;
+  totalInFavorCents: number;
+}
+
+export async function listCustomersPage(
+  query: string,
+  onlyDebtors: boolean,
+  page: number,
+  perPage: number,
+): Promise<CustomersPageDto> {
+  const params = new URLSearchParams();
+  if (query.trim() !== '') params.set('query', query);
+  if (onlyDebtors) params.set('onlyDebtors', 'true');
+  params.set('page', String(page));
+  params.set('perPage', String(perPage));
+  return getJson(`/customers?${params.toString()}`);
+}
+
 export async function createCustomer(payload: CustomerPayload): Promise<{ id: string }> {
   return sendJson('POST', '/customers', payload);
 }

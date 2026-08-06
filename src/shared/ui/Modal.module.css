@@ -125,7 +125,7 @@
   background: var(--superficie-app);
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .cerrar {
     min-width: 48px;
     min-height: 48px;

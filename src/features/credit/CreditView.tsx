@@ -5,14 +5,14 @@ import { Keypad } from '@/shared/ui/Keypad';
 import {
   createCustomer,
   getStatement,
-  listCustomers,
+  listCustomersPage,
   registerAbono,
   updateCustomer,
   type CustomerAccountDto,
 } from '@/shared/api/customers';
 import { apiErrorMessage } from '@/shared/api/client';
 import { DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
-import { formatDateTime } from '@/shared/lib/dates';
+import { formatDateOnly, formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
 import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
@@ -31,7 +31,7 @@ type ModalState =
 // "debe desde hace N días" legible, sin que la cajera calcule fechas.
 function debtSinceLabel(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  const fecha = new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fecha = formatDateOnly(iso);
   if (days <= 0) return `hoy (${fecha})`;
   if (days === 1) return `ayer (${fecha})`;
   return `hace ${days} días (${fecha})`;
@@ -248,16 +248,23 @@ const StatementModal: Component<{ account: CustomerAccountDto; onClose: () => vo
 
 // Clientes es el módulo; el fiado es una de sus caras. Directorio = la
 // libreta completa (crear, editar, contacto); Fiado = solo la cobranza.
+const PER_PAGE = 25;
+
 export const ClientesView: Component = () => {
   const [tab, setTab] = createSignal<'directorio' | 'fiado'>('directorio');
   const [query, setQuery] = createSignal('');
   const [onlyDebtors, setOnlyDebtors] = createSignal(true);
+  const [page, setPage] = createSignal(1);
   const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
 
-  const [accounts, { refetch }] = createResource(
-    () => ({ query: query(), onlyDebtors: tab() === 'fiado' && onlyDebtors() }),
-    (params) => listCustomers(params.query, params.onlyDebtors),
+  const [result, { refetch }] = createResource(
+    () => ({ query: query(), onlyDebtors: tab() === 'fiado' && onlyDebtors(), page: page() }),
+    (params) => listCustomersPage(params.query, params.onlyDebtors, params.page, PER_PAGE),
   );
+
+  const accounts = () => result()?.items ?? [];
+  const total = () => result()?.total ?? 0;
+  const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
 
   function closeAndRefresh(message: string): void {
     setModal({ kind: 'none' });
@@ -267,10 +274,9 @@ export const ClientesView: Component = () => {
 
   // Deuda real = solo saldos positivos; lo "a favor" se informa aparte y en
   // verde (un negativo dentro de un chip de alerta se lee como problema).
-  const totalDebt = () =>
-    (accounts() ?? []).reduce((sum, account) => sum + Math.max(0, account.balanceCents), 0);
-  const totalInFavor = () =>
-    (accounts() ?? []).reduce((sum, account) => sum + Math.max(0, -account.balanceCents), 0);
+  // Vienen del API sobre TODO el resultado, no solo la página visible.
+  const totalDebt = () => result()?.totalDebtCents ?? 0;
+  const totalInFavor = () => result()?.totalInFavorCents ?? 0;
 
   return (
     <div class={tabla.contenedorTabs}>
@@ -279,7 +285,7 @@ export const ClientesView: Component = () => {
           type="button"
           class={tabla.subtab}
           classList={{ [tabla.subtabActiva]: tab() === 'directorio' }}
-          onClick={() => setTab('directorio')}
+          onClick={() => { setTab('directorio'); setPage(1); }}
         >
           Directorio
         </button>
@@ -287,7 +293,7 @@ export const ClientesView: Component = () => {
           type="button"
           class={tabla.subtab}
           classList={{ [tabla.subtabActiva]: tab() === 'fiado' }}
-          onClick={() => setTab('fiado')}
+          onClick={() => { setTab('fiado'); setPage(1); }}
         >
           Fiado
         </button>
@@ -301,14 +307,14 @@ export const ClientesView: Component = () => {
             type="text"
             placeholder="Buscar cliente…"
             value={query()}
-            onInput={(event) => setQuery(event.currentTarget.value)}
+            onInput={(event) => { setQuery(event.currentTarget.value); setPage(1); }}
           />
           <Show when={tab() === 'fiado'}>
             <label class={forms.check} style={{ 'white-space': 'nowrap' }}>
               <input
                 type="checkbox"
                 checked={onlyDebtors()}
-                onChange={(event) => setOnlyDebtors(event.currentTarget.checked)}
+                onChange={(event) => { setOnlyDebtors(event.currentTarget.checked); setPage(1); }}
               />
               Solo deudores
             </label>
@@ -349,7 +355,7 @@ export const ClientesView: Component = () => {
               </Show>
             </thead>
             <tbody>
-              <For each={accounts() ?? []}>
+              <For each={accounts()}>
                 {(account) => (
                   <tr>
                     <td>
@@ -385,7 +391,10 @@ export const ClientesView: Component = () => {
                       <td class={`${tabla.num} ${tabla.sub}`}>{formatSoles(account.availableCents)}</td>
                     </Show>
                     <td class={tabla.acciones}>
-                      <Show when={tab() === 'fiado'}>
+                      {/* Abonar vive en ambas pestañas: el cajero busca al
+                          cliente en Directorio y no debe cambiar de pestaña
+                          para cobrarle. */}
+                      <Show when={tab() === 'fiado' || account.balanceCents > 0}>
                         <button
                           type="button"
                           disabled={account.balanceCents <= 0}
@@ -393,6 +402,8 @@ export const ClientesView: Component = () => {
                         >
                           Abonar
                         </button>
+                      </Show>
+                      <Show when={tab() === 'fiado'}>
                         <Show when={account.phone !== null && account.balanceCents > 0}>
                           <a
                             class={tabla.sub}
@@ -418,7 +429,7 @@ export const ClientesView: Component = () => {
               </For>
             </tbody>
           </table>
-          <Show when={!accounts.loading && (accounts() ?? []).length === 0}>
+          <Show when={!result.loading && accounts().length === 0}>
             <div class={tabla.vacio}>
               <Show
                 when={!(tab() === 'fiado' && onlyDebtors())}
@@ -432,6 +443,20 @@ export const ClientesView: Component = () => {
             </div>
           </Show>
         </div>
+
+        <Show when={totalPages() > 1}>
+          <div class={tabla.paginacion}>
+            <button type="button" disabled={page() <= 1} onClick={() => setPage(page() - 1)}>
+              ‹ Anterior
+            </button>
+            <span>
+              Página {page()} de {totalPages()} · {total()} clientes
+            </span>
+            <button type="button" disabled={page() >= totalPages()} onClick={() => setPage(page() + 1)}>
+              Siguiente ›
+            </button>
+          </div>
+        </Show>
 
         {renderModal(modal(), closeAndRefresh, () => setModal({ kind: 'none' }))}
       </section>

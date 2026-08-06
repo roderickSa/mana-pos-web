@@ -248,16 +248,25 @@ const ClosingsHistory: Component<{ version: number }> = (props) => {
                   <td class={tablaCss.sub}>{session.shift === 'morning' ? 'mañana' : 'tarde'}</td>
                   <td class={tablaCss.num}>{formatSoles(session.expectedCashCents ?? 0)}</td>
                   <td class={tablaCss.num}>{formatSoles(session.countedCashCents ?? 0)}</td>
+                  {/* Sobrante (ámbar) y faltante (rojo) no son lo mismo:
+                      faltante = plata que no está; sobrante = error de cobro. */}
                   <td
                     class={tablaCss.num}
                     style={{
-                      color: difference(session) === 0 ? 'var(--exito)' : 'var(--peligro)',
+                      color:
+                        difference(session) === 0
+                          ? 'var(--exito)'
+                          : difference(session) > 0
+                            ? 'var(--alerta)'
+                            : 'var(--peligro)',
                       'font-weight': '700',
                     }}
                   >
                     {difference(session) === 0
                       ? 'cuadró'
-                      : `${difference(session) > 0 ? '+' : ''}${formatSoles(difference(session))}`}
+                      : difference(session) > 0
+                        ? `+${formatSoles(difference(session))} sobró`
+                        : `${formatSoles(difference(session))} faltó`}
                   </td>
                   <td class={tablaCss.sub}>{session.closedBy ?? '—'}</td>
                   <td class={tablaCss.sub}>{session.closingNote ?? '—'}</td>

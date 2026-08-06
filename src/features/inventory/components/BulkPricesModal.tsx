@@ -11,6 +11,7 @@ import {
 import { listCategories } from '@/shared/api/categories';
 import { listSuppliers } from '@/shared/api/suppliers';
 import { apiErrorMessage } from '@/shared/api/client';
+import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { formatSoles, solesInputToCents, centsToSolesInput } from '@/shared/lib/money';
 import { showNotice } from '@/shared/state/notices';
 import { Modal } from '@/shared/ui/Modal';
@@ -21,6 +22,56 @@ import styles from './BulkPricesModal.module.css';
 function marginLabel(percent: number | null): string {
   return percent === null ? 'sin costo' : `${percent.toFixed(1)}%`;
 }
+
+interface ImpactChange {
+  name: string;
+  oldPriceCents: number;
+  newPriceCents: number;
+}
+
+// Cambiar cientos de precios de un clic es la acción más riesgosa del sistema:
+// antes de aplicar se muestra el impacto (cuántos, promedio y mayor subida)
+// y se pide una confirmación explícita.
+const ConfirmImpact: Component<{
+  changes: ImpactChange[];
+  busy: boolean;
+  onConfirm: () => void;
+  onBack: () => void;
+}> = (props) => {
+  const avgPercent = () => {
+    const withOld = props.changes.filter((change) => change.oldPriceCents > 0);
+    if (withOld.length === 0) return 0;
+    const sum = withOld.reduce(
+      (total, change) => total + ((change.newPriceCents - change.oldPriceCents) / change.oldPriceCents) * 100,
+      0,
+    );
+    return sum / withOld.length;
+  };
+  const biggest = () =>
+    props.changes.reduce((max, change) =>
+      change.newPriceCents - change.oldPriceCents > max.newPriceCents - max.oldPriceCents ? change : max,
+    );
+  return (
+    <div class={styles.confirmar}>
+      <p class={styles.confirmarTitulo}>
+        Vas a cambiar el precio de <b>{props.changes.length} productos</b>.
+      </p>
+      <p class={forms.nota}>
+        Cambio promedio: <b>{avgPercent() >= 0 ? '+' : ''}{avgPercent().toFixed(1)}%</b>
+        {' · '}Mayor subida: {biggest().name} ({formatSoles(biggest().oldPriceCents)} →{' '}
+        {formatSoles(biggest().newPriceCents)}). Las ventas ya cobradas no cambian.
+      </p>
+      <div class={forms.acciones}>
+        <button type="button" class={forms.secundario} disabled={props.busy} onClick={props.onBack}>
+          Volver
+        </button>
+        <button type="button" class={forms.primario} disabled={props.busy} onClick={props.onConfirm}>
+          {props.busy ? 'Aplicando…' : `Sí, aplicar ${props.changes.length} cambios`}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Cambio masivo de precios (por categoría/proveedor, % o soles, con vista
 // previa de margen) + sugerencias para productos con margen bajo el umbral.
@@ -60,6 +111,7 @@ const BulkTab: Component<{ onApplied: () => void }> = (props) => {
   const [mode, setMode] = createSignal<'percent' | 'amount'>('percent');
   const [value, setValue] = createSignal('');
   const [changes, setChanges] = createSignal<PriceChangeDto[] | null>(null);
+  const [confirming, setConfirming] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
 
   const [categories] = createResource(() => listCategories());
@@ -109,12 +161,15 @@ const BulkTab: Component<{ onApplied: () => void }> = (props) => {
     setBusy(true);
     try {
       const result = await applyBulkPrices(body);
+      beepSuccess();
       showNotice(`Se actualizaron ${result.changes.length} precios.`);
       props.onApplied();
     } catch (cause) {
+      beepError();
       showNotice(apiErrorMessage(cause, 'No se pudieron aplicar los precios.'));
     } finally {
       setBusy(false);
+      setConfirming(false);
     }
   }
 
@@ -224,24 +279,36 @@ const BulkTab: Component<{ onApplied: () => void }> = (props) => {
         )}
       </Show>
 
-      <div class={forms.acciones}>
-        <button
-          type="button"
-          class={forms.secundario}
-          disabled={params() === null || busy()}
-          onClick={() => void preview()}
-        >
-          Ver cambios
-        </button>
-        <button
-          type="button"
-          class={forms.primario}
-          disabled={changes() === null || (changes() ?? []).length === 0 || busy()}
-          onClick={() => void apply()}
-        >
-          {busy() ? 'Aplicando…' : `Aplicar a ${(changes() ?? []).length} productos`}
-        </button>
-      </div>
+      <Show
+        when={!confirming()}
+        fallback={
+          <ConfirmImpact
+            changes={changes() ?? []}
+            busy={busy()}
+            onConfirm={() => void apply()}
+            onBack={() => setConfirming(false)}
+          />
+        }
+      >
+        <div class={forms.acciones}>
+          <button
+            type="button"
+            class={forms.secundario}
+            disabled={params() === null || busy()}
+            onClick={() => void preview()}
+          >
+            Ver cambios
+          </button>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={changes() === null || (changes() ?? []).length === 0 || busy()}
+            onClick={() => setConfirming(true)}
+          >
+            {`Aplicar a ${(changes() ?? []).length} productos`}
+          </button>
+        </div>
+      </Show>
     </div>
   );
 };
@@ -250,6 +317,7 @@ const LowMarginTab: Component<{ onApplied: () => void }> = (props) => {
   const [threshold, setThreshold] = createSignal(20);
   const [excluded, setExcluded] = createSignal<Record<string, boolean>>({});
   const [priceDrafts, setPriceDrafts] = createSignal<Record<string, string>>({});
+  const [confirming, setConfirming] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
 
   const [suggestions, { refetch }] = createResource(threshold, (value) =>
@@ -273,6 +341,15 @@ const LowMarginTab: Component<{ onApplied: () => void }> = (props) => {
     selected().filter((item): item is { productId: string; priceCents: number } =>
       item.priceCents !== null && item.priceCents >= 10,
     );
+  // Resumen de impacto para la confirmación: precio actual → precio elegido.
+  const impactChanges = (): ImpactChange[] => {
+    const byId = new Map(items().map((item) => [item.productId, item]));
+    return validSelection().flatMap((update) => {
+      const item = byId.get(update.productId);
+      if (item === undefined) return [];
+      return [{ name: item.name, oldPriceCents: item.priceCents, newPriceCents: update.priceCents }];
+    });
+  };
 
   async function apply(): Promise<void> {
     const updates = validSelection();
@@ -280,15 +357,18 @@ const LowMarginTab: Component<{ onApplied: () => void }> = (props) => {
     setBusy(true);
     try {
       const result = await applyPriceList(updates);
+      beepSuccess();
       showNotice(`Se actualizaron ${result.applied} precios.`);
       setExcluded({});
       setPriceDrafts({});
       void refetch();
       props.onApplied();
     } catch (cause) {
+      beepError();
       showNotice(apiErrorMessage(cause, 'No se pudieron aplicar los precios sugeridos.'));
     } finally {
       setBusy(false);
+      setConfirming(false);
     }
   }
 
@@ -380,16 +460,28 @@ const LowMarginTab: Component<{ onApplied: () => void }> = (props) => {
         </div>
       </Show>
 
-      <div class={forms.acciones}>
-        <button
-          type="button"
-          class={forms.primario}
-          disabled={validSelection().length === 0 || busy()}
-          onClick={() => void apply()}
-        >
-          {busy() ? 'Aplicando…' : `Aplicar ${validSelection().length} sugeridos`}
-        </button>
-      </div>
+      <Show
+        when={!confirming()}
+        fallback={
+          <ConfirmImpact
+            changes={impactChanges()}
+            busy={busy()}
+            onConfirm={() => void apply()}
+            onBack={() => setConfirming(false)}
+          />
+        }
+      >
+        <div class={forms.acciones}>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={validSelection().length === 0 || busy()}
+            onClick={() => setConfirming(true)}
+          >
+            {`Aplicar ${validSelection().length} sugeridos`}
+          </button>
+        </div>
+      </Show>
     </div>
   );
 };

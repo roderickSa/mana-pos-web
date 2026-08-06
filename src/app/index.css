@@ -73,7 +73,7 @@ body {
 
 /* Red de seguridad táctil global: TODO control interactivo llega a 44px.
    Los módulos pueden dar más (48px), pero nunca menos. */
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   button {
     min-height: 44px;
     min-width: 44px;

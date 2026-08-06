@@ -50,7 +50,7 @@
 }
 
 .nombre {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .detalle {
@@ -95,7 +95,7 @@
   border: none;
   border-radius: var(--radio-boton);
   padding: 12px 24px;
-  font-weight: 800;
+  font-weight: 700;
   min-height: 48px;
 }
 

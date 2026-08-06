@@ -13,6 +13,7 @@
 
 /* Vista previa estilo papel térmico. */
 .preview {
+  /* El ancho real lo fija el componente en ch según las columnas del papel. */
   width: 280px;
   background: var(--superficie-voucher);
   border: 1px solid var(--linea);
@@ -32,7 +33,7 @@
 }
 
 .previewNombre {
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1rem;
 }
 
@@ -42,10 +43,10 @@
 }
 
 .previewTotal {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .previewLegal {
   color: var(--tinta-suave);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
