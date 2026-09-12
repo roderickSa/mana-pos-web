@@ -43,13 +43,26 @@ export interface WeightProductDto extends ProductBase {
 
 export type ProductDto = UnitProductDto | WeightProductDto;
 
-export interface TicketLine {
+interface TicketLineBase {
   lineId: string;
-  product: ProductDto;
-  quantity: number;
-  weightGrams: number | null;
-  weightSource: 'scale' | 'manual' | null;
   // Descuento de la línea en céntimos; totalCents ya lo tiene restado.
   discountCents: number;
   totalCents: number;
 }
+
+export interface UnitTicketLine extends TicketLineBase {
+  kind: 'unit';
+  product: UnitProductDto;
+  quantity: number;
+}
+
+export interface WeightTicketLine extends TicketLineBase {
+  kind: 'weight';
+  product: WeightProductDto;
+  grams: number;
+  weightSource: 'scale' | 'manual';
+}
+
+// Una línea es de unidades o de peso: cada una trae solo lo suyo (antes
+// `weightGrams: null` en las de unidad obligaba a `?? 0` por todos lados).
+export type TicketLine = UnitTicketLine | WeightTicketLine;

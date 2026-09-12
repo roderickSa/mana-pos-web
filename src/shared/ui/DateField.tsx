@@ -1,5 +1,6 @@
 import { createEffect, createSignal, untrack, type Component, type JSX } from 'solid-js';
 
+import forms from '@/shared/ui/forms.module.css';
 import styles from './DateField.module.css';
 
 // Campo de fecha SIEMPRE en dd/mm/aaaa: el input nativo muestra el formato
@@ -33,7 +34,8 @@ export const DateField: Component<{
   // ISO yyyy-mm-dd o '' (vacío = sin fecha).
   value: string;
   onChange: (iso: string) => void;
-  inputClass: string;
+  // Clase del input; por defecto el look de formulario compartido.
+  inputClass?: string;
   // Rótulo sobre el campo ("Desde", "Hasta"): dos fechas juntas sin rotular
   // obligan a adivinar cuál es cuál.
   label?: string;
@@ -83,7 +85,7 @@ export const DateField: Component<{
     <div class={styles.campo} style={props.style}>
       {props.label === undefined ? null : <span class={styles.rotulo}>{props.label}</span>}
       <input
-        class={`${props.inputClass} ${styles.texto}`}
+        class={`${props.inputClass ?? forms.input} ${styles.texto}`}
         type="text"
         inputmode="numeric"
         placeholder="dd/mm/aaaa"

@@ -110,6 +110,9 @@
   font-variant-emoji: text;
 }
 
+/* Misma especificidad que .salir no bastaba: el fondo blanco no ganaba y el
+   verde hondo quedaba sobre verde (2.2:1). */
+.salir.accesActivo,
 .accesActivo {
   background: var(--sobre-marca-pleno);
   color: var(--mana-verde-hondo);
@@ -122,6 +125,66 @@
 .chip small {
   font-weight: 400;
   opacity: 0.75;
+}
+
+/* Nada del header se parte en dos líneas: a 1024 px el badge de caja se
+   partía en tres y empujaba «Salir» y la hora fuera de la pantalla. */
+.chip,
+.navBoton,
+.caja,
+.reloj {
+  white-space: nowrap;
+}
+
+/* A 1366 px la hora ya no cabe en una línea: se va antes que nada. */
+@media (max-width: 1400px) {
+  .reloj {
+    display: none;
+  }
+}
+
+/* Nueve secciones a 1366 px: nav más compacto y el nombre del usuario se
+   reduce al avatar (el rol ya no cabe). Salir y la luna siempre visibles. */
+@media (max-width: 1500px) {
+  .navBoton {
+    padding: 8px 11px;
+    font-size: 0.86rem;
+  }
+
+  .chip {
+    padding: 6px 10px;
+  }
+
+  .topbar {
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .nombreUsuario,
+  .chip small {
+    display: none;
+  }
+}
+
+@media (max-width: 1280px) {
+
+  .navBoton {
+    padding: 8px 12px;
+  }
+
+  .chip {
+    padding: 6px 10px;
+  }
+
+  .topbar {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .chip small {
+    display: none;
+  }
 }
 
 @media (any-pointer: coarse) {

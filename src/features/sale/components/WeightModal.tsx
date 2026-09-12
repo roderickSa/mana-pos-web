@@ -1,9 +1,10 @@
-import { createResource, createSignal, For, onCleanup, onMount, Show, type Component } from 'solid-js';
+import { createResource, createSignal, For, onCleanup, Show, type Component } from 'solid-js';
 
 import { getScale } from '@/shared/api/devices';
 import { formatKg, formatSoles } from '@/shared/lib/money';
 import type { WeightProductDto } from '@/shared/types';
 import { Keypad } from '@/shared/ui/Keypad';
+import { Modal } from '@/shared/ui/Modal';
 import styles from './WeightModal.module.css';
 
 const PRESET_GRAMS = [100, 250, 500, 750, 1000];
@@ -21,16 +22,6 @@ export const WeightModal: Component<{
   const interval = setInterval(() => setTick((value) => value + 1), 700);
   onCleanup(() => clearInterval(interval));
 
-  // Esc cancela, igual que en el resto de modales.
-  function onKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      props.onCancel();
-    }
-  }
-  onMount(() => document.addEventListener('keydown', onKeyDown));
-  onCleanup(() => document.removeEventListener('keydown', onKeyDown));
-
   const scaleGrams = () => {
     const state = scale();
     return state != null && state.connected && state.grams !== null && state.grams > 0
@@ -39,7 +30,7 @@ export const WeightModal: Component<{
   };
 
   function priceFor(value: number): number {
-    return Math.round((value / 1000) * props.product.pricePerKgCents);
+    return Math.round((value * props.product.pricePerKgCents) / 1000);
   }
 
   function confirmManual(): void {
@@ -61,47 +52,12 @@ export const WeightModal: Component<{
   };
 
   return (
-    <div class={styles.fondo} onClick={props.onCancel}>
-      <div
-        class={styles.modal}
-        role="dialog"
-        aria-label={`Peso de ${props.product.name}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h3 class={styles.titulo}>{props.product.name}</h3>
-        <p class={styles.ayuda}>{formatSoles(props.product.pricePerKgCents)} por kilo</p>
-
-        <Show when={scaleGrams() !== null}>
-          <button type="button" class={styles.balanzaViva} onClick={confirmFromScale}>
-            <span class={styles.balanzaEtiqueta}>Balanza</span>
-            <b>{formatKg(scaleGrams() ?? 0)}</b>
-            <span>Usar este peso · {formatSoles(priceFor(scaleGrams() ?? 0))}</span>
-          </button>
-        </Show>
-        <Show when={scaleGrams() === null && scale() != null}>
-          <p class={styles.ayuda}>{scale()?.message ?? 'Balanza sin lectura — usa el peso manual.'}</p>
-        </Show>
-
-        <input
-          class={styles.input}
-          type="number"
-          inputmode="numeric"
-          placeholder="gramos, p. ej. 645"
-          value={grams()}
-          onInput={(event) => setGrams(event.currentTarget.value)}
-          onKeyDown={(event) => event.key === 'Enter' && confirmManual()}
-          autofocus
-        />
-        <div class={styles.presets}>
-          <For each={PRESET_GRAMS}>
-            {(preset) => (
-              <button type="button" class={styles.preset} onClick={() => setGrams(String(preset))}>
-                {preset >= 1000 ? `${preset / 1000} kg` : `${preset} g`}
-              </button>
-            )}
-          </For>
-        </div>
-        <Keypad value={grams()} onChange={setGrams} />
+    <Modal
+      size="sm"
+      title={props.product.name}
+      subtitle={`${formatSoles(props.product.pricePerKgCents)} por kilo`}
+      onClose={props.onCancel}
+      footer={
         <div class={styles.acciones}>
           <button type="button" class={styles.cancelar} onClick={props.onCancel}>
             Cancelar
@@ -110,7 +66,40 @@ export const WeightModal: Component<{
             Agregar {preview() ?? ''}
           </button>
         </div>
+      }
+    >
+      <Show when={scaleGrams() !== null}>
+        <button type="button" class={styles.balanzaViva} onClick={confirmFromScale}>
+          <span class={styles.balanzaEtiqueta}>Balanza</span>
+          <b>{formatKg(scaleGrams() ?? 0)}</b>
+          <span>Usar este peso · {formatSoles(priceFor(scaleGrams() ?? 0))}</span>
+        </button>
+      </Show>
+      <Show when={scaleGrams() === null && scale() != null}>
+        <p class={styles.ayuda}>{scale()?.message ?? 'Balanza sin lectura — usa el peso manual.'}</p>
+      </Show>
+
+      <input
+        class={styles.input}
+        type="number"
+        inputmode="numeric"
+        placeholder="gramos, p. ej. 645"
+        aria-label={`Gramos de ${props.product.name}`}
+        value={grams()}
+        onInput={(event) => setGrams(event.currentTarget.value)}
+        onKeyDown={(event) => event.key === 'Enter' && confirmManual()}
+        autofocus
+      />
+      <div class={styles.presets}>
+        <For each={PRESET_GRAMS}>
+          {(preset) => (
+            <button type="button" class={styles.preset} onClick={() => setGrams(String(preset))}>
+              {preset >= 1000 ? `${preset / 1000} kg` : `${preset} g`}
+            </button>
+          )}
+        </For>
       </div>
-    </div>
+      <Keypad value={grams()} onChange={setGrams} />
+    </Modal>
   );
 };

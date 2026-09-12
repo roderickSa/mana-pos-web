@@ -1,11 +1,11 @@
 import { createSignal, Show, type Component } from 'solid-js';
 
-import { ApiError } from '@/shared/api/client';
+import { apiErrorMessage, ApiError } from '@/shared/api/client';
 import { registerAdjustment } from '@/shared/api/inventory';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
-import { unitLabel } from './product-units';
+import { unitLabel } from '@/shared/lib/product-units';
 import styles from '@/shared/ui/forms.module.css';
 
 const ADJUSTMENT_KINDS = [
@@ -24,9 +24,13 @@ export const AdjustmentModal: Component<{
   const [reason, setReason] = createSignal('');
   const [error, setError] = createSignal('');
 
+  const [saving, setSaving] = createSignal(false);
+
   async function save(): Promise<void> {
+    if (saving()) return;
     const value = Number.parseInt(quantity(), 10);
     if (Number.isNaN(value) || value <= 0) return;
+    setSaving(true);
     try {
       await registerAdjustment(
         props.product.id,
@@ -40,8 +44,10 @@ export const AdjustmentModal: Component<{
       if (cause instanceof ApiError && cause.code === 'ADJUSTMENT_EXCEEDS_STOCK') {
         setError('La cantidad supera el stock disponible. Verifica y vuelve a intentar.');
       } else {
-        setError('No se pudo registrar el ajuste.');
+        setError(apiErrorMessage(cause, 'No se pudo registrar el ajuste.'));
       }
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -90,7 +96,7 @@ export const AdjustmentModal: Component<{
           <button type="button" class={styles.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={styles.primario} onClick={save}>
+          <button type="button" class={styles.primario} disabled={saving()} onClick={save}>
             Registrar ajuste
           </button>
         </div>

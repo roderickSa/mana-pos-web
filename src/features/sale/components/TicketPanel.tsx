@@ -3,7 +3,7 @@ import { For, Show, type Component } from 'solid-js';
 import { formatKg, formatSoles } from '@/shared/lib/money';
 import { beepOk } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
-import type { TicketLine } from '@/shared/types';
+import type { TicketLine, WeightTicketLine } from '@/shared/types';
 import {
   adjustLineQuantity,
   heldTicketsCount,
@@ -31,7 +31,7 @@ export const TicketPanel: Component<{
   lastSaleNumber: number | null;
   onReprintLast: () => void;
   onHelp: () => void;
-  onEditWeight: (line: TicketLine) => void;
+  onEditWeight: (line: WeightTicketLine) => void;
   onDiscountLine: (line: TicketLine) => void;
   onDiscountTicket: () => void;
   onLineActions: (line: TicketLine) => void;
@@ -90,27 +90,29 @@ export const TicketPanel: Component<{
                 </span>
               </span>
               <span class={styles.cantidad}>
-                <Show
-                  when={line.weightGrams === null}
-                  fallback={
+                <Show when={line.kind === 'weight' ? line : null}>
+                  {(weightLine) => (
                     <button
                       type="button"
                       class={styles.peso}
                       title="Corregir el peso (vuelve a abrir la balanza)"
                       onClick={(event) => {
                         event.stopPropagation();
-                        props.onEditWeight(line);
+                        props.onEditWeight(weightLine());
                       }}
                     >
-                      ⚖ {formatKg(line.weightGrams ?? 0)}
+                      ⚖ {formatKg(weightLine().grams)}
                     </button>
-                  }
-                >
+                  )}
+                </Show>
+                <Show when={line.kind === 'unit' ? line : null}>
+                  {(unitLine) => (
+                    <>
                   <button
                     type="button"
                     class={styles.paso}
                     aria-label={`Una menos de ${line.product.name}`}
-                    disabled={line.quantity <= 1}
+                    disabled={unitLine().quantity <= 1}
                     onClick={(event) => {
                       event.stopPropagation();
                       adjustLineQuantity(index(), -1);
@@ -118,7 +120,7 @@ export const TicketPanel: Component<{
                   >
                     −
                   </button>
-                  <span class={styles.cant}>{line.quantity}</span>
+                  <span class={styles.cant}>{unitLine().quantity}</span>
                   <button
                     type="button"
                     class={styles.paso}
@@ -130,6 +132,8 @@ export const TicketPanel: Component<{
                   >
                     +
                   </button>
+                    </>
+                  )}
                 </Show>
               </span>
               <span class={styles.monto}>{formatSoles(line.totalCents)}</span>

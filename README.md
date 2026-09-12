@@ -26,9 +26,11 @@ src/
     sales-history/       → historial de ventas, detalle voucher, anular, devolver
     cash/                → caja por turnos, movimientos, cierre a ciegas, cierres anteriores
     credit/              → módulo Clientes (Directorio + Fiado, abonos, WhatsApp)
-    inventory/           → inventario: productos, precios masivos, entradas, ajustes,
-                           por vencer, kardex, categorías (un modal por operación)
-    purchases/           → órdenes de compra y recepción
+    catalog/               → productos: alta/edición, precios masivos, import/export Excel, fusión,
+                             categorías (un modal por operación)
+    inventory/             → inventario: entradas y mermas, por vencer, kardex
+    purchases/             → órdenes de compra, recepción y proveedores
+    reports/               → reportes de gestión (resumen, más vendidos, categoría, hora, mermas)
     devices/             → estado de equipos, impresora configurable, pruebas
     settings/            → Ajustes (voucher, IGV, respaldo) — compone tabs de otras features
     users/               → gestión de usuarios y PINs
@@ -41,8 +43,10 @@ src/
                            Keypad, DateField, ProductPicker, CategoryIcon
                            + CSS compartido: forms.module.css (formularios/modales)
                            y tabla.module.css (vistas con tabla, subtabs, paginación)
-    lib/                 → utilidades puras: money (redondeo a S/0.10), dates, labels, sounds, focus
-    state/               → estado transversal: session, notices, categories, cash-refresh, preferences
+    lib/                 → utilidades puras: money (redondeo a S/0.10), dates, labels, sounds, focus,
+                             scanner (ráfagas del lector, en fase de captura) e image (resize antes de subir)
+    state/                 → estado transversal: session, notices, categories, cash-status y
+                             devices-status (un solo resource compartido), cash-refresh, preferences
     types.ts             → DTOs de la API
 ```
 

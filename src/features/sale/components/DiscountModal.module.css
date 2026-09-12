@@ -2,3 +2,27 @@
 .quitar {
   margin-right: auto;
 }
+
+.porcentajes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 4px;
+}
+
+.porcentaje {
+  min-height: 44px;
+  min-width: 56px;
+  padding: 0 12px;
+  border: 1px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: var(--radio-boton);
+  font-weight: 600;
+  font-family: var(--fuente-dato);
+}
+
+.porcentaje:hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}

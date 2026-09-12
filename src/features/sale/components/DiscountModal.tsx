@@ -1,8 +1,8 @@
-import { createSignal, Show, type Component } from 'solid-js';
+import { For, createSignal, Show, type Component } from 'solid-js';
 
 import { verifyManagerPin } from '@/shared/api/users';
 import { beepError, beepOk } from '@/shared/lib/sounds';
-import { centsToSolesInput, DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
+import { roundToDimeCents, centsToSolesInput, DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { isManager } from '@/shared/state/session';
 import type { TicketLine } from '@/shared/types';
 import { Modal } from '@/shared/ui/Modal';
@@ -84,7 +84,7 @@ export const DiscountModal: Component<{
           return;
         }
         const verification = await verifyManagerPin(pin());
-        markDiscountAuthorizedBy(verification.managerName);
+        markDiscountAuthorizedBy(verification.managerName, verification.approvalToken);
       }
       if (!applyDiscount(cents)) {
         setError('No se pudo aplicar el descuento. Revisa el monto.');
@@ -124,6 +124,21 @@ export const DiscountModal: Component<{
             }}
             autofocus
           />
+          {/* El botón que abre este modal dice "%": los porcentajes usuales a
+              un toque; el monto libre sigue disponible abajo. */}
+          <div class={styles.porcentajes}>
+            <For each={[5, 10, 15, 20, 50]}>
+              {(percent) => (
+                <button
+                  type="button"
+                  class={styles.porcentaje}
+                  onClick={() => setAmount(((roundToDimeCents(Math.round((maxCents() * percent) / 100)) / 100).toFixed(2)))}
+                >
+                  {percent} %
+                </button>
+              )}
+            </For>
+          </div>
           <Show when={resultingCents() !== null}>
             <p class={forms.nota}>
               {line !== null ? 'La línea queda en' : 'El ticket queda en'}{' '}

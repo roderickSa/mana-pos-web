@@ -6,8 +6,6 @@ import { showNotice } from '@/shared/state/notices';
 import { isOwner } from '@/shared/state/session';
 import { UsersView } from '@/features/users/UsersView';
 import { DevicesView } from '@/features/devices/DevicesView';
-import { CategoriesTab } from '@/features/inventory/components/CategoriesTab';
-import { SuppliersTab } from '@/features/inventory/components/SuppliersTab';
 import { BackupTab } from '@/features/settings/BackupTab';
 import tabs from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
@@ -199,8 +197,6 @@ type SettingsTab =
   | 'equipos'
   | 'voucher'
   | 'igv'
-  | 'categorias'
-  | 'proveedores'
   | 'respaldo';
 
 // Espejo de la política del API (route-policy.ts): encargado y dueño ven lo
@@ -210,8 +206,6 @@ const TABS: Array<{ key: SettingsTab; label: string; ownerOnly: boolean }> = [
   { key: 'equipos', label: 'Equipos', ownerOnly: false },
   { key: 'voucher', label: 'Voucher', ownerOnly: false },
   { key: 'igv', label: 'IGV', ownerOnly: false },
-  { key: 'categorias', label: 'Categorías', ownerOnly: false },
-  { key: 'proveedores', label: 'Proveedores', ownerOnly: false },
   { key: 'respaldo', label: 'Respaldo', ownerOnly: true },
 ];
 
@@ -246,12 +240,6 @@ export const SettingsView: Component = () => {
         </Match>
         <Match when={tab() === 'igv'}>
           <IgvTab />
-        </Match>
-        <Match when={tab() === 'categorias'}>
-          <CategoriesTab />
-        </Match>
-        <Match when={tab() === 'proveedores'}>
-          <SuppliersTab />
         </Match>
         <Match when={tab() === 'respaldo' && isOwner()}>
           <BackupTab />

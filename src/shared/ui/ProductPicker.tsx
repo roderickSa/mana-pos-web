@@ -15,7 +15,6 @@ export const ProductPicker: Component<{
   onPick: (product: ProductDto) => void;
   // Filtro adicional sobre los resultados (excluir ya elegidos, mismo tipo…).
   accept?: (product: ProductDto) => boolean;
-  supplierId?: string | null;
   includeInactive?: boolean;
   disabled?: boolean;
   meta?: (product: ProductDto) => string;
@@ -40,7 +39,7 @@ export const ProductPicker: Component<{
           null,
           props.includeInactive === true,
           false,
-          props.supplierId ?? null,
+          null,
         ),
       );
     } catch {
@@ -48,13 +47,18 @@ export const ProductPicker: Component<{
     }
   }
 
+  // Solo la última búsqueda pinta resultados: una respuesta lenta de un
+  // texto anterior no puede pisar a la actual (y agregar el producto errado).
+  let searchSeq = 0;
   async function onInput(text: string): Promise<void> {
     setQuery(text);
+    const seq = ++searchSeq;
     if (text.trim().length < 2) {
       setResults([]);
       return;
     }
-    setResults(await fetchCandidates(text.trim()));
+    const candidates = await fetchCandidates(text.trim());
+    if (seq === searchSeq) setResults(candidates);
   }
 
   function pick(product: ProductDto): void {

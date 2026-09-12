@@ -1,0 +1,183 @@
+import {createSignal, For, Show, type Component } from 'solid-js';
+
+
+import {receivePurchaseOrder, type PurchaseOrderDto, type PurchaseOrderLineDto, type ReceiveOrderLinePayload } from '@/shared/api/purchases';
+import {centsToSolesInput, solesInputToCents } from '@/shared/lib/money';
+import {beepError, beepSuccess } from '@/shared/lib/sounds';
+import {showNotice } from '@/shared/state/notices';
+import {DateField } from '@/shared/ui/DateField';
+import formStyles from '@/shared/ui/forms.module.css';
+import styles from '../PurchasesView.module.css';
+import {quantityText, type ReceiveDraft } from './purchase-lines';
+
+export const ReceiveForm: Component<{
+  order: PurchaseOrderDto;
+  onCancel: () => void;
+  onReceived: (order: PurchaseOrderDto) => void;
+}> = (props) => {
+  // Fijo mientras el formulario vive: un reintento tras un error no duplica la recepción.
+  const [receptionId] = createSignal(crypto.randomUUID());
+  const pendingLines = props.order.lines.filter((line) => line.pendingQuantity > 0);
+  const initialDrafts = new Map<string, ReceiveDraft>(
+    pendingLines.map((line) => [
+      line.id,
+      {
+        quantity:
+          line.saleType === 'weight'
+            ? (line.pendingQuantity / 1000).toFixed(3)
+            : String(line.pendingQuantity),
+        cost: centsToSolesInput(line.unitCostCents),
+        expiry: '',
+      },
+    ]),
+  );
+  const [drafts, setDrafts] = createSignal(initialDrafts);
+  const [error, setError] = createSignal('');
+  const [saving, setSaving] = createSignal(false);
+
+  function draftOf(line: PurchaseOrderLineDto): ReceiveDraft {
+    return drafts().get(line.id) ?? { quantity: '', cost: '', expiry: '' };
+  }
+
+  function updateDraft(lineId: string, patch: Partial<ReceiveDraft>): void {
+    const next = new Map(drafts());
+    const current = next.get(lineId);
+    if (current === undefined) return;
+    next.set(lineId, { ...current, ...patch });
+    setDrafts(next);
+  }
+
+  function receivedUnits(line: PurchaseOrderLineDto): number {
+    const draft = draftOf(line);
+    if (line.saleType === 'weight') {
+      const kg = Number.parseFloat(draft.quantity);
+      return Number.isNaN(kg) ? 0 : Math.round(kg * 1000);
+    }
+    return Number.parseInt(draft.quantity, 10) || 0;
+  }
+
+  function differenceLabel(line: PurchaseOrderLineDto): string {
+    const units = receivedUnits(line);
+    if (units === 0 || units === line.pendingQuantity) return '';
+    const diff = Math.abs(units - line.pendingQuantity);
+    const amount = line.saleType === 'weight' ? `${(diff / 1000).toFixed(3)} kg` : `${diff} und`;
+    return units < line.pendingQuantity ? `faltan ${amount}` : `sobran ${amount}`;
+  }
+
+  const anyToReceive = () => pendingLines.some((line) => receivedUnits(line) > 0);
+
+  async function confirm(): Promise<void> {
+    if (!anyToReceive() || saving()) return;
+    setSaving(true);
+    setError('');
+    const payload: ReceiveOrderLinePayload[] = [];
+    for (const line of pendingLines) {
+      const units = receivedUnits(line);
+      if (units <= 0) continue;
+      const draft = draftOf(line);
+      const costCents = solesInputToCents(draft.cost);
+      payload.push({
+        lineId: line.id,
+        quantity: units,
+        unitCostCents: costCents === null || costCents <= 0 ? null : costCents,
+        expiryDate: draft.expiry.trim() === '' ? null : draft.expiry,
+      });
+    }
+    try {
+      const updated = await receivePurchaseOrder(props.order.id, receptionId(), payload);
+      beepSuccess();
+      showNotice(
+        updated.status === 'received' ? 'Orden recibida completa' : 'Recepción parcial registrada',
+      );
+      props.onReceived(updated);
+    } catch {
+      beepError();
+      setError('No se pudo registrar la recepción.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div class={formStyles.form}>
+      <p class={formStyles.nota}>
+        Ajusta lo que llegó de verdad. Lo que dejes en 0 queda pendiente para otra recepción. El
+        costo real actualiza el costo del producto y el kardex.
+      </p>
+      <div class={styles.lineas}>
+        <For each={pendingLines}>
+          {(line) => (
+            <div class={styles.linea}>
+              <div>
+                <div class={styles.lineaNombre}>{line.description}</div>
+                <div class={styles.lineaSub}>
+                  pendiente:{' '}
+                  {quantityText({
+                    saleType: line.saleType,
+                    quantity: line.pendingQuantity,
+                    packSize: line.packSize,
+                  })}
+                  <Show when={differenceLabel(line) !== ''}>
+                    {' · '}
+                    <b>{differenceLabel(line)}</b>
+                  </Show>
+                </div>
+              </div>
+              <div class={formStyles.campo}>
+                <span class={formStyles.etiqueta}>
+                  {line.saleType === 'weight' ? 'Llegó (kg)' : 'Llegó (und)'}
+                </span>
+                <input
+                  class={formStyles.input}
+                  type="number"
+                  min="0"
+                  step={line.saleType === 'weight' ? '0.1' : '1'}
+                  value={draftOf(line).quantity}
+                  onInput={(event) => updateDraft(line.id, { quantity: event.currentTarget.value })}
+                />
+              </div>
+              <div class={formStyles.campo}>
+                <span class={formStyles.etiqueta}>
+                  {line.saleType === 'weight' ? 'Costo real /kg' : 'Costo real /und'}
+                </span>
+                <input
+                  class={formStyles.input}
+                  type="number"
+                  min="0"
+                  step="0.10"
+                  value={draftOf(line).cost}
+                  onInput={(event) => updateDraft(line.id, { cost: event.currentTarget.value })}
+                />
+              </div>
+              <div class={formStyles.campo}>
+                <span class={formStyles.etiqueta}>Vence</span>
+                <DateField
+                  value={draftOf(line).expiry}
+                  onChange={(iso) => updateDraft(line.id, { expiry: iso })}
+                />
+              </div>
+              <span />
+            </div>
+          )}
+        </For>
+      </div>
+      <Show when={error() !== ''}>
+        <p class={formStyles.error}>{error()}</p>
+      </Show>
+      <div class={formStyles.acciones}>
+        <button type="button" class={formStyles.secundario} onClick={props.onCancel}>
+          Volver
+        </button>
+        <button
+          type="button"
+          class={formStyles.primario}
+          disabled={!anyToReceive() || saving()}
+          onClick={confirm}
+        >
+          Confirmar recepción
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Proveedores viven aquí y no en Ajustes: se consultan al pedir y al recibir.

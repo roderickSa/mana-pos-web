@@ -41,7 +41,14 @@ async function parseError(
   // de ayer no debe tumbar la sesión que acaba de empezar (pasaba al primer
   // login tras levantar el server). El login mismo responde 401 con PIN malo
   // — ese caso lo maneja su pantalla.
-  if (response.status === 401 && !url.startsWith('/users/login') && tokenUsed === sessionToken()) {
+  // Y solo si el request LLEVABA token: un 401 de un fetch sin Bearer (antes
+  // de entrar) no tiene sesión que cerrar ni aviso de "expiró" que mostrar.
+  if (
+    response.status === 401 &&
+    !url.startsWith('/users/login') &&
+    tokenUsed !== null &&
+    tokenUsed === sessionToken()
+  ) {
     endSession();
     showNotice('Tu sesión expiró — vuelve a entrar con tu PIN.');
   }

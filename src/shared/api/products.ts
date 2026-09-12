@@ -47,8 +47,10 @@ export async function searchProducts(
   includeInactive = false,
   onlyQuickAccess = false,
   supplierId: string | null = null,
+  limit: number | null = null,
 ): Promise<ProductDto[]> {
   const params = new URLSearchParams();
+  if (limit !== null) params.set('perPage', String(limit));
   if (query.trim() !== '') params.set('query', query);
   if (category !== null) params.set('category', category);
   if (supplierId !== null) params.set('supplier', supplierId);
@@ -85,6 +87,10 @@ export async function searchProductsPage(
   params.set('page', String(page));
   params.set('perPage', String(perPage));
   return getJson(`/catalog/products?${params.toString()}`);
+}
+
+export async function getProduct(id: string): Promise<ProductDto | null> {
+  return getJsonOrNull(`/catalog/products/${id}`);
 }
 
 export async function getProductByBarcode(barcode: string): Promise<ProductDto | null> {

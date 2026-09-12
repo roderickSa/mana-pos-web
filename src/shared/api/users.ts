@@ -17,7 +17,11 @@ export async function logoutSession(): Promise<null> {
   return sendJson('POST', '/users/logout');
 }
 
-export async function verifyManagerPin(pin: string): Promise<{ ok: boolean; managerName: string }> {
+// El token viaja en la operación autorizada (descuento, anular, devolver):
+// el servidor nunca confía en un nombre mandado por el front.
+export async function verifyManagerPin(
+  pin: string,
+): Promise<{ ok: boolean; managerName: string; approvalToken: string }> {
   return sendJson('POST', '/users/verify-manager', { pin });
 }
 

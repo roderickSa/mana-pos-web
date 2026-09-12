@@ -28,6 +28,9 @@ const SIZE_CLASS: Record<ModalSize, string> = {
 
 // Armazón común: header y footer fijos, SOLO el cuerpo scrollea. Así el botón
 // de guardar nunca queda fuera de pantalla por más largo que sea el form.
+// Pila de modales abiertos, en orden de apertura.
+const openModals: symbol[] = [];
+
 export const Modal: Component<{
   title: string;
   // Línea secundaria bajo el título: chip de estado, metadatos.
@@ -43,6 +46,7 @@ export const Modal: Component<{
   onClose: () => void;
   children: JSX.Element;
 }> = (props) => {
+  const modalToken = Symbol('modal');
   let modalRef: HTMLDivElement | undefined;
   let pieRef: HTMLElement | undefined;
   const titleId = createUniqueId();
@@ -68,6 +72,9 @@ export const Modal: Component<{
   }
 
   function onKeyDown(event: KeyboardEvent): void {
+    // Con modales anidados (confirmar dentro de un detalle) solo responde el
+    // de arriba: antes Esc cerraba los dos y los focus traps competían.
+    if (openModals[openModals.length - 1] !== modalToken) return;
     // Esc cierra cualquier modal de la app, siempre.
     if (event.key === 'Escape') {
       event.stopPropagation();
@@ -97,6 +104,7 @@ export const Modal: Component<{
   }
 
   onMount(() => {
+    openModals.push(modalToken);
     document.addEventListener('keydown', onKeyDown);
     // autofocus no dispara en montaje dinámico: foco manual al primer campo
     // relevante (o al primer control si no hay ninguno marcado).
@@ -109,6 +117,8 @@ export const Modal: Component<{
     }, 60);
   });
   onCleanup(() => {
+    const at = openModals.indexOf(modalToken);
+    if (at >= 0) openModals.splice(at, 1);
     document.removeEventListener('keydown', onKeyDown);
     if (openedByKeyboard && opener instanceof HTMLElement && opener.isConnected) {
       opener.focus({ preventScroll: true });

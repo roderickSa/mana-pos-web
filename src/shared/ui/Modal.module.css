@@ -13,7 +13,8 @@
 .modal {
   background: var(--superficie-panel);
   border-radius: var(--radio);
-  max-height: 85vh;
+  /* Nunca más alto que la pantalla: en 768 px el pie con Cobrar quedaba fuera. */
+  max-height: min(92dvh, calc(100vh - 2rem));
   display: flex;
   flex-direction: column;
   box-shadow: var(--sombra-panel);

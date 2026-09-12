@@ -54,7 +54,7 @@
 
 .lista button:hover {
   background: var(--mana-verde-suave);
-  color: var(--mana-verde-hondo);
+  color: var(--tinta-activa);
 }
 
 /* Táctil: el gatillo y las opciones del menú crecen a tamaño dedo. */

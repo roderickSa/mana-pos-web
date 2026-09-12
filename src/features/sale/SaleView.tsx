@@ -1,7 +1,7 @@
-import { createResource, createSignal, onCleanup, onMount, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, onCleanup, onMount, Show, type Component } from 'solid-js';
 
 import { ApiError } from '@/shared/api/client';
-import { getProductByBarcode, searchProducts } from '@/shared/api/products';
+import { getProduct, getProductByBarcode, searchProducts } from '@/shared/api/products';
 import {
   checkoutSale,
   checkoutSaleWithPayments,
@@ -9,15 +9,15 @@ import {
   type CheckoutResponseDto,
   type PaymentPart,
 } from '@/shared/api/sales';
-import { getCashStatus } from '@/shared/api/cash';
 import { getExpiring } from '@/shared/api/inventory';
 import { CHARGE_METHOD_TO_API } from '@/shared/lib/labels';
 import { formatSoles } from '@/shared/lib/money';
 import { beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
+import { listenToScanner } from '@/shared/lib/scanner';
 import { showNotice } from '@/shared/state/notices';
-import { bumpCashRefresh, cashRefreshVersion } from '@/shared/state/cash-refresh';
-import { currentUserName } from '@/shared/state/session';
-import type { ProductDto, TicketLine, WeightProductDto } from '@/shared/types';
+import { bumpCashRefresh } from '@/shared/state/cash-refresh';
+import { cashStatus } from '@/shared/state/cash-status';
+import type { ProductDto, TicketLine, UnitTicketLine, WeightProductDto, WeightTicketLine } from '@/shared/types';
 import { ConfirmModal } from '@/shared/ui/ConfirmModal';
 import { CategoryTabs } from './components/CategoryTabs';
 import { ChargeModal } from './components/ChargeModal';
@@ -36,9 +36,10 @@ import {
   addUnitProduct,
   addWeightProduct,
   adjustSelectedQuantity,
-  discountAuthorizedBy,
+  discountApprovalToken,
   moveSelection,
   removeLine,
+  refreshTicketPrices,
   removeSelectedLine,
   setLineQuantity,
   setTicketCustomer,
@@ -63,12 +64,12 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   const [payment, setPayment] = createSignal('Efectivo');
   const [weighing, setWeighing] = createSignal<WeightProductDto | null>(null);
   // Línea pesable en corrección: el mismo modal de balanza, pero reemplaza.
-  const [reweighingLine, setReweighingLine] = createSignal<TicketLine | null>(null);
+  const [reweighingLine, setReweighingLine] = createSignal<WeightTicketLine | null>(null);
   const [charging, setCharging] = createSignal<ChargeMethod | null>(null);
   const [creditCharging, setCreditCharging] = createSignal(false);
   const [discounting, setDiscounting] = createSignal<DiscountTarget | null>(null);
   const [lineActions, setLineActions] = createSignal<TicketLine | null>(null);
-  const [quantityEditing, setQuantityEditing] = createSignal<TicketLine | null>(null);
+  const [quantityEditing, setQuantityEditing] = createSignal<UnitTicketLine | null>(null);
   const [cancelingSale, setCancelingSale] = createSignal(false);
   const [customerPicking, setCustomerPicking] = createSignal(false);
   const [helpOpen, setHelpOpen] = createSignal(false);
@@ -85,30 +86,36 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   // Las secciones muestran solo los 24 más vendidos: los tiles son para lo
   // frecuente; el resto se alcanza por búsqueda o escaneo.
   const TILES_PER_CATEGORY = 24;
+  // Lo tecleado se busca 120 ms después de la última tecla, no por carácter;
+  // el lector entra por Enter (submit) y no pasa por aquí.
+  const [debouncedQuery, setDebouncedQuery] = createSignal('');
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(() => {
+    const value = query().trim();
+    if (debounceTimer !== undefined) clearTimeout(debounceTimer);
+    if (value === '') {
+      setDebouncedQuery('');
+      return;
+    }
+    debounceTimer = setTimeout(() => setDebouncedQuery(value), 120);
+  });
+  onCleanup(() => {
+    if (debounceTimer !== undefined) clearTimeout(debounceTimer);
+  });
   const [products, { refetch }] = createResource(
-    () => ({ query: query().trim(), category: category() }),
+    () => ({ query: debouncedQuery(), category: category() }),
     async (params) => {
       if (params.query !== '') return searchProducts(params.query, null);
-      if (params.category === '__mostrador') return searchProducts('', null, false, true);
-      const all = await searchProducts('', params.category);
-      return all.slice(0, TILES_PER_CATEGORY);
+      if (params.category === '__mostrador') {
+        return searchProducts('', null, false, true, null, TILES_PER_CATEGORY);
+      }
+      return searchProducts('', params.category, false, false, null, TILES_PER_CATEGORY);
     },
   );
 
-  // La pantalla de venta se bloquea entera si la caja está cerrada.
-  const [cashTick, setCashTick] = createSignal(0);
-  const [cashOpen] = createResource(
-    () => ({ tick: cashTick(), version: cashRefreshVersion() }),
-    async () => {
-      try {
-        return (await getCashStatus()).open;
-      } catch {
-        return null;
-      }
-    },
-  );
-  const cashInterval = setInterval(() => setCashTick((value) => value + 1), 15_000);
-  onCleanup(() => clearInterval(cashInterval));
+  // La pantalla de venta se bloquea entera si la caja está cerrada (estado
+  // compartido: un solo /cash/status para toda la app).
+  const cashOpen = () => cashStatus()?.open;
   const sellingBlocked = () => cashOpen() === false;
 
   const modalOpen = () =>
@@ -126,7 +133,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
 
   const checkoutDiscounts = () => ({
     ticketDiscountCents: ticketDiscountCents(),
-    authorizedBy: discountAuthorizedBy(),
+    approvalToken: discountApprovalToken(),
     customerId: ticketCustomer()?.id ?? null,
   });
 
@@ -168,9 +175,11 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   async function addByCode(text: string): Promise<void> {
     // 1-3 dígitos = código corto de mostrador: agrega directo.
     if (/^\d{1,3}$/.test(text)) {
+      // El buscador se vacía ANTES de esperar: si el lector ya empezó el
+      // siguiente código, no se le comen los primeros dígitos.
+      setQuery('');
       const matches = await searchProducts(text, null);
       const byShortCode = matches.find((product) => product.shortCode === text);
-      setQuery('');
       if (byShortCode === undefined) {
         beepError();
         showNotice(`Ningún producto tiene el código corto ${text}`);
@@ -180,8 +189,8 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
       return;
     }
     if (!/^\d{8,}$/.test(text)) return;
-    const product = await getProductByBarcode(text);
     setQuery('');
+    const product = await getProductByBarcode(text);
     if (product === null) {
       beepError();
       showNotice(`El código ${text} no está registrado — créalo en Inventario`);
@@ -224,7 +233,8 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   function onCheckoutError(cause: unknown): void {
     beepError();
     if (cause instanceof ApiError && cause.code === 'PAYMENTS_DO_NOT_MATCH_TOTAL') {
-      showNotice('Los precios cambiaron. Revisa el ticket y vuelve a cobrar.');
+      showNotice('Los precios cambiaron. El ticket se actualizó: revisa el total y vuelve a cobrar.');
+      void syncTicketWithCatalog();
       void refetch();
     } else if (cause instanceof ApiError && cause.code === 'PRODUCT_NOT_SELLABLE') {
       showNotice('Un producto del ticket ya no está disponible. Quítalo y vuelve a cobrar.');
@@ -248,7 +258,6 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         ticketTotalCents(),
         receivedCents,
         null,
-        currentUserName(),
         checkoutDiscounts(),
       );
       onSaleCompleted(response);
@@ -265,7 +274,6 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         ticketId(),
         ticketLines(),
         payments,
-        currentUserName(),
         checkoutDiscounts(),
       );
       onSaleCompleted(response);
@@ -276,8 +284,34 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     }
   }
 
+  // Trae del servidor los productos del ticket: un precio cambiado o un
+  // producto desactivado se resuelve antes del cobro, no en un rechazo.
+  async function syncTicketWithCatalog(): Promise<boolean> {
+    const ids = [...new Set(ticketLines().map((line) => line.product.id))];
+    const fresh = await Promise.all(ids.map(async (id) => [id, await getProduct(id).catch(() => undefined)] as const));
+    const known = new Map<string, ProductDto | null>();
+    for (const [id, product] of fresh) if (product !== undefined) known.set(id, product);
+    const result = refreshTicketPrices(known);
+    if (result.unavailable.length > 0) {
+      beepError();
+      showNotice(`Ya no se vende: ${result.unavailable.join(', ')}. Quítalo del ticket para cobrar.`);
+      return false;
+    }
+    if (result.changedLines > 0) {
+      showNotice(
+        `${result.changedLines === 1 ? 'Un precio cambió' : `${result.changedLines} precios cambiaron`} — el ticket ya está actualizado, revisa el total.`,
+      );
+    }
+    return true;
+  }
+
   function openCharge(): void {
     if (sellingBlocked() || ticketLines().length === 0) return;
+    void openChargeSynced();
+  }
+
+  async function openChargeSynced(): Promise<void> {
+    if (!(await syncTicketWithCatalog())) return;
     if (payment() === 'Fiado') {
       setCreditCharging(true);
       return;
@@ -296,7 +330,6 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         ticketTotalCents(),
         null,
         customerId,
-        currentUserName(),
         checkoutDiscounts(),
       );
       startNewTicket();
@@ -319,17 +352,6 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   }
 
   // Enter (sin foco en inputs) = cobro exacto en efectivo: un solo teclazo.
-  async function chargeExactCash(): Promise<void> {
-    if (sellingBlocked() || ticketLines().length === 0 || modalOpen()) return;
-    setCharging('Efectivo');
-    const response = await confirmCharge(null);
-    setCharging(null);
-    if (response !== null) {
-      const warning = response.printerWarning === null ? '' : ` · ${response.printerWarning}`;
-      showNotice(`Venta #${response.number} cobrada: ${formatSoles(response.totalCents)}${warning}`);
-      focusSearch();
-    }
-  }
 
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'F1') {
@@ -350,8 +372,9 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     }
     // Con un modal abierto, el teclado es del modal (Esc lo cierra allí).
     if (modalOpen()) return;
-    // Supr = alias de F9: quitar la línea seleccionada.
-    if (event.key === 'F9' || event.key === 'Delete') {
+    // F9 quita la línea seleccionada; Supr solo cuando no se está escribiendo
+    // (borrar una letra del buscador no puede quitar una línea).
+    if (event.key === 'F9' || (event.key === 'Delete' && event.target === document.body)) {
       event.preventDefault();
       const removed = removeSelectedLine();
       if (removed !== null) showNotice(`Se quitó ${removed.product.name} — Ctrl+Z lo devuelve`);
@@ -385,9 +408,10 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
       adjustSelectedQuantity(event.key === '+' ? 1 : -1);
       return;
     }
+    // Enter suelto abre el cobro para confirmarlo; nunca cobra directo.
     if (event.key === 'Enter') {
       event.preventDefault();
-      void chargeExactCash();
+      openCharge();
       return;
     }
     // Teclear sin foco no se pierde: el carácter va directo al buscador,
@@ -407,12 +431,26 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
     }
   }
 
+  // Una ráfaga del lector llega aquí antes que a cualquier input o modal.
+  function onScan(code: string): void {
+    if (modalOpen()) {
+      beepError();
+      showNotice('Cierra la ventana abierta para escanear otro producto.');
+      return;
+    }
+    void addByCode(code);
+  }
+
   onMount(() => {
     document.addEventListener('keydown', onKeyDown);
     // Al entrar (o volver) al módulo, el buscador queda listo para escanear.
     focusSearch();
   });
-  onCleanup(() => document.removeEventListener('keydown', onKeyDown));
+  const stopScanner = listenToScanner(onScan);
+  onCleanup(() => {
+    document.removeEventListener('keydown', onKeyDown);
+    stopScanner();
+  });
 
   // El buscador es el corazón de Vender: tras tocar CUALQUIER botón del
   // módulo (stepper, pestañas, en espera, método de pago…) el foco vuelve
@@ -465,6 +503,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         <ProductGrid
           products={products() ?? []}
           loading={products.loading}
+          failed={products.error !== undefined}
           query={query()}
           expiredIds={expiredIds()}
           onTap={onProductTap}
@@ -506,7 +545,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
         }}
         onHelp={() => setHelpOpen(true)}
         onEditWeight={(line) => {
-          if (line.product.saleType === 'weight') setReweighingLine(line);
+          if (line.kind === 'weight') setReweighingLine(line);
         }}
         onDiscountLine={(line) => setDiscounting({ kind: 'line', line })}
         onDiscountTicket={() => setDiscounting({ kind: 'ticket' })}
@@ -586,11 +625,13 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           <LineActionsModal
             line={line()}
             onQuantity={() => {
-              setQuantityEditing(line());
+              const current = line();
+              if (current.kind === 'unit') setQuantityEditing(current);
               setLineActions(null);
             }}
             onWeight={() => {
-              if (line().product.saleType === 'weight') setReweighingLine(line());
+              const current = line();
+              if (current.kind === 'weight') setReweighingLine(current);
               setLineActions(null);
             }}
             onDiscount={() => {

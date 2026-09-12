@@ -22,7 +22,8 @@ export async function createCategory(name: string): Promise<CategoryDto> {
 
 export async function updateCategory(
   slug: string,
-  changes: { name?: string; active?: boolean; icon?: string; color?: string },
+  // icon/color: ausente = no cambia, null = quitar, valor = poner.
+  changes: { name?: string; active?: boolean; icon?: string | null; color?: string | null },
 ): Promise<CategoryDto> {
   return sendJson('PUT', `/catalog/categories/${encodeURIComponent(slug)}`, changes);
 }

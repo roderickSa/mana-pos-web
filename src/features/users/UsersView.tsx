@@ -21,12 +21,14 @@ type ModalState =
   | { kind: 'edit'; user: UserDto }
   | { kind: 'pin'; user: UserDto };
 
+type UserFormMode = { kind: 'create' } | { kind: 'edit'; user: UserDto };
+
 const UserFormModal: Component<{
-  user: UserDto | null;
+  mode: UserFormMode;
   onDone: (message: string) => void;
   onClose: () => void;
 }> = (props) => {
-  const editing = props.user;
+  const editing = props.mode.kind === 'edit' ? props.mode.user : null;
   const [name, setName] = createSignal(editing?.name ?? '');
   const [role, setRole] = createSignal<UserDto['role']>(editing?.role ?? 'cashier');
   const [pin, setPin] = createSignal('');
@@ -35,8 +37,11 @@ const UserFormModal: Component<{
 
   const pinValid = () => /^\d{4,6}$/.test(pin()) || (editing !== null && pin() === '');
 
+  const [saving, setSaving] = createSignal(false);
+
   async function save(): Promise<void> {
-    if (name().trim() === '' || !pinValid()) return;
+    if (saving() || name().trim() === '' || !pinValid()) return;
+    setSaving(true);
     try {
       if (editing === null) {
         await createUser(name().trim(), pin(), role());
@@ -56,6 +61,8 @@ const UserFormModal: Component<{
           ? cause.serverMessage
           : 'No se pudo guardar el usuario.',
       );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -111,7 +118,7 @@ const UserFormModal: Component<{
           <button type="button" class={forms.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={forms.primario} disabled={name().trim() === '' || !pinValid()} onClick={save}>
+          <button type="button" class={forms.primario} disabled={saving() || name().trim() === '' || !pinValid()} onClick={save}>
             {editing === null ? 'Crear usuario' : 'Guardar cambios'}
           </button>
         </div>
@@ -260,9 +267,9 @@ export const UsersView: Component = () => {
           case 'none':
             return null;
           case 'create':
-            return <UserFormModal user={null} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
+            return <UserFormModal mode={{ kind: 'create' }} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
           case 'edit':
-            return <UserFormModal user={state.user} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
+            return <UserFormModal mode={state} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
           case 'pin':
             return <ResetPinModal user={state.user} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
         }

@@ -5,10 +5,11 @@
    recortan contenido. */
 .grilla {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  /* 5 columnas a 1366 px y 3 filas a la vista sin scroll (antes 4 × 2). */
+  grid-template-columns: repeat(auto-fill, minmax(9.75rem, 1fr));
   /* Altura de fila única EN REM: todas las cards miden lo mismo y crecen
      con el modo texto grande en vez de recortar. */
-  grid-auto-rows: 13.5rem;
+  grid-auto-rows: 12.75rem;
   gap: 10px;
   align-content: start;
   /* El scroll de la grilla es SIEMPRE vertical: en táctil un scroll
@@ -17,17 +18,19 @@
   overscroll-behavior: contain;
 }
 
+/* Papel sobre papel: sin borde de hairline, solo sombra suave y la barra
+   de categoría; el borde aparece al pasar el mouse. */
 .card {
   position: relative;
-  border: 1px solid var(--linea);
+  border: 1px solid transparent;
   background: var(--superficie-panel);
   border-radius: var(--radio);
-  padding: 12px 12px 12px 15px;
+  padding: 8px 10px 9px 13px;
   text-align: left;
   color: var(--tinta);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   height: 100%;
   min-width: 0;
   overflow: hidden;
@@ -42,7 +45,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
+  width: 4px;
   background: var(--cat, transparent);
 }
 
@@ -54,36 +57,35 @@
   transform: scale(0.98);
 }
 
-.filaAlta {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-/* Ícono monocromo y discreto; las fotos reales sí van a color. */
-.thumb {
-  width: 4rem;
-  height: 4rem;
+/* Banda de imagen: fondo blanco de foto o superficie suave con el ícono. */
+.media {
+  position: relative;
+  height: 4.75rem;
   border-radius: var(--radio-chico);
-  background: var(--superficie-app);
-  padding: 9px;
-  display: inline-flex;
+  background: var(--fondo-foto);
+  display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
+}
+
+.media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+}
+
+.mediaIcono {
+  background: var(--superficie-app);
   color: var(--tinta);
 }
 
-.thumb svg {
-  opacity: 0.55;
-}
-
-.thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 4px;
+.mediaIcono svg {
+  width: 2.4rem;
+  height: 2.4rem;
+  opacity: 0.5;
 }
 
 .cardBaja {
@@ -99,15 +101,15 @@
 /* El stock es dato de fondo pero legible con luz de mediodía:
    solo levanta la voz cuando está bajo o en cero. */
 .stock {
-  margin-left: auto;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--tinta);
-  opacity: 0.75;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--tinta-suave);
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stockBajo {
@@ -116,15 +118,6 @@
   color: var(--advertencia-tinta);
   background: var(--advertencia-fondo);
   border: 1px solid var(--advertencia-borde);
-  border-radius: var(--radio-chip);
-  padding: 2px 8px;
-}
-
-.stockCero {
-  font-weight: 600;
-  opacity: 1;
-  color: var(--tinta-sobre-relleno);
-  background: var(--peligro);
   border-radius: var(--radio-chip);
   padding: 2px 8px;
 }
@@ -182,47 +175,47 @@
 
 /* La presentación (400 g · 1 L · x6): dato propio, no cola del nombre. */
 .pres {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--tinta-suave);
   font-family: var(--fuente-dato);
-  margin-top: -4px;
+  margin-top: -3px;
+  min-height: 1.2em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Una sola fila: precio a la izquierda, stock o alerta a la derecha. */
 .pie {
   margin-top: auto;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.pieDetalle {
-  display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 6px;
   min-width: 0;
 }
 
-/* El precio es un dato neutro, no una señal positiva: va en tinta, no en
-   verde — el verde queda para lo que sí salió bien. */
-.precio {
-  font-size: 1.25rem;
-  color: var(--tinta);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+.porKg {
   font-family: var(--fuente-dato);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--tinta-suave);
+  margin-left: 2px;
+  letter-spacing: 0;
 }
 
-.granel {
-  font-size: 0.78rem;
-  color: var(--tinta-suave);
-  background: var(--mana-verde-suave);
-  border-radius: var(--radio-chip);
-  padding: 2px 8px;
-  font-weight: 600;
+/* El precio es un dato neutro, no una señal positiva: va en tinta, no en
+   verde — el verde queda para lo que sí salió bien. */
+/* La etiqueta de precio: condensada, grande, tinta. */
+.precio {
+  flex-shrink: 0;
+  font-size: 1.5rem;
+  line-height: 1.05;
+  color: var(--tinta);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-family: var(--fuente-precio);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -236,7 +229,9 @@
 
 /* Código corto tecleable, con pinta de tecla: se teclea N + Enter. */
 .codigoCorto {
-  margin-left: auto;
+  position: absolute;
+  top: 4px;
+  right: 4px;
   font-size: 0.78rem;
   font-weight: 600;
   font-family: var(--fuente-dato);

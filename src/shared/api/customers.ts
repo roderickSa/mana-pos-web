@@ -13,7 +13,8 @@ export interface CustomerAccountDto {
 
 export interface CreditEntryDto {
   id: string;
-  kind: 'charge' | 'payment';
+  // charge sube la deuda; payment (abono), reversal (anulación) y refund (devolución) la bajan.
+  kind: 'charge' | 'payment' | 'reversal' | 'refund';
   amountCents: number;
   ticketId: string | null;
   paymentMethod: 'cash' | 'yape' | null;
@@ -77,7 +78,6 @@ export async function registerAbono(
   id: string,
   amountCents: number,
   paymentMethod: 'cash' | 'yape',
-  userId: string,
 ): Promise<{ newBalanceCents: number }> {
-  return sendJson('POST', `/customers/${id}/payments`, { amountCents, paymentMethod, userId });
+  return sendJson('POST', `/customers/${id}/payments`, { amountCents, paymentMethod });
 }

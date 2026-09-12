@@ -1,12 +1,19 @@
 import { createSignal, For, Show, type Component } from 'solid-js';
 
-import styles from './ActionsMenu.module.css';
+import styles from '@/shared/ui/ActionsMenu.module.css';
 
-// Menú ⋯ genérico por fila: las acciones poco frecuentes no ocupan ancho.
-export const RowMenu: Component<{
-  items: Array<{ key: string; label: string }>;
-  onSelect: (key: string) => void;
-}> = (props) => {
+// Solo lo del producto en sí: entradas/mermas/conteos viven en el tab Ajustes,
+// y el histórico en el tab Kardex.
+export type ProductAction = 'price' | 'stock' | 'edit' | 'merge';
+
+const ACTIONS: Array<{ key: ProductAction; label: string }> = [
+  { key: 'price', label: 'Actualizar precio' },
+  { key: 'stock', label: 'Actualizar stock' },
+  { key: 'edit', label: 'Editar producto' },
+  { key: 'merge', label: 'Fusionar duplicado…' },
+];
+
+export const ActionsMenu: Component<{ onSelect: (action: ProductAction) => void }> = (props) => {
   const [open, setOpen] = createSignal(false);
 
   return (
@@ -16,25 +23,24 @@ export const RowMenu: Component<{
         class={styles.boton}
         aria-haspopup="menu"
         aria-expanded={open()}
-        aria-label="Más operaciones"
         onClick={() => setOpen(!open())}
       >
-        ⋯
+        Acciones ▾
       </button>
       <Show when={open()}>
         <div class={styles.fondo} onClick={() => setOpen(false)} />
         <div class={styles.lista} role="menu">
-          <For each={props.items}>
-            {(item) => (
+          <For each={ACTIONS}>
+            {(action) => (
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => {
                   setOpen(false);
-                  props.onSelect(item.key);
+                  props.onSelect(action.key);
                 }}
               >
-                {item.label}
+                {action.label}
               </button>
             )}
           </For>

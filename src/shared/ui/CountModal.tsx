@@ -4,8 +4,9 @@ import { setCount } from '@/shared/api/inventory';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
-import { stockOf, unitLabel } from './product-units';
+import { stockOf, unitLabel } from '@/shared/lib/product-units';
 import styles from '@/shared/ui/forms.module.css';
+import { apiErrorMessage } from '@/shared/api/client';
 
 export const CountModal: Component<{
   product: ProductDto;
@@ -15,9 +16,13 @@ export const CountModal: Component<{
   const [counted, setCounted] = createSignal('');
   const [error, setError] = createSignal('');
 
+  const [saving, setSaving] = createSignal(false);
+
   async function save(): Promise<void> {
+    if (saving()) return;
     const value = Number.parseInt(counted(), 10);
     if (Number.isNaN(value) || value < 0) return;
+    setSaving(true);
     try {
       const result = await setCount(props.product.id, value);
       const label =
@@ -25,9 +30,11 @@ export const CountModal: Component<{
           ? 'el conteo coincide con el sistema'
           : `diferencia de ${result.difference > 0 ? '+' : ''}${result.difference}`;
       props.onDone(`Stock actualizado: ${label}`);
-    } catch {
+    } catch (cause) {
       beepError();
-      setError('No se pudo actualizar el stock.');
+      setError(apiErrorMessage(cause, 'No se pudo actualizar el stock.'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -57,7 +64,7 @@ export const CountModal: Component<{
           <button type="button" class={styles.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={styles.primario} onClick={save}>
+          <button type="button" class={styles.primario} disabled={saving()} onClick={save}>
             Actualizar stock
           </button>
         </div>

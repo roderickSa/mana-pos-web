@@ -1,10 +1,8 @@
-import { createResource, createSignal, For, onCleanup, Show, type Component } from 'solid-js';
+import { createSignal, For, onCleanup, Show, type Component } from 'solid-js';
 
-import { currentNotice } from '@/shared/state/notices';
-import { cashRefreshVersion } from '@/shared/state/cash-refresh';
-import { getCashStatus } from '@/shared/api/cash';
-import { getDevicesStatus } from '@/shared/api/devices';
 import { formatSoles } from '@/shared/lib/money';
+import { cashInDrawerCents } from '@/shared/state/cash-status';
+import { devicesStatus } from '@/shared/state/devices-status';
 import { currentUser, endSession, isManager, isOwner } from '@/shared/state/session';
 import { logoutSession } from '@/shared/api/users';
 import {
@@ -18,24 +16,10 @@ import styles from './TopBar.module.css';
 
 // En producción (equipos reales), una balanza caída debe gritar en el
 // header, no esconderse en el pie de página.
-async function deviceAlert(): Promise<string | null> {
-  try {
-    const status = await getDevicesStatus();
-    if (status.mode !== 'real') return null;
-    if (!status.scale.connected) return 'Balanza sin conexión';
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-async function cashInDrawer(): Promise<number | null> {
-  try {
-    const status = await getCashStatus();
-    return status.open ? status.breakdown.currentCashCents : null;
-  } catch {
-    return null;
-  }
+function deviceAlert(): string | null {
+  const status = devicesStatus();
+  if (status === undefined || status.mode !== 'real') return null;
+  return status.scale.connected ? null : 'Balanza sin conexión';
 }
 
 const ROLE_LABEL: Record<'owner' | 'manager' | 'cashier', string> = {
@@ -50,8 +34,10 @@ export type View =
   | 'caja'
   | 'ventas'
   | 'clientes'
+  | 'productos'
   | 'inventario'
   | 'compras'
+  | 'reportes'
   | 'ajustes';
 
 // La cajera solo ve lo operativo; lo administrativo (reportes, costos,
@@ -63,10 +49,12 @@ const VIEWS: Array<{ key: View; label: string; managerOnly: boolean; ownerOnly: 
   { key: 'venta', label: 'Vender', managerOnly: false, ownerOnly: false },
   { key: 'caja', label: 'Caja', managerOnly: false, ownerOnly: false },
   // La cajera ve Ventas pero SOLO las de hoy (la vista se encarga de fijarlo).
-  { key: 'ventas', label: 'Ventas', managerOnly: false, ownerOnly: false },
+  { key: 'ventas', label: 'Historial', managerOnly: false, ownerOnly: false },
   { key: 'clientes', label: 'Clientes', managerOnly: false, ownerOnly: false },
+  { key: 'productos', label: 'Productos', managerOnly: true, ownerOnly: false },
   { key: 'inventario', label: 'Inventario', managerOnly: true, ownerOnly: false },
   { key: 'compras', label: 'Compras', managerOnly: true, ownerOnly: false },
+  { key: 'reportes', label: 'Reportes', managerOnly: true, ownerOnly: false },
 ];
 
 export const TopBar: Component<{
@@ -78,16 +66,9 @@ export const TopBar: Component<{
       (item) => (!item.managerOnly || isManager()) && (!item.ownerOnly || isOwner()),
     );
   const [now, setNow] = createSignal(new Date());
-  const [cashTick, setCashTick] = createSignal(0);
-  const [cash] = createResource(
-    () => ({ tick: cashTick(), version: cashRefreshVersion() }),
-    cashInDrawer,
-  );
-  const [alert] = createResource(cashTick, deviceAlert);
-  const interval = setInterval(() => {
-    setNow(new Date());
-    setCashTick((value) => value + 1);
-  }, 15_000);
+  const cash = cashInDrawerCents;
+  const alert = deviceAlert;
+  const interval = setInterval(() => setNow(new Date()), 15_000);
   onCleanup(() => clearInterval(interval));
 
   const clock = () =>
@@ -126,23 +107,18 @@ export const TopBar: Component<{
           <span
             class={styles.chip}
             role="alert"
-            style={{ background: 'var(--peligro)', color: '#fff' }}
+            style={{ background: 'var(--peligro)', color: 'var(--tinta-sobre-relleno)' }}
           >
             ⚠ {message()}
           </span>
         )}
-      </Show>
-      <Show when={currentNotice() !== ''}>
-        <span class={`${styles.chip} ${styles.aviso}`} role="status">
-          {currentNotice()}
-        </span>
       </Show>
       <Show when={isManager()}>
         <button
           type="button"
           class={`${styles.chip} ${styles.salir}`}
           classList={{ [styles.accesActivo]: props.view === 'ajustes' }}
-          title="Ajustes: usuarios, equipos, voucher, IGV, categorías y proveedores"
+          title="Ajustes: usuarios, equipos, voucher, IGV y respaldo"
           aria-label="Ajustes"
           onClick={() => props.onNavigate('ajustes')}
         >
@@ -154,11 +130,11 @@ export const TopBar: Component<{
         classList={{ [styles.cajaCerrada]: cash() === null }}
         title="Efectivo real en el cajón: fondo + ventas + abonos − retiros − gastos. Se actualiza con cada operación."
       >
-        {cash() === null || cash() === undefined ? 'Caja cerrada' : `Caja: ${formatSoles(cash() ?? 0)}`}
+        {cash() === null ? 'Caja cerrada' : `Caja: ${formatSoles(cash() ?? 0)}`}
       </span>
       <span class={styles.chip}>
         <span class={styles.avatar}>{(currentUser()?.name ?? '?').charAt(0)}</span>
-        {currentUser()?.name ?? '—'}
+        <span class={styles.nombreUsuario}>{currentUser()?.name ?? '—'}</span>
         {/* Si el nombre ES el rol («Encargado»), el chip repetido sobra. */}
         <Show
           when={

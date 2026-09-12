@@ -42,10 +42,14 @@ export const ChargeModal: Component<{
   );
   const [secondAmount, setSecondAmount] = createSignal('');
 
+  // Nadie paga una bodega con más de S/ 10 000 en efectivo: por encima es un
+  // código de barras que cayó en el campo, no un pago.
+  const MAX_RECEIVED_CENTS = 1_000_000;
   const receivedCents = () => {
     const value = Number.parseFloat(received());
     return Number.isNaN(value) ? null : Math.round(value * 100);
   };
+  const receivedTooBig = () => (receivedCents() ?? 0) > MAX_RECEIVED_CENTS;
 
   const previewChange = () => {
     const cents = receivedCents();
@@ -80,6 +84,7 @@ export const ChargeModal: Component<{
     }
     const cents = props.method === 'Efectivo' && !exact ? receivedCents() : null;
     if (props.method === 'Efectivo' && !exact && cents !== null && cents < props.totalCents) return;
+    if (cents !== null && cents > MAX_RECEIVED_CENTS) return;
     if (cents !== null && !isDimeCents(cents)) return;
     setCharging(true);
     const result = await props.onConfirm(cents);
@@ -90,7 +95,29 @@ export const ChargeModal: Component<{
   }
 
   return (
-    <Modal title={`Cobrar ${formatSoles(props.totalCents)} — ${props.method}`} onClose={props.onClose}>
+    <Modal
+      title={`Cobrar ${formatSoles(props.totalCents)} — ${props.method}`}
+      onClose={props.onClose}
+      footer={
+        <Show when={done() === null}>
+          <div class={styles.acciones}>
+            <button type="button" class={styles.cancelar} onClick={props.onClose}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class={styles.cobrar}
+              disabled={charging() || (split() && !splitValid()) || receivedTooBig()}
+              onClick={() =>
+                void confirm(!split() && (props.method !== 'Efectivo' || received().trim() === ''))
+              }
+            >
+              {charging() ? 'Cobrando…' : `Cobrar ${formatSoles(props.totalCents)}`}
+            </button>
+          </div>
+        </Show>
+      }
+    >
       <Switch>
         <Match when={done() === null}>
           <div class={styles.cuerpo}>
@@ -182,6 +209,11 @@ export const ChargeModal: Component<{
               <Show when={!receivedIsDime()}>
                 <p class={styles.nota}>{DIME_MESSAGE}</p>
               </Show>
+              <Show when={receivedTooBig()}>
+                <p class={styles.aviso}>
+                  Ese monto no es un pago (más de S/ 10 000). Si escaneaste un producto, ciérrame y vuelve a escanear.
+                </p>
+              </Show>
               <Show when={receivedIsDime() && receivedCents() !== null && previewChange() >= 0}>
                 <div class={styles.vueltoPreview}>
                   Vuelto: <b>{formatSoles(previewChange())}</b>
@@ -207,21 +239,6 @@ export const ChargeModal: Component<{
               {split() ? '← Volver a un solo método' : '⇄ Pagar con dos métodos'}
             </button>
 
-            <div class={styles.acciones}>
-              <button type="button" class={styles.cancelar} onClick={props.onClose}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                class={styles.cobrar}
-                disabled={charging() || (split() && !splitValid())}
-                onClick={() =>
-                  void confirm(!split() && (props.method !== 'Efectivo' || received().trim() === ''))
-                }
-              >
-                {charging() ? 'Cobrando…' : `Cobrar ${formatSoles(props.totalCents)}`}
-              </button>
-            </div>
           </div>
         </Match>
 

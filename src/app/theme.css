@@ -6,27 +6,38 @@
   /* Marca y acentos */
   /* Header en verde profundo de marca — el ink (#10231a) queda reservado
      para el totalizador, que debe ser el ÚNICO bloque tinta de la pantalla. */
-  --mana-verde-hondo: #0d4a2f;
-  --mana-verde: #0b6e3f; /* identidad · pestaña activa · positivo (NO precios) */
-  --mana-verde-suave: #eaf4ee;
-  --accion: #c2410c; /* UN solo trabajo: Cobrar (4.9:1 con texto blanco) */
-  --alerta: #a16207; /* advertencias: sin mínimo, por vencer, sin conexión */
-  --marca-acento: #e8a13d; /* UN solo trabajo: el acento del wordmark Maná */
+  /* Verde bosque, una sola familia: header, totalizador (más hondo) y
+     positivo. Menos negro que antes: la barra dejaba de parecer un bloque
+     de tinta y el totalizador ya no compite como tercer color. */
+  --mana-verde-hondo: #1c4f36;
+  --mana-verde: #1f7a4a; /* identidad · pestaña activa · positivo (NO precios) */
+  --mana-verde-suave: #e6f1e9;
+  --accion: #c9541c; /* UN solo trabajo: Cobrar (4.6:1 con texto blanco) */
+  --alerta: #9a6510; /* advertencias: sin mínimo, por vencer, sin conexión */
+  --marca-acento: #f0b04a; /* UN solo trabajo: el acento del wordmark Maná */
 
   /* Advertencias (chips ámbar) */
   --advertencia-fondo: #fbf3e2;
   --advertencia-tinta: #7a4c05;
   --advertencia-borde: #e4d2a8;
 
-  /* Superficies — fondo neutro cálido, sin tinte verde */
-  --superficie-app: #f7f7f5;
-  --superficie-panel: #ffffff;
-  --superficie-voucher: #fdfcf8;
+  /* Superficies — papel: fondo cálido tipo kraft claro, paneles casi blancos.
+     El gris neutro anterior se veía plano y "de sistema". */
+  --superficie-app: #f3efe6;
+  --superficie-panel: #fffdf9;
+  --superficie-voucher: #fbf8f0;
 
   /* Tinta */
-  --tinta: #10231a; /* verde-negro: mantiene el ADN sin ser un verde más */
-  --tinta-suave: #606a65; /* secundario: pasa 4.5:1 también sobre --superficie-app (5.3:1) */
-  --linea: #dedfda;
+  --tinta: #182620; /* verde-negro: mantiene el ADN sin ser un verde más */
+  /* Texto de acento sobre superficies (pestaña activa, chips de estado): en
+     claro es el verde hondo; en noche NO puede ser (#12281c sobre #152119 =
+     1.06:1), por eso tiene token propio. */
+  --tinta-activa: #0d4a2f;
+  /* Fondo de las fotos de producto: siempre blanco, en ambos temas — los
+     empaques se fotografían sobre blanco. */
+  --fondo-foto: #ffffff;
+  --tinta-suave: #5d6a62; /* secundario: 4.5:1+ también sobre --superficie-app */
+  --linea: #ddd6c8; /* líneas cálidas, a juego con el papel */
 
   /* Semánticos */
   --peligro: #b02a1f;
@@ -54,15 +65,16 @@
   --chip-peligro-tinta: #8c2018;
   --chip-peligro-borde: #e8c0bb;
 
-  /* Totalizador: el único bloque oscuro de la pantalla de venta — ancla. */
-  --totalizador-fondo: #10231a;
-  --totalizador-tinta: #ffffff;
-  --totalizador-etiqueta: #7fa08e; /* AA sobre --totalizador-fondo */
+  /* Totalizador: pizarra verde honda — misma familia que el header, un tono
+     más profundo. Sigue siendo el ancla, ya no un bloque negro aparte. */
+  --totalizador-fondo: #123526;
+  --totalizador-tinta: #fbf8f0;
+  --totalizador-etiqueta: #9cc2ab; /* AA sobre --totalizador-fondo */
 
   /* Velos de modales y bloqueos. */
-  --velo: rgba(16, 35, 26, 0.5);
-  --velo-claro: rgba(247, 247, 245, 0.55);
-  --sombra-boton: 0 3px 0 rgba(16, 35, 26, 0.18);
+  --velo: rgba(24, 38, 32, 0.5);
+  --velo-claro: rgba(243, 239, 230, 0.6);
+  --sombra-boton: 0 3px 0 rgba(24, 38, 32, 0.18);
 
   /* Categorías: barra de 3px en el borde del tile, no color de ícono. */
   --cat-fruta: #57a05c;
@@ -81,12 +93,16 @@
   --cat-turquesa: #3b9a8f;
   --cat-rosado: #b06a95;
 
-  /* Tipografía — IBM Plex (self-hosted, ver src/index.tsx):
-     Sans = UI · Mono = dinero/cantidades/etiquetas · Condensed = títulos. */
+  /* Tipografía — IBM Plex (self-hosted, ver src/index.tsx; la tienda no
+     tiene internet). Sans = UI · Mono = tablas, cantidades y voucher ·
+     Condensed = títulos Y los números grandes (precio del tile, total): la
+     condensada es la letra de la etiqueta de precio de mercado, se lee a
+     80 cm y ocupa menos ancho que la mono. */
   --fuente-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --fuente-dato: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
   --fuente-voucher: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
   --fuente-display: 'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif;
+  --fuente-precio: 'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif;
 
   /* Forma: sin píldoras — 4 chips · 6 botones/inputs · 8 cards/modales. */
   --radio: 8px;
@@ -94,8 +110,8 @@
   --radio-boton: 6px;
   --radio-chip: 4px;
   --toque-min: 48px;
-  --sombra-suave: 0 1px 3px rgba(16, 35, 26, 0.1);
-  --sombra-panel: 0 6px 24px rgba(16, 35, 26, 0.08);
+  --sombra-suave: 0 1px 2px rgba(24, 38, 32, 0.06), 0 2px 8px rgba(24, 38, 32, 0.05);
+  --sombra-panel: 0 6px 24px rgba(24, 38, 32, 0.1);
 }
 
 /* Modo texto grande (toggle A+ por usuario): toda la app usa rem, así que
@@ -112,18 +128,19 @@
    pantalla como fuente principal de luz. Mismos roles, distintos valores;
    como toda la app pinta con tokens, basta re-mapearlos aquí. */
 :root.noche {
-  --mana-verde-hondo: #12281c;
-  --mana-verde: #3da36b; /* sube para contraste */
+  --mana-verde-hondo: #143526;
+  --mana-verde: #4fae78; /* sube para contraste */
   --mana-verde-suave: #1b2e23;
-  --accion: #e2661f;
+  --accion: #e8803a;
   --alerta: #c99a3f;
   --advertencia-fondo: #33290f;
   --advertencia-tinta: #e4c878;
   --advertencia-borde: #55471e;
-  --superficie-app: #0c1611;
-  --superficie-panel: #152119;
-  --superficie-voucher: #182420;
+  --superficie-app: #0f1714;
+  --superficie-panel: #18231d;
+  --superficie-voucher: #1a2620;
   --tinta: #edefec;
+  --tinta-activa: #9fdcb7;
   --tinta-suave: #9aa39d;
   --linea: #2a3830;
   --peligro: #e06456;
@@ -141,8 +158,8 @@
   --chip-peligro-fondo: #3a1d1a;
   --chip-peligro-tinta: #f0a099;
   --chip-peligro-borde: #5c2f2a;
-  --totalizador-fondo: #0b1811;
-  --totalizador-tinta: #edefec;
+  --totalizador-fondo: #0c1f16;
+  --totalizador-tinta: #f1f3ee;
   --velo: rgba(0, 0, 0, 0.6);
   --velo-claro: rgba(10, 16, 12, 0.6);
   --sombra-boton: 0 3px 0 rgba(0, 0, 0, 0.5);

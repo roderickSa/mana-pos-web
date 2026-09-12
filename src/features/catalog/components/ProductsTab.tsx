@@ -11,13 +11,13 @@ import type { ProductDto } from '@/shared/types';
 import { allCategories } from '@/shared/state/categories';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { ActionsMenu, type ProductAction } from './ActionsMenu';
-import { CountModal } from './CountModal';
+import { CountModal } from '@/shared/ui/CountModal';
 import { ImportModal } from './ImportModal';
 import { MergeModal } from './MergeModal';
 import { BulkPricesModal } from './BulkPricesModal';
 import { PriceModal } from './PriceModal';
 import { ProductFormModal } from './ProductFormModal';
-import { costOf, minimumOf, priceOf, stockOf } from './product-units';
+import { costOf, minimumOf, priceOf, stockOf } from '@/shared/lib/product-units';
 import styles from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 
@@ -175,6 +175,7 @@ export const ProductsTab: Component = () => {
         <select
           class={forms.select}
           style={{ 'max-width': '190px' }}
+          aria-label="Categoría"
           value={category()}
           onChange={(event) => {
             setCategory(event.currentTarget.value);
@@ -460,8 +461,7 @@ function renderModal(state: ModalState, onDone: (message: string) => void, onClo
     case 'create':
       return (
         <ProductFormModal
-          product={null}
-          initialBarcode={state.initialBarcode}
+          mode={state}
           onDone={onDone}
           onClose={onClose}
         />
@@ -477,7 +477,7 @@ function renderModal(state: ModalState, onDone: (message: string) => void, onClo
       );
     case 'edit':
       return (
-        <ProductFormModal product={state.product} initialBarcode={null} onDone={onDone} onClose={onClose} />
+        <ProductFormModal mode={{ kind: 'edit', product: state.product }} onDone={onDone} onClose={onClose} />
       );
     case 'price':
       return <PriceModal product={state.product} onDone={onDone} onClose={onClose} />;

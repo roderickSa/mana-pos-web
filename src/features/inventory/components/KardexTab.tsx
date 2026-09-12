@@ -85,7 +85,6 @@ export const KardexTab: Component = () => {
           ))}
         </select>
         <DateField
-          inputClass={forms.input}
           label="Desde"
           style={{ 'max-width': '210px' }}
           value={from()}
@@ -95,7 +94,6 @@ export const KardexTab: Component = () => {
           }}
         />
         <DateField
-          inputClass={forms.input}
           label="Hasta"
           style={{ 'max-width': '210px' }}
           value={to()}

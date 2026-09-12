@@ -1,18 +1,28 @@
 import { getJson, sendJson } from '@/shared/api/client';
 
-export interface CashSessionDto {
+interface CashSessionBaseDto {
   id: string;
   shift: 'morning' | 'afternoon';
-  status: 'open' | 'closed';
   openedBy: string;
   openedAt: string;
   openingAmountCents: number;
-  closedAt: string | null;
-  expectedCashCents: number | null;
-  countedCashCents: number | null;
-  closedBy: string | null;
+}
+
+export interface OpenCashSessionDto extends CashSessionBaseDto {
+  status: 'open';
+}
+
+// Una sesión cerrada siempre trae su cierre completo.
+export interface ClosedCashSessionDto extends CashSessionBaseDto {
+  status: 'closed';
+  closedAt: string;
+  expectedCashCents: number;
+  countedCashCents: number;
+  closedBy: string;
   closingNote: string | null;
 }
+
+export type CashSessionDto = OpenCashSessionDto | ClosedCashSessionDto;
 
 export interface CashBreakdownDto {
   openingCents: number;
@@ -36,11 +46,11 @@ export interface CashMovementDto {
 }
 
 export type CashStatusDto =
-  | { open: true; session: CashSessionDto; breakdown: CashBreakdownDto; movements: CashMovementDto[] }
-  | { open: false; lastClosed: CashSessionDto | null };
+  | { open: true; session: OpenCashSessionDto; breakdown: CashBreakdownDto; movements: CashMovementDto[] }
+  | { open: false; lastClosed: ClosedCashSessionDto | null };
 
 export interface CloseResultDto {
-  session: CashSessionDto;
+  session: ClosedCashSessionDto;
   breakdown: CashBreakdownDto;
   differenceCents: number;
   salesByMethod: Array<{ method: string; amountCents: number }>;
@@ -53,30 +63,27 @@ export async function getCashStatus(): Promise<CashStatusDto> {
 export async function openCash(
   shift: 'morning' | 'afternoon',
   openingAmountCents: number,
-  userId: string,
-): Promise<CashSessionDto> {
-  return sendJson('POST', '/cash/open', { shift, openingAmountCents, userId });
+): Promise<OpenCashSessionDto> {
+  return sendJson('POST', '/cash/open', { shift, openingAmountCents });
 }
 
 export async function registerCashMovement(
   kind: 'withdrawal' | 'expense' | 'deposit',
   amountCents: number,
   concept: string,
-  userId: string,
 ): Promise<{ currentCashCents: number }> {
-  return sendJson('POST', '/cash/movements', { kind, amountCents, concept, userId });
+  return sendJson('POST', '/cash/movements', { kind, amountCents, concept });
 }
 
-export async function getCashHistory(): Promise<CashSessionDto[]> {
+export async function getCashHistory(): Promise<ClosedCashSessionDto[]> {
   return getJson('/cash/history');
 }
 
 export async function closeCash(
   countedCashCents: number,
-  userId: string,
   note: string | null,
 ): Promise<CloseResultDto> {
-  return sendJson('POST', '/cash/close', { countedCashCents, userId, note });
+  return sendJson('POST', '/cash/close', { countedCashCents, note });
 }
 
 export async function printLastCloseSummary(): Promise<{ message: string }> {

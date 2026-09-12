@@ -60,7 +60,7 @@
 
 .estado {
   background: var(--mana-verde-suave);
-  color: var(--mana-verde-hondo);
+  color: var(--tinta-activa);
   border-radius: var(--radio-chip);
   padding: 3px 12px;
   font-size: 0.78rem;

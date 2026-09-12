@@ -16,7 +16,6 @@ import { formatDateOnly, formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
 import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
-import { currentUserName } from '@/shared/state/session';
 import { Modal } from '@/shared/ui/Modal';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
@@ -45,12 +44,14 @@ function whatsappReminderUrl(account: CustomerAccountDto): string {
   return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
 }
 
+type CustomerFormMode = { kind: 'create' } | { kind: 'edit'; account: CustomerAccountDto };
+
 const CustomerFormModal: Component<{
-  account: CustomerAccountDto | null;
+  mode: CustomerFormMode;
   onDone: (message: string) => void;
   onClose: () => void;
 }> = (props) => {
-  const editing = props.account;
+  const editing = props.mode.kind === 'edit' ? props.mode.account : null;
   const [name, setName] = createSignal(editing?.name ?? '');
   const [phone, setPhone] = createSignal(editing?.phone ?? '');
   const [document, setDocument] = createSignal(editing?.document ?? '');
@@ -133,16 +134,19 @@ const AbonoModal: Component<{
   const [amount, setAmount] = createSignal('');
   const [method, setMethod] = createSignal<'cash' | 'yape'>('cash');
   const [error, setError] = createSignal('');
+  const [saving, setSaving] = createSignal(false);
 
   async function save(): Promise<void> {
+    if (saving()) return;
     const cents = solesInputToCents(amount());
     if (cents === null || cents <= 0) return;
     if (!isDimeCents(cents)) {
       setError(DIME_MESSAGE);
       return;
     }
+    setSaving(true);
     try {
-      const result = await registerAbono(props.account.id, cents, method(), currentUserName());
+      const result = await registerAbono(props.account.id, cents, method());
       beepSuccess();
       bumpCashRefresh();
       props.onDone(
@@ -151,6 +155,8 @@ const AbonoModal: Component<{
     } catch (cause) {
       beepError();
       setError(apiErrorMessage(cause, 'No se pudo registrar el abono.'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -224,9 +230,11 @@ const StatementModal: Component<{ account: CustomerAccountDto; onClose: () => vo
                     ·{' '}
                     {entry.kind === 'charge'
                       ? 'Fiado'
-                      : entry.paymentMethod === null
-                        ? 'Reversa por anulación'
-                        : `Abono (${entry.paymentMethod === 'cash' ? 'efectivo' : 'Yape'})`}
+                      : entry.kind === 'reversal'
+                        ? 'Anulación de la venta'
+                        : entry.kind === 'refund'
+                          ? 'Devolución'
+                          : `Abono (${entry.paymentMethod === 'cash' ? 'efectivo' : 'Yape'})`}
                     {' · '}
                     <b style={{ color: entry.kind === 'charge' ? 'var(--peligro)' : 'var(--mana-verde)' }}>
                       {entry.kind === 'charge' ? '+' : '−'}
@@ -469,9 +477,9 @@ function renderModal(state: ModalState, onDone: (message: string) => void, onClo
     case 'none':
       return null;
     case 'create':
-      return <CustomerFormModal account={null} onDone={onDone} onClose={onClose} />;
+      return <CustomerFormModal mode={{ kind: 'create' }} onDone={onDone} onClose={onClose} />;
     case 'edit':
-      return <CustomerFormModal account={state.account} onDone={onDone} onClose={onClose} />;
+      return <CustomerFormModal mode={state} onDone={onDone} onClose={onClose} />;
     case 'abono':
       return <AbonoModal account={state.account} onDone={onDone} onClose={onClose} />;
     case 'statement':

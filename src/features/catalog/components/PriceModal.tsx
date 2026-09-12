@@ -5,8 +5,9 @@ import { formatSoles, isDimeCents } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
-import { costOf, priceOf } from './product-units';
+import { costOf, priceOf } from '@/shared/lib/product-units';
 import styles from '@/shared/ui/forms.module.css';
+import { apiErrorMessage } from '@/shared/api/client';
 
 export const PriceModal: Component<{
   product: ProductDto;
@@ -27,8 +28,11 @@ export const PriceModal: Component<{
     return `${formatSoles(margin)} · ${pct}%`;
   };
 
+  const [saving, setSaving] = createSignal(false);
+
   async function save(): Promise<void> {
-    if (!valid()) return;
+    if (saving() || !valid()) return;
+    setSaving(true);
     try {
       await updateProduct(props.product.id, {
         barcode: props.product.barcode,
@@ -48,9 +52,11 @@ export const PriceModal: Component<{
         quickAccess: props.product.quickAccess,
       });
       props.onDone(`Precio de «${props.product.name}» actualizado a ${formatSoles(newPriceCents())}`);
-    } catch {
+    } catch (cause) {
       beepError();
-      setError('No se pudo actualizar el precio.');
+      setError(apiErrorMessage(cause, 'No se pudo actualizar el precio.'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -87,7 +93,7 @@ export const PriceModal: Component<{
           <button type="button" class={styles.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={styles.primario} disabled={!valid()} onClick={save}>
+          <button type="button" class={styles.primario} disabled={!valid() || saving()} onClick={save}>
             Actualizar precio
           </button>
         </div>

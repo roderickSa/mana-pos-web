@@ -9,12 +9,12 @@ import {
 } from '@/shared/api/purchases';
 import { centsToSolesInput, formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
-import { currentUserName } from '@/shared/state/session';
 import { DateField } from '@/shared/ui/DateField';
 import { Modal } from '@/shared/ui/Modal';
 import type { ProductDto } from '@/shared/types';
-import { unitLabel } from './product-units';
+import { unitLabel } from '@/shared/lib/product-units';
 import styles from '@/shared/ui/forms.module.css';
+import { apiErrorMessage } from '@/shared/api/client';
 
 // Umbral de aviso: con menos de este margen conviene revisar el precio.
 const LOW_MARGIN_PCT = 10;
@@ -109,7 +109,12 @@ export const EntryModal: Component<{
     return cents === null || cents <= 0 || boxUnits() <= 0 ? null : Math.round(cents / boxUnits());
   };
 
+  const [saving, setSaving] = createSignal(false);
+  // Fijo mientras el modal vive: reintentar tras un error no duplica la recepción.
+  const receptionId = crypto.randomUUID();
+
   async function save(): Promise<void> {
+    if (saving()) return;
     const value = enteredQuantity();
     if (value <= 0) return;
     const costCents = enteredCost();
@@ -118,10 +123,11 @@ export const EntryModal: Component<{
       return;
     }
     const order = linkedOrder();
+    setSaving(true);
     try {
       if (order != null && linkToOrder()) {
         // Vinculada: es una recepción de la orden, no una entrada suelta.
-        const updated = await receivePurchaseOrder(order.orderId, currentUserName(), [
+        const updated = await receivePurchaseOrder(order.orderId, receptionId, [
           {
             lineId: order.line.id,
             quantity: value,
@@ -142,9 +148,11 @@ export const EntryModal: Component<{
           costCents === null ? '' : ' — costo actualizado'
         }`,
       );
-    } catch {
+    } catch (cause) {
       beepError();
-      setError('No se pudo registrar la entrada.');
+      setError(apiErrorMessage(cause, 'No se pudo registrar la entrada.'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -288,7 +296,7 @@ export const EntryModal: Component<{
           <button
             type="button"
             class={styles.primario}
-            disabled={enteredQuantity() <= 0}
+            disabled={enteredQuantity() <= 0 || saving()}
             onClick={save}
           >
             Registrar entrada

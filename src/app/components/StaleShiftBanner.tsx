@@ -1,7 +1,7 @@
-import { createResource, createSignal, onCleanup, Show, type Component } from 'solid-js';
+import { Show, type Component } from 'solid-js';
 
-import { getCashStatus, type CashSessionDto } from '@/shared/api/cash';
-import { cashRefreshVersion } from '@/shared/state/cash-refresh';
+import type { CashSessionDto } from '@/shared/api/cash';
+import { cashStatus } from '@/shared/state/cash-status';
 import styles from './StaleShiftBanner.module.css';
 
 // Un turno normal dura como mucho una jornada: pasadas estas horas lo más
@@ -13,23 +13,11 @@ const SHIFT_LABELS: Record<CashSessionDto['shift'], string> = {
   afternoon: 'tarde',
 };
 
-async function openSession(): Promise<CashSessionDto | null> {
-  try {
-    const status = await getCashStatus();
-    return status.open ? status.session : null;
-  } catch {
-    return null;
-  }
-}
-
 export const StaleShiftBanner: Component<{ onGoToCash: () => void }> = (props) => {
-  const [tick, setTick] = createSignal(0);
-  const [session] = createResource(
-    () => ({ tick: tick(), version: cashRefreshVersion() }),
-    openSession,
-  );
-  const interval = setInterval(() => setTick((value) => value + 1), 60_000);
-  onCleanup(() => clearInterval(interval));
+  const session = (): CashSessionDto | null => {
+    const status = cashStatus();
+    return status !== undefined && status.open ? status.session : null;
+  };
 
   const hoursOpen = () => {
     const current = session();

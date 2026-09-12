@@ -25,7 +25,7 @@
 
 .subtabActiva {
   background: var(--superficie-panel);
-  color: var(--mana-verde-hondo);
+  color: var(--tinta-activa);
   border-color: var(--mana-verde);
 }
 
@@ -420,4 +420,12 @@
 
 .ordenable:hover {
   color: var(--mana-verde);
+}
+
+/* Los encabezados ordenables son botones: en táctil también miden 44 px. */
+@media (any-pointer: coarse) {
+  .ordenable {
+    min-height: 44px;
+    padding: 0 4px;
+  }
 }

@@ -1,28 +1,14 @@
-import { createResource, createSignal, onCleanup, type Component } from 'solid-js';
+import { type Component } from 'solid-js';
 
-import { getDevicesStatus } from '@/shared/api/devices';
 import { formatKg } from '@/shared/lib/money';
+import { apiReachable, devicesStatus } from '@/shared/state/devices-status';
 import styles from './StatusBar.module.css';
 
-async function checkApi(): Promise<boolean> {
-  try {
-    const response = await fetch('/health');
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
+// El estado de equipos y de la API vienen del store compartido: la misma
+// consulta de /devices/status sirve para saber que el sistema local responde.
 export const StatusBar: Component = () => {
-  const [apiUp, { refetch: refetchApi }] = createResource(checkApi);
-  const [tick, setTick] = createSignal(0);
-  const [devices] = createResource(tick, () => getDevicesStatus().catch(() => null));
-
-  const interval = setInterval(() => {
-    setTick((value) => value + 1);
-    void refetchApi();
-  }, 10_000);
-  onCleanup(() => clearInterval(interval));
+  const apiUp = apiReachable;
+  const devices = devicesStatus;
 
   const scaleLabel = () => {
     const status = devices();

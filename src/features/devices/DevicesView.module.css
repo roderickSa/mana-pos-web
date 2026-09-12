@@ -56,7 +56,7 @@
   height: 40px;
   border-radius: 10px;
   background: var(--mana-verde-suave);
-  color: var(--mana-verde-hondo);
+  color: var(--tinta-activa);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -78,7 +78,7 @@
   font-family: var(--fuente-voucher);
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
-  color: var(--mana-verde-hondo);
+  color: var(--tinta-activa);
 }
 
 .estadoChip {
@@ -93,7 +93,7 @@
 
 .estadoOk {
   background: var(--mana-verde-suave);
-  color: var(--mana-verde-hondo);
+  color: var(--tinta-activa);
 }
 
 .estadoDev {

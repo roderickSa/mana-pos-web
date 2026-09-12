@@ -2,7 +2,12 @@ import { createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
 import { roundToDimeCents } from '@/shared/lib/money';
-import type { TicketLine, UnitProductDto, WeightProductDto } from '@/shared/types';
+import type {
+  ProductDto,
+  TicketLine,
+  UnitProductDto,
+  WeightProductDto,
+} from '@/shared/types';
 
 // La venta en curso se persiste en localStorage: si la PC se reinicia,
 // el ticket abierto (y los que están en espera) siguen ahí.
@@ -18,6 +23,7 @@ interface HeldTicket {
   lines: TicketLine[];
   ticketDiscountCents: number;
   discountAuthorizedBy: string | null;
+  discountApprovalToken: string | null;
   customer: TicketCustomer | null;
 }
 
@@ -26,8 +32,10 @@ interface TicketState {
   lines: TicketLine[];
   // Descuento al ticket completo, aparte de los descuentos por línea.
   ticketDiscountCents: number;
-  // Encargado que autorizó descuentos con su PIN (null = no hizo falta).
+  // Encargado que autorizó descuentos con su PIN (null = no hizo falta) y el
+  // token que lo prueba ante el servidor al cobrar.
   discountAuthorizedBy: string | null;
+  discountApprovalToken: string | null;
   // Cliente opcional: la venta puede quedar a nombre de alguien (no solo fiado).
   customer: TicketCustomer | null;
   holds: HeldTicket[];
@@ -43,6 +51,7 @@ function freshState(): TicketState {
     lines: [],
     ticketDiscountCents: 0,
     discountAuthorizedBy: null,
+    discountApprovalToken: null,
     customer: null,
     holds: [],
   };
@@ -52,21 +61,63 @@ function freshState(): TicketState {
 // aplica UNA sola vez sobre el total del ticket (redondear por línea pierde
 // plata). Espejo de la regla del servidor.
 function weightGrossCents(grams: number, pricePerKgCents: number): number {
-  return Math.round((grams / 1000) * pricePerKgCents);
+  return Math.round((grams * pricePerKgCents) / 1000);
 }
 
-// Tickets guardados por versiones anteriores: descuentos a 0 y totales de
-// pesables recalculados con el redondeo de balanza.
-function normalizeLines(lines: TicketLine[]): TicketLine[] {
-  return lines.map((line) => {
-    const discountCents = line.discountCents ?? 0;
-    if (line.weightGrams !== null && line.product.saleType === 'weight') {
-      const gross = weightGrossCents(line.weightGrams, line.product.pricePerKgCents);
+// Tickets guardados por versiones anteriores: la forma vieja traía
+// `weightGrams: null` en todas las líneas y sin `kind`. Se convierte al leer
+// y se recalculan los totales de pesables; lo irreconocible se descarta.
+// Lo mínimo para confiar en un producto guardado: tipo de venta y precio.
+function toProductDto(value: object): ProductDto | null {
+  const candidate: Record<string, unknown> = { ...value };
+  if (candidate.saleType === 'unit' && typeof candidate.priceCents === 'number') {
+    return { ...(candidate as unknown as UnitProductDto) };
+  }
+  if (candidate.saleType === 'weight' && typeof candidate.pricePerKgCents === 'number') {
+    return { ...(candidate as unknown as WeightProductDto) };
+  }
+  return null;
+}
+
+function normalizeLines(raw: unknown[]): TicketLine[] {
+  const lines: TicketLine[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const record: Record<string, unknown> = { ...item };
+    const product = record.product;
+    if (typeof product !== 'object' || product === null || typeof record.lineId !== 'string') continue;
+    const discountCents = typeof record.discountCents === 'number' ? record.discountCents : 0;
+    const typedProduct = toProductDto(product);
+    if (typedProduct === null) continue;
+    const grams = typeof record.grams === 'number' ? record.grams : record.weightGrams;
+    if (typedProduct.saleType === 'weight' && typeof grams === 'number') {
+      const gross = weightGrossCents(grams, typedProduct.pricePerKgCents);
       const clamped = Math.min(discountCents, gross);
-      return { ...line, discountCents: clamped, totalCents: gross - clamped };
+      lines.push({
+        kind: 'weight',
+        lineId: record.lineId,
+        product: typedProduct,
+        grams,
+        weightSource: record.weightSource === 'scale' ? 'scale' : 'manual',
+        discountCents: clamped,
+        totalCents: gross - clamped,
+      });
+      continue;
     }
-    return { ...line, discountCents };
-  });
+    if (typedProduct.saleType === 'unit' && typeof record.quantity === 'number') {
+      const gross = record.quantity * typedProduct.priceCents;
+      const clamped = Math.min(discountCents, gross);
+      lines.push({
+        kind: 'unit',
+        lineId: record.lineId,
+        product: typedProduct,
+        quantity: record.quantity,
+        discountCents: clamped,
+        totalCents: gross - clamped,
+      });
+    }
+  }
+  return lines;
 }
 
 function loadInitialState(): TicketState {
@@ -88,6 +139,8 @@ function loadInitialState(): TicketState {
           typeof parsed.ticketDiscountCents === 'number' ? parsed.ticketDiscountCents : 0,
         discountAuthorizedBy:
           typeof parsed.discountAuthorizedBy === 'string' ? parsed.discountAuthorizedBy : null,
+        discountApprovalToken:
+          typeof parsed.discountApprovalToken === 'string' ? parsed.discountApprovalToken : null,
         customer: parsed.customer ?? null,
         holds: parsed.holds.map((held: HeldTicket) => ({
           ticketId: held.ticketId,
@@ -96,6 +149,8 @@ function loadInitialState(): TicketState {
             typeof held.ticketDiscountCents === 'number' ? held.ticketDiscountCents : 0,
           discountAuthorizedBy:
             typeof held.discountAuthorizedBy === 'string' ? held.discountAuthorizedBy : null,
+          discountApprovalToken:
+            typeof held.discountApprovalToken === 'string' ? held.discountApprovalToken : null,
           customer: held.customer ?? null,
         })),
       };
@@ -122,6 +177,7 @@ function persist(): void {
       lines: ticket.lines,
       ticketDiscountCents: ticket.ticketDiscountCents,
       discountAuthorizedBy: ticket.discountAuthorizedBy,
+      discountApprovalToken: ticket.discountApprovalToken,
       customer: ticket.customer,
       holds: ticket.holds,
     }),
@@ -147,6 +203,10 @@ export function ticketDiscountCents(): number {
 
 export function discountAuthorizedBy(): string | null {
   return ticket.discountAuthorizedBy;
+}
+
+export function discountApprovalToken(): string | null {
+  return ticket.discountApprovalToken;
 }
 
 // Suma exacta al céntimo, antes del redondeo de caja.
@@ -194,11 +254,11 @@ function unitLineTotal(quantity: number, priceCents: number, discountCents: numb
 export function addUnitProduct(product: UnitProductDto, quantity = 1): void {
   const amount = Math.max(1, Math.round(quantity));
   const index = ticket.lines.findIndex(
-    (line) => line.product.id === product.id && line.weightGrams === null,
+    (line) => line.kind === 'unit' && line.product.id === product.id,
   );
   if (index >= 0) {
     const line = ticket.lines[index];
-    if (line === undefined) return;
+    if (line === undefined || line.kind !== 'unit') return;
     setTicket('lines', index, {
       quantity: line.quantity + amount,
       totalCents: unitLineTotal(line.quantity + amount, product.priceCents, line.discountCents),
@@ -210,11 +270,10 @@ export function addUnitProduct(product: UnitProductDto, quantity = 1): void {
   setTicket('lines', (lines) => [
     ...lines,
     {
+      kind: 'unit',
       lineId: crypto.randomUUID(),
       product,
       quantity: amount,
-      weightGrams: null,
-      weightSource: null,
       discountCents: 0,
       totalCents: amount * product.priceCents,
     },
@@ -231,10 +290,10 @@ export function addWeightProduct(
   setTicket('lines', (lines) => [
     ...lines,
     {
+      kind: 'weight',
       lineId: crypto.randomUUID(),
       product,
-      quantity: 1,
-      weightGrams: grams,
+      grams,
       weightSource,
       discountCents: 0,
       totalCents: weightGrossCents(grams, product.pricePerKgCents),
@@ -252,12 +311,12 @@ export function updateWeightLine(
 ): void {
   const index = ticket.lines.findIndex((line) => line.lineId === lineId);
   const line = ticket.lines[index];
-  if (line === undefined || line.product.saleType !== 'weight') return;
+  if (line === undefined || line.kind !== 'weight') return;
   const grossCents = weightGrossCents(grams, line.product.pricePerKgCents);
   // Si el nuevo peso deja la línea más barata que el descuento, este se recorta.
   const discountCents = Math.min(line.discountCents, grossCents);
   setTicket('lines', index, {
-    weightGrams: grams,
+    grams,
     weightSource,
     discountCents,
     totalCents: grossCents - discountCents,
@@ -269,7 +328,7 @@ export function updateWeightLine(
 // Ajusta la cantidad de una línea por unidades; no aplica a líneas pesadas.
 export function adjustLineQuantity(index: number, delta: number): void {
   const line = ticket.lines[index];
-  if (line === undefined || line.product.saleType !== 'unit' || line.weightGrams !== null) return;
+  if (line === undefined || line.kind !== 'unit') return;
   const quantity = line.quantity + delta;
   if (quantity < 1) return;
   const grossCents = quantity * line.product.priceCents;
@@ -288,7 +347,7 @@ export function adjustSelectedQuantity(delta: number): void {
 export function setLineQuantity(lineId: string, quantity: number): boolean {
   const index = ticket.lines.findIndex((line) => line.lineId === lineId);
   const line = ticket.lines[index];
-  if (line === undefined || line.product.saleType !== 'unit' || line.weightGrams !== null) {
+  if (line === undefined || line.kind !== 'unit') {
     return false;
   }
   const amount = Math.round(quantity);
@@ -320,10 +379,47 @@ export function setTicketDiscount(discountCents: number): boolean {
   return true;
 }
 
-// Queda registrado quién autorizó (verificado por PIN) para mandarlo al cobrar.
-export function markDiscountAuthorizedBy(name: string): void {
-  setTicket({ discountAuthorizedBy: name });
+// Queda el nombre para mostrarlo y el token para probarlo al cobrar.
+export function markDiscountAuthorizedBy(name: string, approvalToken: string): void {
+  setTicket({ discountAuthorizedBy: name, discountApprovalToken: approvalToken });
   persist();
+}
+
+// Los productos del ticket vienen congelados de cuando se agregaron (o de
+// localStorage). Antes de cobrar se refrescan del servidor: precio nuevo o
+// producto desactivado se ven aquí y no como un rechazo repetido al cobrar.
+export interface TicketPricesRefreshed {
+  changedLines: number;
+  unavailable: string[];
+}
+
+export function refreshTicketPrices(products: Map<string, ProductDto | null>): TicketPricesRefreshed {
+  let changed = 0;
+  const unavailable: string[] = [];
+  const lines = ticket.lines.map((line) => {
+    const fresh = products.get(line.product.id);
+    if (fresh === undefined) return line;
+    if (fresh === null || !fresh.active) {
+      unavailable.push(line.product.name);
+      return line;
+    }
+    // El tipo de venta no cambia en caliente; si cambió, la línea se deja como está.
+    let refreshed: TicketLine = line;
+    if (line.kind === 'weight' && fresh.saleType === 'weight') {
+      const gross = weightGrossCents(line.grams, fresh.pricePerKgCents);
+      const discountCents = Math.min(line.discountCents, gross);
+      refreshed = { ...line, product: fresh, discountCents, totalCents: gross - discountCents };
+    } else if (line.kind === 'unit' && fresh.saleType === 'unit') {
+      const gross = line.quantity * fresh.priceCents;
+      const discountCents = Math.min(line.discountCents, gross);
+      refreshed = { ...line, product: fresh, discountCents, totalCents: gross - discountCents };
+    }
+    if (refreshed.totalCents !== line.totalCents) changed += 1;
+    return refreshed;
+  });
+  setTicket('lines', lines);
+  persist();
+  return { changedLines: changed, unavailable };
 }
 
 export function ticketCustomer(): TicketCustomer | null {
@@ -339,7 +435,7 @@ export function setTicketCustomer(customer: TicketCustomer | null): void {
 export function reservedQuantity(productId: string): number {
   return ticket.lines
     .filter((line) => line.product.id === productId)
-    .reduce((sum, line) => sum + (line.weightGrams ?? line.quantity), 0);
+    .reduce((sum, line) => sum + (line.kind === 'weight' ? line.grams : line.quantity), 0);
 }
 
 // Quitar es siempre reversible: la línea queda en memoria para Deshacer.
@@ -379,7 +475,14 @@ export function undoRemoveLine(): TicketLine | null {
 
 // Tras cobrar: ticket nuevo con id nuevo (el id viejo queda usado en la venta).
 export function startNewTicket(): void {
-  setTicket({ ticketId: newTicketId(), lines: [], ticketDiscountCents: 0, discountAuthorizedBy: null, customer: null });
+  setTicket({
+    ticketId: newTicketId(),
+    lines: [],
+    ticketDiscountCents: 0,
+    discountAuthorizedBy: null,
+    discountApprovalToken: null,
+    customer: null,
+  });
   setSelectedIndex(-1);
   setLastRemoved(null);
   persist();
@@ -393,6 +496,7 @@ export function holdCurrentTicket(): void {
     lines: [],
     ticketDiscountCents: 0,
     discountAuthorizedBy: null,
+    discountApprovalToken: null,
     customer: null,
     holds: [
       ...ticket.holds,
@@ -401,6 +505,7 @@ export function holdCurrentTicket(): void {
         lines: ticket.lines,
         ticketDiscountCents: ticket.ticketDiscountCents,
         discountAuthorizedBy: ticket.discountAuthorizedBy,
+        discountApprovalToken: ticket.discountApprovalToken,
         customer: ticket.customer,
       },
     ],
@@ -419,6 +524,7 @@ export function resumeHeldTicket(): void {
     lines: ticket.lines,
     ticketDiscountCents: ticket.ticketDiscountCents,
     discountAuthorizedBy: ticket.discountAuthorizedBy,
+    discountApprovalToken: ticket.discountApprovalToken,
     customer: ticket.customer,
   };
   setTicket({
@@ -426,6 +532,7 @@ export function resumeHeldTicket(): void {
     lines: held.lines,
     ticketDiscountCents: held.ticketDiscountCents,
     discountAuthorizedBy: held.discountAuthorizedBy,
+    discountApprovalToken: held.discountApprovalToken,
     customer: held.customer,
     holds: current.lines.length > 0 ? [...remaining, current] : remaining,
   });

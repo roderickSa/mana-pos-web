@@ -10,6 +10,7 @@ import type { SupplierDto } from '@/shared/types';
 import { Modal } from '@/shared/ui/Modal';
 import styles from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
+import { apiErrorMessage } from '@/shared/api/client';
 
 const DIAS: Array<{ key: string; label: string }> = [
   { key: 'lun', label: 'Lun' },
@@ -42,8 +43,11 @@ const SupplierFormModal: Component<{
   }
   const [error, setError] = createSignal('');
 
+  const [saving, setSaving] = createSignal(false);
+
   async function save(): Promise<void> {
-    if (name().trim() === '') return;
+    if (saving() || name().trim() === '') return;
+    setSaving(true);
     const payload = {
       name: name().trim(),
       phone: phone().trim() === '' ? null : phone().trim(),
@@ -65,8 +69,10 @@ const SupplierFormModal: Component<{
         await updateSupplier(editing.id, payload);
         props.onDone(`Proveedor «${payload.name}» actualizado`);
       }
-    } catch {
-      setError('No se pudo guardar el proveedor.');
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'No se pudo guardar el proveedor.'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -143,7 +149,7 @@ const SupplierFormModal: Component<{
           <button type="button" class={forms.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={forms.primario} disabled={name().trim() === ''} onClick={save}>
+          <button type="button" class={forms.primario} disabled={name().trim() === '' || saving()} onClick={save}>
             {editing === null ? 'Crear proveedor' : 'Guardar cambios'}
           </button>
         </div>

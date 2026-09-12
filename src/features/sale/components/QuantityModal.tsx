@@ -1,7 +1,7 @@
 import { createSignal, type Component } from 'solid-js';
 
 import { formatSoles } from '@/shared/lib/money';
-import type { TicketLine } from '@/shared/types';
+import type { UnitTicketLine } from '@/shared/types';
 import { Keypad } from '@/shared/ui/Keypad';
 import { Modal } from '@/shared/ui/Modal';
 import forms from '@/shared/ui/forms.module.css';
@@ -9,19 +9,20 @@ import forms from '@/shared/ui/forms.module.css';
 // Cantidad exacta con keypad en pantalla (el número de la fila no era
 // tocable). El teclado físico sigue funcionando en paralelo.
 export const QuantityModal: Component<{
-  line: TicketLine;
+  line: UnitTicketLine;
   onConfirm: (quantity: number) => void;
   onClose: () => void;
 }> = (props) => {
   const [value, setValue] = createSignal(String(props.line.quantity));
 
+  // Tope de cordura: 13 dígitos en "cantidad" son un código de barras.
+  const MAX_QUANTITY = 999;
   const parsed = () => {
     const quantity = Number.parseInt(value(), 10);
-    return Number.isNaN(quantity) || quantity < 1 ? null : quantity;
+    return Number.isNaN(quantity) || quantity < 1 || quantity > MAX_QUANTITY ? null : quantity;
   };
 
-  const priceCents = () =>
-    props.line.product.saleType === 'unit' ? props.line.product.priceCents : 0;
+  const priceCents = () => props.line.product.priceCents;
 
   function confirm(): void {
     const quantity = parsed();
@@ -50,7 +51,7 @@ export const QuantityModal: Component<{
           />
           <p class={forms.nota}>
             {parsed() === null
-              ? 'Escribe cuántas unidades lleva (mínimo 1).'
+              ? 'Escribe cuántas unidades lleva (de 1 a 999).'
               : `La línea queda en ${formatSoles((parsed() ?? 0) * priceCents())}`}
           </p>
         </div>

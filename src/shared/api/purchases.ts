@@ -76,10 +76,9 @@ export async function getPurchaseOrder(id: string): Promise<PurchaseOrderDto> {
 export async function createPurchaseOrder(
   supplierId: string,
   notes: string | null,
-  createdBy: string,
   lines: CreateOrderLinePayload[],
 ): Promise<PurchaseOrderDto> {
-  return sendJson('POST', '/purchases/orders', { supplierId, notes, createdBy, lines });
+  return sendJson('POST', '/purchases/orders', { supplierId, notes, lines });
 }
 
 export async function cancelPurchaseOrder(id: string): Promise<PurchaseOrderDto> {
@@ -95,10 +94,11 @@ export interface ReceiveOrderLinePayload {
   expiryDate: string | null;
 }
 
+// receptionId lo genera el front: reintentar con el mismo id no duplica stock.
 export async function receivePurchaseOrder(
   id: string,
-  receivedBy: string,
+  receptionId: string,
   lines: ReceiveOrderLinePayload[],
 ): Promise<PurchaseOrderDto> {
-  return sendJson('POST', `/purchases/orders/${id}/receive`, { receivedBy, lines });
+  return sendJson('POST', `/purchases/orders/${id}/receive`, { receptionId, lines });
 }

@@ -8,10 +8,10 @@ import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { AdjustmentModal } from './AdjustmentModal';
-import { CountModal } from './CountModal';
+import { CountModal } from '@/shared/ui/CountModal';
 import { EntryModal } from './EntryModal';
 import { KardexModal } from './KardexModal';
-import { RowMenu } from './RowMenu';
+import { RowMenu } from '@/shared/ui/RowMenu';
 import styles from '@/shared/ui/tabla.module.css';
 
 const PER_PAGE = 50;

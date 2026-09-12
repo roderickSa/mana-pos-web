@@ -1,7 +1,9 @@
 import { createSignal, Match, Show, Switch, type Component } from 'solid-js';
 
+import { CatalogView } from '@/features/catalog/CatalogView';
 import { InventoryView } from '@/features/inventory/InventoryView';
 import { PurchasesView } from '@/features/purchases/PurchasesView';
+import { ReportsView } from '@/features/reports/ReportsView';
 import { SaleView } from '@/features/sale/SaleView';
 import { SalesHistoryView } from '@/features/sales-history/SalesHistoryView';
 import { ClientesView } from '@/features/credit/CreditView';
@@ -15,6 +17,7 @@ import { clearPreferences, loadPreferencesFor } from '@/shared/state/preferences
 import { showNotice } from '@/shared/state/notices';
 import { createEffect, createResource, onCleanup, onMount } from 'solid-js';
 import { StaleShiftBanner } from './components/StaleShiftBanner';
+import { NoticeToast } from './components/NoticeToast';
 import { StatusBar } from './components/StatusBar';
 import { TopBar, type View } from './components/TopBar';
 import styles from './App.module.css';
@@ -50,6 +53,8 @@ const App: Component = () => {
   // F10 = bloquear pantalla: vuelve al login sin perder el ticket en curso
   // (queda guardado en el navegador hasta que alguien entre con su PIN).
   function onKeyDown(event: KeyboardEvent): void {
+    // F5 es "Yape" en Vender y "recargar" en el navegador: nunca recargar.
+    if (event.key === 'F5') event.preventDefault();
     if (event.key === 'F10' && currentUser() !== null) {
       event.preventDefault();
       void logoutSession().catch(() => undefined);
@@ -69,6 +74,7 @@ const App: Component = () => {
           </div>
         </Show>
         <TopBar view={view()} onNavigate={setView} />
+        <NoticeToast />
         <StaleShiftBanner onGoToCash={() => setView('caja')} />
 
       <main class={styles.contenido}>
@@ -90,11 +96,17 @@ const App: Component = () => {
         </Match>
         {/* Doble candado: aunque la vista quedara apuntando aquí, sin rol
             de encargado no se monta (el API además rechaza los datos). */}
+        <Match when={view() === 'productos' && isManager()}>
+          <CatalogView />
+        </Match>
         <Match when={view() === 'inventario' && isManager()}>
           <InventoryView />
         </Match>
         <Match when={view() === 'compras' && isManager()}>
           <PurchasesView />
+        </Match>
+        <Match when={view() === 'reportes' && isManager()}>
+          <ReportsView />
         </Match>
         <Match when={view() === 'ajustes' && isManager()}>
           <SettingsView />

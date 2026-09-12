@@ -180,11 +180,7 @@ export const CategoriesTab: Component = () => {
             title={`Editar «${category().name}»`}
             category={category()}
             onSave={async (name, icon, color) => {
-              await updateCategory(category().slug, {
-                name,
-                ...(icon !== null ? { icon } : {}),
-                ...(color !== null ? { color } : {}),
-              });
+              await updateCategory(category().slug, { name, icon, color });
               done(`Categoría «${name}» actualizada`);
             }}
             onClose={() => setEditing(null)}
@@ -217,13 +213,18 @@ const CategoryFormModal: Component<{
   const [color, setColor] = createSignal<string | null>(props.category?.color ?? null);
   const [error, setError] = createSignal('');
 
+  const [saving, setSaving] = createSignal(false);
+
   async function save(): Promise<void> {
-    if (name().trim() === '') return;
+    if (saving() || name().trim() === '') return;
+    setSaving(true);
     try {
       await props.onSave(name().trim(), icon(), color());
     } catch (cause) {
       beepError();
       setError(apiErrorMessage(cause, 'No se pudo guardar la categoría.'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -287,7 +288,7 @@ const CategoryFormModal: Component<{
           <button type="button" class={forms.secundario} onClick={props.onClose}>
             Cancelar
           </button>
-          <button type="button" class={forms.primario} onClick={() => void save()}>
+          <button type="button" class={forms.primario} disabled={saving()} onClick={() => void save()}>
             Guardar
           </button>
         </div>

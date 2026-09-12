@@ -1,6 +1,6 @@
 import { For, Show, type Component } from 'solid-js';
 
-import { formatKg, formatSoles } from '@/shared/lib/money';
+import { formatKgShort, formatSoles } from '@/shared/lib/money';
 import { reservedQuantity } from '@/features/sale/state/ticket';
 import { activeCategories } from '@/shared/state/categories';
 import type { ProductDto } from '@/shared/types';
@@ -61,7 +61,7 @@ const ProductCard: Component<{
     if (out()) return 'Sin stock';
     return props.product.saleType === 'unit'
       ? `Quedan ${remaining()}`
-      : `Queda ${formatKg(remaining())}`;
+      : formatKgShort(remaining());
   };
 
   // Sin stock: el tile se apaga, pero escanear/teclear el código sigue
@@ -84,20 +84,20 @@ const ProductCard: Component<{
       aria-disabled={out()}
       onClick={() => props.onTap(props.product)}
     >
-      <span class={styles.filaAlta}>
-        <span class={styles.thumb}>
-          <Show
-            when={props.product.imagePath}
-            fallback={
-              <CategoryIcon
-                category={props.product.category}
-                icon={categoryLook(props.product.category).icon}
-              />
-            }
-          >
-            {(imagePath) => <img src={imagePath()} alt="" loading="lazy" />}
-          </Show>
-        </span>
+      {/* Banda de imagen arriba, a todo el ancho: la foto es lo primero que
+          se reconoce a 80 cm. El código corto vive en la esquina de la banda. */}
+      <span class={styles.media} classList={{ [styles.mediaIcono]: !props.product.imagePath }}>
+        <Show
+          when={props.product.imagePath}
+          fallback={
+            <CategoryIcon
+              category={props.product.category}
+              icon={categoryLook(props.product.category).icon}
+            />
+          }
+        >
+          {(imagePath) => <img src={imagePath()} alt="" loading="lazy" />}
+        </Show>
         <Show when={props.product.shortCode}>
           {(code) => (
             <kbd class={styles.codigoCorto} title={`Código corto: teclea ${code()} y Enter`}>
@@ -107,32 +107,28 @@ const ProductCard: Component<{
         </Show>
       </span>
       <span class={styles.nombre}>{splitPresentation(props.product.name).base}</span>
-      <Show when={splitPresentation(props.product.name).pres}>
-        {(pres) => <span class={styles.pres}>{pres()}</span>}
-      </Show>
-      {/* Pie en dos filas: el precio nunca se parte; el detalle va debajo. */}
+      {/* Siempre ocupa su renglón (vacío si no hay presentación): así el
+          precio queda a la misma altura en todos los tiles. */}
+      <span class={styles.pres}>{splitPresentation(props.product.name).pres ?? ''}</span>
       <span class={styles.pie}>
         <span class={styles.precio}>
           {props.product.saleType === 'unit'
             ? formatSoles(props.product.priceCents)
             : formatSoles(props.product.pricePerKgCents)}
-        </span>
-        <span class={styles.pieDetalle}>
           <Show when={props.product.saleType === 'weight'}>
-            <span class={styles.granel}>por kg</span>
+            <span class={styles.porKg}>/kg</span>
           </Show>
-          <span
-            class={styles.stock}
-            classList={{ [styles.stockBajo]: low(), [styles.stockCero]: out() }}
-          >
+        </span>
+        <Show
+          when={!out() && !props.expired}
+          fallback={
+            <span class={styles.vencido}>{out() ? 'Sin stock' : 'Vencido'}</span>
+          }
+        >
+          <span class={styles.stock} classList={{ [styles.stockBajo]: low() }}>
             {remainingLabel()}
           </span>
-          {/* Lote vencido según Inventario: se avisa, no se bloquea — la
-              cajera decide (puede ser el lote nuevo el que está adelante). */}
-          <Show when={props.expired}>
-            <span class={styles.vencido}>Vencido</span>
-          </Show>
-        </span>
+        </Show>
       </span>
     </button>
   );
@@ -141,8 +137,10 @@ const ProductCard: Component<{
 export const ProductGrid: Component<{
   products: ProductDto[];
   loading: boolean;
+  // El catálogo no respondió: se dice, en vez de fingir una categoría vacía.
+  failed: boolean;
   query: string;
-  expiredIds?: ReadonlySet<string>;
+  expiredIds: ReadonlySet<string>;
   onTap: (product: ProductDto) => void;
 }> = (props) => (
   <div class={styles.grilla}>
@@ -150,12 +148,18 @@ export const ProductGrid: Component<{
       {(product) => (
         <ProductCard
           product={product}
-          expired={props.expiredIds?.has(product.id) === true}
+          expired={props.expiredIds.has(product.id)}
           onTap={props.onTap}
         />
       )}
     </For>
-    <Show when={!props.loading && props.products.length === 0}>
+    <Show when={props.failed}>
+      <p class={styles.vacio}>
+        No se pudo cargar el catálogo. Revisa que el sistema local esté activo; el escaneo sigue
+        funcionando.
+      </p>
+    </Show>
+    <Show when={!props.loading && !props.failed && props.products.length === 0}>
       <p class={styles.vacio}>
         <Show
           when={props.query.trim() !== ''}

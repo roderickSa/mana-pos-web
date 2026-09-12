@@ -15,28 +15,26 @@ export const LineActionsModal: Component<{
   onRemove: () => void;
   onClose: () => void;
 }> = (props) => {
-  const isWeight = props.line.product.saleType === 'weight';
+  const line = props.line;
 
   return (
-    <Modal size="sm" title={props.line.product.name} onClose={props.onClose}>
+    <Modal size="sm" title={line.product.name} onClose={props.onClose}>
       <div class={styles.cuerpo}>
         <p class={styles.resumen}>
-          {isWeight
-            ? `${formatKg(props.line.weightGrams ?? 0)} · ${formatSoles(props.line.totalCents)}`
-            : `${props.line.quantity} × ${formatSoles(
-                props.line.product.saleType === 'unit' ? props.line.product.priceCents : 0,
-              )} · ${formatSoles(props.line.totalCents)}`}
+          {line.kind === 'weight'
+            ? `${formatKg(line.grams)} · ${formatSoles(line.totalCents)}`
+            : `${line.quantity} × ${formatSoles(line.product.priceCents)} · ${formatSoles(line.totalCents)}`}
           {props.line.discountCents > 0
             ? ` (dcto −${formatSoles(props.line.discountCents)})`
             : ''}
         </p>
 
-        <Show when={!isWeight}>
+        <Show when={line.kind === 'unit'}>
           <button type="button" class={styles.accion} onClick={props.onQuantity}>
             Cambiar cantidad…
           </button>
         </Show>
-        <Show when={isWeight}>
+        <Show when={line.kind === 'weight'}>
           <button type="button" class={styles.accion} onClick={props.onWeight}>
             Corregir peso…
           </button>

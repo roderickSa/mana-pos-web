@@ -21,31 +21,30 @@ export interface PaymentPart {
 
 export interface CheckoutDiscounts {
   ticketDiscountCents: number;
-  // Encargado que autorizó (PIN verificado); null si no hizo falta.
-  authorizedBy: string | null;
+  // Token de /users/verify-manager; null si el descuento no lo necesitó.
+  approvalToken: string | null;
   // Cliente opcional de la venta (no solo fiado).
-  customerId?: string | null;
+  customerId: string | null;
 }
 
-const NO_DISCOUNTS: CheckoutDiscounts = { ticketDiscountCents: 0, authorizedBy: null };
+const NO_DISCOUNTS: CheckoutDiscounts = { ticketDiscountCents: 0, approvalToken: null, customerId: null };
 
 // El backend acepta hasta 4 pagos que sumen el total (multi-tender).
 export async function checkoutSaleWithPayments(
   ticketId: string,
   lines: TicketLine[],
   payments: PaymentPart[],
-  userName = 'cajera',
   discounts: CheckoutDiscounts = NO_DISCOUNTS,
 ): Promise<CheckoutResponseDto> {
   const payload = {
     ticketId,
     lines: lines.map((line) =>
-      line.weightGrams !== null
+      line.kind === 'weight'
         ? {
             saleType: 'weight',
             productId: line.product.id,
-            grams: line.weightGrams,
-            weightSource: line.weightSource ?? 'manual',
+            grams: line.grams,
+            weightSource: line.weightSource,
             discountCents: line.discountCents,
           }
         : {
@@ -55,11 +54,10 @@ export async function checkoutSaleWithPayments(
             discountCents: line.discountCents,
           },
     ),
-    userId: userName,
     payments,
     ticketDiscountCents: discounts.ticketDiscountCents,
-    discountAuthorizedBy: discounts.authorizedBy,
-    customerId: discounts.customerId ?? null,
+    discountApprovalToken: discounts.approvalToken,
+    customerId: discounts.customerId,
   };
   return sendJson('POST', '/sales/checkout', payload);
 }
@@ -71,7 +69,6 @@ export async function checkoutSale(
   totalCents: number,
   receivedCents: number | null,
   customerId: string | null = null,
-  userName = 'cajera',
   discounts: CheckoutDiscounts = NO_DISCOUNTS,
 ): Promise<CheckoutResponseDto> {
   const payment: PaymentPart =
@@ -80,7 +77,7 @@ export async function checkoutSale(
       : method === 'credit'
         ? { method, amountCents: totalCents, customerId }
         : { method, amountCents: totalCents };
-  return checkoutSaleWithPayments(ticketId, lines, [payment], userName, discounts);
+  return checkoutSaleWithPayments(ticketId, lines, [payment], discounts);
 }
 
 export interface TicketListItemDto {
@@ -144,12 +141,13 @@ export function salesExportUrl(filters: SalesFilters): string {
   return `/sales/tickets/export.csv?${params.toString()}`;
 }
 
+// approvalToken: de /users/verify-manager cuando quien opera no es encargado.
 export async function voidTicketRequest(
   ticketId: string,
-  voidedBy: string,
   reason: string,
+  approvalToken: string | null,
 ): Promise<void> {
-  await sendJson('POST', `/sales/tickets/${ticketId}/void`, { voidedBy, reason });
+  await sendJson('POST', `/sales/tickets/${ticketId}/void`, { reason, approvalToken });
 }
 
 export async function reprintTicket(ticketId: string): Promise<{ message: string }> {
@@ -196,8 +194,9 @@ export interface RefundDto {
   ticketId: string;
   reason: string;
   registeredBy: string;
-  // true = el dinero volvió como abono al fiado, no en efectivo.
-  refundedToCredit: boolean;
+  // Parte abonada al fiado y parte pagada en efectivo (pagos mixtos).
+  creditCents: number;
+  cashCents: number;
   totalCents: number;
   createdAt: string;
   lines: Array<{
@@ -214,9 +213,9 @@ export async function refundTicketRequest(
   ticketId: string,
   lines: Array<{ ticketLineId: string; quantity: number }>,
   reason: string,
-  registeredBy: string,
+  approvalToken: string | null,
 ): Promise<RefundDto> {
-  return sendJson('POST', `/sales/tickets/${ticketId}/refunds`, { lines, reason, registeredBy });
+  return sendJson('POST', `/sales/tickets/${ticketId}/refunds`, { lines, reason, approvalToken });
 }
 
 export async function getTicketDetail(ticketId: string): Promise<TicketDetailDto> {

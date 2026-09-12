@@ -16,22 +16,28 @@ import { registerEntry } from '@/shared/api/inventory';
 import { createSupplier, listSuppliers } from '@/shared/api/suppliers';
 import type { ProductDto } from '@/shared/types';
 import { centsToSolesInput, DIME_MESSAGE, formatKg, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
+import { resizeImageForUpload } from '@/shared/lib/image';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import { activeCategories } from '@/shared/state/categories';
 import styles from '@/shared/ui/forms.module.css';
 
+// Crear (con código pre-cargado si vino de un escaneo desconocido) o editar.
+export type ProductFormMode =
+  | { kind: 'create'; initialBarcode: string | null }
+  | { kind: 'edit'; product: ProductDto };
+
 export const ProductFormModal: Component<{
-  product: ProductDto | null; // null = crear
-  initialBarcode: string | null; // pre-carga al crear desde un escaneo desconocido
+  mode: ProductFormMode;
   onDone: (message: string) => void;
   onClose: () => void;
 }> = (props) => {
-  const editing = props.product;
+  const editing = props.mode.kind === 'edit' ? props.mode.product : null;
+  const initialBarcode = props.mode.kind === 'create' ? props.mode.initialBarcode : null;
   const [saleType, setSaleType] = createSignal<'unit' | 'weight'>(editing?.saleType ?? 'unit');
   const [name, setName] = createSignal(editing?.name ?? '');
   const [category, setCategory] = createSignal(editing?.category ?? 'abarrotes');
-  const [barcode, setBarcode] = createSignal(editing?.barcode ?? props.initialBarcode ?? '');
+  const [barcode, setBarcode] = createSignal(editing?.barcode ?? initialBarcode ?? '');
   const [shortCode, setShortCode] = createSignal(editing?.shortCode ?? '');
   const [imageDataUrl, setImageDataUrl] = createSignal<string | null>(null);
   const [removeImage, setRemoveImage] = createSignal(false);
@@ -682,14 +688,15 @@ export const ProductFormModal: Component<{
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
                 if (file === undefined) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') {
-                    setImageDataUrl(reader.result);
+                void resizeImageForUpload(file)
+                  .then((dataUrl) => {
+                    setImageDataUrl(dataUrl);
                     setRemoveImage(false);
-                  }
-                };
-                reader.readAsDataURL(file);
+                  })
+                  .catch(() => {
+                    beepError();
+                    setError('No se pudo leer la imagen. Prueba con otra foto (PNG, JPG o WebP).');
+                  });
               }}
             />
             <Show when={editing?.imagePath !== null && editing !== null && !removeImage()}>

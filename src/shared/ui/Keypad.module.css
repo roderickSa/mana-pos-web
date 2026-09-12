@@ -20,6 +20,15 @@
   user-select: none;
 }
 
+/* Pantallas bajas (768 px): teclas más bajas para que el pie del modal
+   siga a la vista sin scroll. */
+@media (max-height: 820px) {
+  .tecla {
+    min-height: 50px;
+    font-size: 1.2rem;
+  }
+}
+
 .tecla:active {
   background: var(--mana-verde-suave);
   transform: scale(0.97);

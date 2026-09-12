@@ -49,7 +49,7 @@ export const HomeView: Component<{ onNavigate: (view: View) => void }> = (props)
       </header>
 
       <div class={styles.grilla}>
-        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('ventas')}>
+        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('reportes')}>
           <span class={styles.etiqueta}>Venta de hoy</span>
           <span class={styles.cifra}>
             {formatSoles(ventas()?.summary.chargedTotalCents ?? 0)}
@@ -77,7 +77,7 @@ export const HomeView: Component<{ onNavigate: (view: View) => void }> = (props)
           type="button"
           class={styles.tarjeta}
           classList={{ [styles.alerta]: (bajoMinimo()?.total ?? 0) > 0 }}
-          onClick={() => props.onNavigate('inventario')}
+          onClick={() => props.onNavigate('productos')}
         >
           <span class={styles.etiqueta}>Bajo mínimo</span>
           <span class={styles.cifra}>{bajoMinimo()?.total ?? 0}</span>

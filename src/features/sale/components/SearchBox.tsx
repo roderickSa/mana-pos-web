@@ -6,8 +6,8 @@ export const SearchBox: Component<{
   value: string;
   onInput: (value: string) => void;
   onSubmit: () => void;
-  setRef?: (element: HTMLInputElement) => void;
-  multiplier?: number;
+  setRef: (element: HTMLInputElement) => void;
+  multiplier: number;
 }> = (props) => (
   <form
     class={styles.form}
@@ -17,14 +17,14 @@ export const SearchBox: Component<{
     }}
   >
     <input
-      ref={(element) => props.setRef?.(element)}
+      ref={(element) => props.setRef(element)}
       class={styles.input}
       type="text"
       placeholder="Escanea un código o busca un producto…  (F2)"
       value={props.value}
       onInput={(event) => props.onInput(event.currentTarget.value)}
     />
-    <Show when={(props.multiplier ?? 1) > 1}>
+    <Show when={props.multiplier > 1}>
       <span class={styles.mult} title="El siguiente producto entra con esta cantidad">
         ×{props.multiplier}
       </span>

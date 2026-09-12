@@ -1,0 +1,219 @@
+.vista {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.rapidos {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-boton);
+  padding: 4px;
+}
+
+.rapido {
+  border: none;
+  background: transparent;
+  color: var(--tinta-suave);
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radio-boton);
+  min-height: 40px;
+}
+
+.rapidoActivo {
+  background: var(--mana-verde);
+  color: var(--tinta-sobre-relleno);
+}
+
+.fecha {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.fecha input {
+  font: inherit;
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-boton);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  min-height: 44px;
+}
+
+/* Tiles de resumen: cifra grande en condensada, etiqueta mono en caja alta. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tileEtiqueta {
+  font-family: var(--fuente-dato);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tinta-suave);
+}
+
+.tileCifra {
+  font-family: var(--fuente-precio);
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tileDetalle {
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+}
+
+.tileUtilidad {
+  border-color: color-mix(in srgb, var(--mana-verde) 40%, var(--linea));
+  background: var(--mana-verde-suave);
+}
+
+.panel {
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 12px 14px 14px;
+}
+
+.panelTitulo {
+  margin: 0 0 10px;
+  font-family: var(--fuente-dato);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tinta-suave);
+  font-weight: 600;
+}
+
+.dosColumnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .dosColumnas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Barra dentro de la celda: una sola serie, un solo tono, sin leyenda. */
+.barraCelda {
+  position: relative;
+  min-width: 8rem;
+}
+
+.barra {
+  position: absolute;
+  inset: 4px 0;
+  border-radius: 0 3px 3px 0;
+  background: color-mix(in srgb, var(--mana-verde) 22%, transparent);
+  pointer-events: none;
+}
+
+.barraTexto {
+  position: relative;
+  padding-left: 6px;
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Horas: 24 columnas, marcas finas, etiqueta directa solo en el pico. */
+.horas {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 3px;
+  align-items: end;
+  height: 150px;
+  padding-top: 18px;
+}
+
+.hora {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  min-width: 0;
+}
+
+.horaBarra {
+  width: 100%;
+  max-width: 22px;
+  border-radius: 3px 3px 0 0;
+  background: var(--mana-verde);
+  min-height: 2px;
+}
+
+.horaBarraVacia {
+  background: var(--linea);
+}
+
+.horaEtiqueta {
+  font-family: var(--fuente-dato);
+  font-size: 0.68rem;
+  color: var(--tinta-suave);
+  margin-top: 4px;
+}
+
+.horaPico {
+  position: absolute;
+  top: -18px;
+  font-family: var(--fuente-dato);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.negativo {
+  color: var(--peligro);
+}
+
+.vacio {
+  color: var(--tinta-suave);
+  text-align: center;
+  padding: 24px;
+}
+
+.cargando {
+  color: var(--tinta-suave);
+  padding: 12px 0;
+}

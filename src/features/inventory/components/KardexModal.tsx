@@ -11,7 +11,7 @@ export const KardexModal: Component<{
   product: ProductDto;
   onClose: () => void;
   // Salto a la pestaña Kardex con el historial completo (si el padre lo cablea).
-  onGoToKardex: (() => void) | null;
+  onGoToKardex: () => void;
 }> = (props) => {
   const [kardex] = createResource(() => getKardex(props.product.id));
 
@@ -24,24 +24,22 @@ export const KardexModal: Component<{
           <>
             <p class={styles.actual}>
               Stock actual: <b>{data().currentQuantity}</b> {unit}
-              <Show when={props.onGoToKardex !== null}>
-                {' · '}
-                <button
-                  type="button"
-                  style={{
-                    border: 'none',
-                    background: 'none',
-                    color: 'var(--mana-verde)',
-                    'text-decoration': 'underline',
-                    cursor: 'pointer',
-                    padding: '0',
-                    font: 'inherit',
-                  }}
-                  onClick={() => props.onGoToKardex?.()}
-                >
-                  ver todo en Kardex →
-                </button>
-              </Show>
+              {' · '}
+              <button
+                type="button"
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--mana-verde)',
+                  'text-decoration': 'underline',
+                  cursor: 'pointer',
+                  padding: '0',
+                  font: 'inherit',
+                }}
+                onClick={() => props.onGoToKardex()}
+              >
+                ver todo en Kardex →
+              </button>
             </p>
             <div class={styles.lista}>
               <For each={data().movements}>

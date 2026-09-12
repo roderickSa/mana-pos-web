@@ -11,6 +11,7 @@ import {
 } from '@/shared/api/devices';
 import { apiErrorMessage } from '@/shared/api/client';
 import { formatKg } from '@/shared/lib/money';
+import { beepError } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import { isManager } from '@/shared/state/session';
 import styles from './DevicesView.module.css';
@@ -30,8 +31,9 @@ export const DevicesView: Component = () => {
     try {
       const result = await action();
       showNotice(result.message);
-    } catch {
-      showNotice('No se pudo hablar con el sistema local. Revisa que esté activo.');
+    } catch (cause) {
+      beepError();
+      showNotice(apiErrorMessage(cause, 'No se pudo hablar con el sistema local. Revisa que esté activo.'));
     } finally {
       setBusy(false);
     }

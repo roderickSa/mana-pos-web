@@ -1,5 +1,6 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
 import { DateField } from '@/shared/ui/DateField';
+import { ConfirmModal } from '@/shared/ui/ConfirmModal';
 import { Modal } from '@/shared/ui/Modal';
 
 import {
@@ -33,12 +34,16 @@ export const ExpiringTab: Component = () => {
   // La alerta lleva directo a la acción que la resuelve: merma del LOTE en
   // 2 toques — descuenta stock, queda en el kardex y consume el lote (si se
   // da de baja completo, deja de alertar solo).
+  const [savingMerma, setSavingMerma] = createSignal(false);
+
   async function saveMerma(): Promise<void> {
+    if (savingMerma()) return;
     const item = merma();
     if (item === null) return;
     const parsed = Number.parseFloat(mermaQty());
     const quantity = item.saleType === 'weight' ? Math.round(parsed * 1000) : Math.round(parsed);
     if (Number.isNaN(quantity) || quantity <= 0) return;
+    setSavingMerma(true);
     try {
       await registerLotWaste(item.lotId, quantity);
       beepSuccess();
@@ -49,6 +54,8 @@ export const ExpiringTab: Component = () => {
     } catch (cause) {
       beepError();
       showNotice(apiErrorMessage(cause, 'No se pudo registrar la merma.'));
+    } finally {
+      setSavingMerma(false);
     }
   }
 
@@ -82,7 +89,10 @@ export const ExpiringTab: Component = () => {
     }
   }
 
+  const [removingLot, setRemovingLot] = createSignal<ExpiringItemDto | null>(null);
+
   async function removeLotAlert(lotId: string): Promise<void> {
+    setRemovingLot(null);
     try {
       await deleteLot(lotId);
       beepSuccess();
@@ -170,17 +180,13 @@ export const ExpiringTab: Component = () => {
                           <button type="button" onClick={() => setEditing(item.lotId)}>
                             Cambiar fecha
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => void removeLotAlert(item.lotId)}
-                          >
+                          <button type="button" onClick={() => setRemovingLot(item)}>
                             Quitar
                           </button>
                         </>
                       }
                     >
                       <DateField
-                        inputClass={forms.input}
                         style={{ 'max-width': '210px', display: 'inline-flex' }}
                         value={newDate()}
                         onChange={setNewDate}
@@ -224,7 +230,7 @@ export const ExpiringTab: Component = () => {
                 <button
                   type="button"
                   class={forms.primario}
-                  disabled={mermaQty() === '' || Number.parseFloat(mermaQty()) <= 0}
+                  disabled={mermaQty() === '' || Number.parseFloat(mermaQty()) <= 0 || savingMerma()}
                   onClick={() => void saveMerma()}
                 >
                   Registrar merma
@@ -258,6 +264,21 @@ export const ExpiringTab: Component = () => {
               </p>
             </div>
           </Modal>
+        )}
+      </Show>
+      <Show when={removingLot()}>
+        {(item) => (
+          <ConfirmModal
+            title={`¿Quitar el lote de «${item().name}» de la alerta?`}
+            confirmLabel="Quitar lote"
+            onConfirm={() => void removeLotAlert(item().lotId)}
+            onClose={() => setRemovingLot(null)}
+          >
+            <p class={forms.nota}>
+              El lote deja de avisar por vencimiento. El stock no cambia: si la mercadería se
+              botó, registra la merma en vez de quitarlo.
+            </p>
+          </ConfirmModal>
         )}
       </Show>
     </section>
