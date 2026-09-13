@@ -19,7 +19,7 @@
 }
 
 .accion {
-  min-height: 44px;
+  min-height: var(--alto-control);
   padding: 0 16px;
   border: 1px solid color-mix(in srgb, var(--advertencia-tinta) 40%, var(--advertencia-fondo));
   border-radius: 10px;

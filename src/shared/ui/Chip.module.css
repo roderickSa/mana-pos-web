@@ -1,0 +1,48 @@
+/* Píldora de estado. Un solo objeto para toda la app: seis features tenían la
+   suya y convivían tres radios distintos. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  /* Dentro de una columna flex un span se estira de borde a borde y deja de
+     leerse como píldora: el chip siempre mide lo que su texto. */
+  align-self: flex-start;
+  width: fit-content;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radio-chip);
+  border: 1px solid transparent;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.neutro {
+  background: var(--chip-neutro-fondo);
+  color: var(--chip-neutro-tinta);
+  border-color: var(--chip-neutro-borde);
+}
+
+.info {
+  background: var(--chip-info-fondo);
+  color: var(--chip-info-tinta);
+  border-color: var(--chip-info-borde);
+}
+
+.exito {
+  background: var(--chip-exito-fondo);
+  color: var(--chip-exito-tinta);
+  border-color: var(--chip-exito-borde);
+}
+
+.alerta {
+  background: var(--advertencia-fondo);
+  color: var(--advertencia-tinta);
+  border-color: var(--advertencia-borde);
+}
+
+.peligro {
+  background: var(--chip-peligro-fondo);
+  color: var(--chip-peligro-tinta);
+  border-color: var(--chip-peligro-borde);
+}

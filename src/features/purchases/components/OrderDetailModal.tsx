@@ -1,7 +1,14 @@
 import {createSignal, For, Show, type Component } from 'solid-js';
 
 
-import {cancelPurchaseOrder, type PurchaseOrderDto, type PurchaseOrderLineDto } from '@/shared/api/purchases';
+import {
+  cancelPurchaseOrder,
+  closePurchaseOrderEarly,
+  confirmPurchaseOrder,
+  type PurchaseOrderDto,
+  type PurchaseOrderLineDto,
+} from '@/shared/api/purchases';
+import { apiErrorMessage } from '@/shared/api/client';
 import {formatSoles } from '@/shared/lib/money';
 import {beepError, beepOk } from '@/shared/lib/sounds';
 import {formatDateTime } from '@/shared/lib/dates';
@@ -10,8 +17,10 @@ import {ConfirmModal } from '@/shared/ui/ConfirmModal';
 import { Modal } from '@/shared/ui/Modal';
 import formStyles from '@/shared/ui/forms.module.css';
 import tabla from '@/shared/ui/tabla.module.css';
-import styles from '../PurchasesView.module.css';
-import {STATUS_LABEL, statusClass, quantityText } from './purchase-lines';
+import {STATUS_LABEL, statusTone, quantityText } from './purchase-lines';
+import { Chip } from '@/shared/ui/Chip';
+import { RowMenu } from '@/shared/ui/RowMenu';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { ReceiveForm } from './ReceiveForm';
 
 export const OrderDetailModal: Component<{
@@ -22,10 +31,12 @@ export const OrderDetailModal: Component<{
 }> = (props) => {
   const [error, setError] = createSignal('');
   const [receiving, setReceiving] = createSignal(false);
-  const [menuOpen, setMenuOpen] = createSignal(false);
   const [confirmingCancel, setConfirmingCancel] = createSignal(false);
+  const [closingEarly, setClosingEarly] = createSignal(false);
+  const [closeReason, setCloseReason] = createSignal('');
 
   const canReceive = () => props.order.status === 'open' || props.order.status === 'partial';
+  const pendiente = () => props.order.pendingCents;
 
   // Progreso de recepción ponderado por valor (mezcla unidades y kilos).
   const receivedCentsOf = (line: PurchaseOrderLineDto) =>
@@ -37,6 +48,36 @@ export const OrderDetailModal: Component<{
     const received = props.order.lines.reduce((sum, line) => sum + receivedCentsOf(line), 0);
     return Math.min(100, Math.round((received / props.order.totalCents) * 100));
   };
+
+  async function confirmDraft(): Promise<void> {
+    try {
+      const updated = await confirmPurchaseOrder(props.order.id);
+      beepOk();
+      showNotice(`Orden #${updated.number} confirmada`);
+      props.onChanged(updated);
+    } catch (cause) {
+      beepError();
+      setError(apiErrorMessage(cause, 'No se pudo confirmar la orden.'));
+    }
+  }
+
+  // La parcial que el proveedor nunca va a completar: se cierra con motivo en
+  // vez de quedar colgada como pendiente para siempre.
+  async function closeEarly(): Promise<void> {
+    if (closeReason().trim() === '') return;
+    try {
+      const updated = await closePurchaseOrderEarly(props.order.id, closeReason().trim());
+      beepOk();
+      showNotice(`Orden #${updated.number} cerrada`);
+      setClosingEarly(false);
+      setCloseReason('');
+      props.onChanged(updated);
+    } catch (cause) {
+      beepError();
+      setClosingEarly(false);
+      setError(apiErrorMessage(cause, 'No se pudo cerrar la orden.'));
+    }
+  }
 
   async function cancelOrder(): Promise<void> {
     try {
@@ -59,56 +100,23 @@ export const OrderDetailModal: Component<{
       title={`Orden #${props.order.number} — ${props.supplierName}`}
       subtitle={
         <>
-          <span class={statusClass(props.order.status)}>{STATUS_LABEL[props.order.status]}</span>
+          <Chip tone={statusTone(props.order.status)}>{STATUS_LABEL[props.order.status]}</Chip>
           <span>
             {formatDateTime(props.order.createdAt)} · creada por {props.order.createdBy}
+            {props.order.expectedAt === null
+              ? ''
+              : ` · entrega ${formatDateTime(props.order.expectedAt).split(',')[0] ?? ''}`}
             {props.order.notes === null ? '' : ` · ${props.order.notes}`}
+            {props.order.closedReason === null ? '' : ` · cerrada: ${props.order.closedReason}`}
           </span>
         </>
       }
       headerActions={
         <Show when={props.order.status === 'open' && !receiving()}>
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              class={formStyles.secundario}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen()}
-              aria-label="Más acciones"
-              onClick={() => setMenuOpen(!menuOpen())}
-            >
-              ⋯
-            </button>
-            <Show when={menuOpen()}>
-              <div
-                role="menu"
-                style={{
-                  position: 'absolute',
-                  right: '0',
-                  top: '100%',
-                  'z-index': '5',
-                  background: 'var(--superficie-panel)',
-                  border: '1px solid var(--linea)',
-                  'border-radius': '10px',
-                  'box-shadow': 'var(--sombra-panel)',
-                  padding: '6px',
-                }}
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  class={formStyles.secundario}
-                  style={{ color: 'var(--peligro)', 'white-space': 'nowrap' }}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setConfirmingCancel(true);
-                  }}
-                >
-                  Cancelar orden…
-                </button>
-              </div>
-            </Show>
-          </div>
+          <RowMenu
+            items={[{ key: 'cancel', label: 'Cancelar orden…', tone: 'peligro' }]}
+            onSelect={() => setConfirmingCancel(true)}
+          />
         </Show>
       }
       footer={
@@ -117,6 +125,21 @@ export const OrderDetailModal: Component<{
             <button type="button" class={formStyles.secundario} onClick={props.onClose}>
               Cerrar
             </button>
+            <Show when={props.order.status === 'partial'}>
+              <button
+                type="button"
+                class={formStyles.secundario}
+                title="El proveedor no va a traer el resto"
+                onClick={() => setClosingEarly(true)}
+              >
+                Cerrar incompleta
+              </button>
+            </Show>
+            <Show when={props.order.status === 'draft'}>
+              <button type="button" class={formStyles.primario} onClick={() => void confirmDraft()}>
+                Confirmar orden
+              </button>
+            </Show>
             <Show when={canReceive()}>
               <button type="button" class={formStyles.primario} onClick={() => setReceiving(true)}>
                 Recibir mercadería
@@ -127,6 +150,30 @@ export const OrderDetailModal: Component<{
       }
       onClose={props.onClose}
     >
+      <Show when={closingEarly()}>
+        <ConfirmModal
+          title={`Cerrar la orden #${props.order.number} incompleta`}
+          confirmLabel="Cerrar orden"
+          onConfirm={() => void closeEarly()}
+          onClose={() => setClosingEarly(false)}
+        >
+          <p class={formStyles.nota}>
+            Quedan {formatSoles(pendiente())} sin traer. La orden deja de figurar como pendiente y
+            el stock no cambia.
+          </p>
+          <div class={formStyles.campo}>
+            <span class={formStyles.etiqueta}>Motivo</span>
+            <input
+              id="cerrar-motivo"
+              class={formStyles.input}
+              placeholder="p. ej. no tenía más stock"
+              value={closeReason()}
+              onInput={(event) => setCloseReason(event.currentTarget.value)}
+            />
+          </div>
+        </ConfirmModal>
+      </Show>
+
       <Show when={confirmingCancel()}>
         <ConfirmModal
           title={`Cancelar orden #${props.order.number}`}
@@ -228,7 +275,19 @@ export const OrderDetailModal: Component<{
             </tbody>
           </table>
         </div>
-        <p class={styles.totalOrden}>Total: {formatSoles(props.order.totalCents)}</p>
+        <TableFooter
+          total={props.order.lines.length}
+          singular="producto pedido"
+          plural="productos pedidos"
+          detail={
+            <>
+              Total: {formatSoles(props.order.totalCents)}
+              <Show when={pendiente() > 0}>
+                <span class={formStyles.nota}> · falta traer {formatSoles(pendiente())}</span>
+              </Show>
+            </>
+          }
+        />
 
         {/* La historia tanda a tanda: complementa la barra de progreso, que
             solo muestra el acumulado. */}
@@ -251,6 +310,8 @@ export const OrderDetailModal: Component<{
                     <p class={formStyles.nota} style={{ margin: '0 0 4px' }}>
                       Tanda {index() + 1} · {formatDateTime(reception.receivedAt)} · recibió{' '}
                       {reception.receivedBy}
+                      {reception.documentNumber === null ? '' : ` · ${reception.documentNumber}`}
+                      {reception.paymentTerms === null ? '' : ` · ${reception.paymentTerms}`}
                     </p>
                     <For each={reception.lines}>
                       {(line) => {

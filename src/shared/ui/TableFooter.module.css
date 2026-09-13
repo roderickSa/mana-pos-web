@@ -1,0 +1,37 @@
+/* El pie va centrado bajo la tabla, con el conteo en el medio y los pasos a
+   los lados; el dato extra (un total) se separa a la derecha. */
+.pie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+}
+
+.conteo {
+  white-space: nowrap;
+}
+
+.paso {
+  border: 1.5px solid var(--linea);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: var(--radio-boton);
+  padding: 9px 18px;
+  font-weight: 600;
+  min-height: var(--alto-control);
+}
+
+.paso:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.detalle {
+  margin-left: auto;
+  color: var(--tinta);
+  font-weight: 600;
+}

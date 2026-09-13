@@ -13,13 +13,13 @@ import {
   updateProduct,
 } from '@/shared/api/products';
 import { registerEntry } from '@/shared/api/inventory';
-import { createSupplier, listSuppliers } from '@/shared/api/suppliers';
 import type { ProductDto } from '@/shared/types';
 import { centsToSolesInput, DIME_MESSAGE, formatKg, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { resizeImageForUpload } from '@/shared/lib/image';
 import { beepError } from '@/shared/lib/sounds';
 import { Modal } from '@/shared/ui/Modal';
 import { activeCategories } from '@/shared/state/categories';
+import { ProductSuppliersTab } from './ProductSuppliersTab';
 import styles from '@/shared/ui/forms.module.css';
 
 // Crear (con código pre-cargado si vino de un escaneo desconocido) o editar.
@@ -53,16 +53,6 @@ export const ProductFormModal: Component<{
       ? ''
       : centsToSolesInput(editing.saleType === 'unit' ? editing.costCents : editing.costPerKgCents),
   );
-  const [packSize, setPackSize] = createSignal(
-    editing !== null && editing.saleType === 'unit' && editing.packSize !== null
-      ? String(editing.packSize)
-      : '',
-  );
-  const [packCost, setPackCost] = createSignal(
-    editing !== null && editing.saleType === 'unit' && editing.packCostCents !== null
-      ? centsToSolesInput(editing.packCostCents)
-      : '',
-  );
   // Mínimo con default útil: 0 explícito significa "sin alerta de stock".
   const [minimum, setMinimum] = createSignal(
     editing === null
@@ -72,9 +62,6 @@ export const ProductFormModal: Component<{
   const [initialStock, setInitialStock] = createSignal('');
   const [quickAccess, setQuickAccess] = createSignal(editing?.quickAccess ?? false);
   const [active, setActive] = createSignal(editing?.active ?? true);
-  const [supplierIds, setSupplierIds] = createSignal<string[]>(editing?.supplierIds ?? []);
-  const [creatingSupplier, setCreatingSupplier] = createSignal(false);
-  const [newSupplierName, setNewSupplierName] = createSignal('');
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
   // Mensaje de la advertencia de nombre repetido; se confirma con otro botón.
@@ -83,8 +70,8 @@ export const ProductFormModal: Component<{
   const [nameWarning, setNameWarning] = createSignal('');
   const [barcodeWarning, setBarcodeWarning] = createSignal('');
   const [newAlias, setNewAlias] = createSignal('');
+  const [tab, setTab] = createSignal<'datos' | 'proveedores'>('datos');
 
-  const [suppliers, { refetch: refetchSuppliers }] = createResource(listSuppliers);
   const [aliases, { refetch: refetchAliases }] = createResource(async () =>
     editing === null ? null : listProductBarcodes(editing.id),
   );
@@ -113,21 +100,6 @@ export const ProductFormModal: Component<{
       await refetchAliases();
     } catch {
       beepError();
-    }
-  }
-
-  async function quickCreateSupplier(): Promise<void> {
-    const supplierName = newSupplierName().trim();
-    if (supplierName === '') return;
-    try {
-      const created = await createSupplier(supplierName);
-      setNewSupplierName('');
-      setCreatingSupplier(false);
-      await refetchSuppliers();
-      setSupplierIds([...supplierIds(), created.id]);
-    } catch {
-      beepError();
-      setError('No se pudo crear el proveedor.');
     }
   }
 
@@ -163,28 +135,8 @@ export const ProductFormModal: Component<{
     }
   }
 
-  // Empaque: unidades por caja + costo por caja, juntos o ninguno. Con
-  // empaque completo, el costo unitario se deriva y el campo Costo se apaga.
-  const packSizeValue = () => {
-    const parsed = Number.parseInt(packSize(), 10);
-    return Number.isNaN(parsed) || parsed < 1 ? null : parsed;
-  };
-  const packCostValue = () => {
-    const cents = solesInputToCents(packCost());
-    return cents === null || cents <= 0 ? null : cents;
-  };
-  const packEmpty = () => packSize().trim() === '' && packCost().trim() === '';
-  const packComplete = () =>
-    saleType() === 'unit' && packSizeValue() !== null && packCostValue() !== null;
-  const derivedUnitCost = () => {
-    const size = packSizeValue();
-    const packCents = packCostValue();
-    return size === null || packCents === null ? null : Math.round(packCents / size);
-  };
-  // Vacío = sin costo (0 en la API, que la tabla muestra como "—").
-  const effectiveCost = () =>
-    derivedUnitCost() ?? (cost().trim() === '' ? 0 : (solesInputToCents(cost()) ?? 0));
-  const costIsExplicitZero = () => !packComplete() && cost().trim() !== '' && effectiveCost() === 0;
+  // El costo es obligatorio: sin él el margen que reporta el sistema es falso.
+  const effectiveCost = () => (cost().trim() === '' ? 0 : (solesInputToCents(cost()) ?? 0));
 
   const marginLabel = () => {
     const priceValue = solesInputToCents(price());
@@ -206,7 +158,7 @@ export const ProductFormModal: Component<{
     name().trim() !== '' &&
     (solesInputToCents(price()) ?? 0) > 0 &&
     priceIsDime() &&
-    (saleType() !== 'unit' || packEmpty() || packComplete());
+    effectiveCost() > 0;
 
   // Qué le falta al formulario, dicho en cristiano bajo el botón: un botón
   // apagado sin explicación parece un bug.
@@ -214,8 +166,8 @@ export const ProductFormModal: Component<{
     if (name().trim() === '') return 'Falta el nombre del producto.';
     if ((solesInputToCents(price()) ?? 0) <= 0) return 'Falta el precio de venta.';
     if (!priceIsDime()) return DIME_MESSAGE;
-    if (saleType() === 'unit' && !packEmpty() && !packComplete())
-      return 'Completa (o vacía) los datos del pack: unidades y costo por caja.';
+    if (effectiveCost() <= 0)
+      return 'Falta el costo. Búscalo en la última factura: sin costo el margen que reporta el sistema es falso.';
     return null;
   };
 
@@ -225,17 +177,13 @@ export const ProductFormModal: Component<{
     setSaving(true);
     setError('');
     setDuplicateWarning('');
-    const isUnit = saleType() === 'unit';
     const payload = {
       barcode: barcode().trim() === '' ? null : barcode().trim(),
       shortCode: shortCode().trim() === '' ? null : shortCode().trim(),
       name: name().trim(),
       category: category(),
-      supplierIds: supplierIds(),
       priceCents: priceValue,
       costCents: effectiveCost(),
-      packSize: isUnit ? packSizeValue() : null,
-      packCostCents: isUnit ? packCostValue() : null,
       stockMinimum: Number.parseInt(minimum(), 10) || 0,
       quickAccess: quickAccess(),
     };
@@ -249,12 +197,7 @@ export const ProductFormModal: Component<{
         // Stock inicial en el mismo alta: genera la entrada de kardex de una.
         const stockValue = Number.parseInt(initialStock(), 10) || 0;
         if (stockValue > 0) {
-          await registerEntry(
-            created.id,
-            stockValue,
-            effectiveCost() > 0 ? effectiveCost() : null,
-            null,
-          );
+          await registerEntry(created.id, stockValue, effectiveCost(), null);
         }
         props.onDone(
           `Producto «${payload.name}» creado${stockValue > 0 ? ` con ${stockValue} de stock` : ''}`,
@@ -336,9 +279,42 @@ export const ProductFormModal: Component<{
       title={editing === null ? 'Nuevo producto' : `Editar — ${editing.name}`}
       dismissOnBackdrop={false}
       onClose={props.onClose}
-      footer={footer}
+      footer={tab() === 'datos' ? footer : null}
     >
-      <div class={styles.form}>
+      {/* Proveedores solo al editar: hace falta el producto para asociarlo. */}
+      <Show when={editing !== null}>
+        <nav class={styles.pestanas} aria-label="Secciones del producto">
+          <button
+            type="button"
+            class={styles.pestana}
+            classList={{ [styles.pestanaActiva]: tab() === 'datos' }}
+            onClick={() => setTab('datos')}
+          >
+            Datos
+          </button>
+          <button
+            type="button"
+            class={styles.pestana}
+            classList={{ [styles.pestanaActiva]: tab() === 'proveedores' }}
+            onClick={() => setTab('proveedores')}
+          >
+            Proveedores
+          </button>
+        </nav>
+      </Show>
+
+      <Show when={tab() === 'proveedores' && editing !== null}>
+        <ProductSuppliersTab
+          productId={editing?.id ?? ''}
+          productName={editing?.name ?? ''}
+          saleType={editing?.saleType ?? 'unit'}
+          priceCents={
+            editing?.saleType === 'weight' ? editing.pricePerKgCents : (editing?.priceCents ?? 0)
+          }
+        />
+      </Show>
+
+      <div class={styles.form} classList={{ [styles.oculto]: tab() !== 'datos' }}>
         <p class={styles.seccion}>Identificación</p>
 
         <div class={styles.fila}>
@@ -415,25 +391,15 @@ export const ProductFormModal: Component<{
           <div class={styles.campo}>
             <span class={styles.etiqueta}>Códigos de barras adicionales (alias)</span>
             <Show when={(aliases()?.barcodes.length ?? 0) > 0}>
-              <div style={{ display: 'flex', gap: '6px', 'flex-wrap': 'wrap' }}>
+              <div class={styles.alias}>
                 <For each={aliases()?.barcodes ?? []}>
                   {(code) => (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        'align-items': 'center',
-                        gap: '6px',
-                        padding: '4px 10px',
-                        'border-radius': '999px',
-                        background: 'var(--superficie-app)',
-                        'font-variant-numeric': 'tabular-nums',
-                      }}
-                    >
+                    <span class={styles.aliasChip}>
                       {code}
                       <button
                         type="button"
+                        class={styles.aliasQuitar}
                         aria-label={`Quitar código ${code}`}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', 'min-width': '24px' }}
                         onClick={() => void removeAlias(code)}
                       >
                         ✕
@@ -483,16 +449,14 @@ export const ProductFormModal: Component<{
           <div class={styles.campo}>
             <span class={styles.etiqueta}>
               Costo S/ {saleType() === 'weight' ? 'por kg' : ''}
-              {packComplete() ? ' (derivado de la caja)' : ''}
             </span>
             <input
               class={styles.input}
               type="number"
               step="0.10"
               min="0"
-              placeholder="vacío = sin costo"
-              value={packComplete() ? centsToSolesInput(derivedUnitCost() ?? 0) : cost()}
-              disabled={packComplete()}
+              placeholder="lo que te cuesta a ti"
+              value={cost()}
               onInput={(event) => setCost(event.currentTarget.value)}
             />
           </div>
@@ -503,49 +467,6 @@ export const ProductFormModal: Component<{
             : marginLabel()}
           {marginNegative() ? ' — el precio está por debajo del costo' : ''}
         </p>
-        <Show when={costIsExplicitZero()}>
-          <p class={styles.error}>
-            Costo 0 no es «sin costo»: produciría un margen falso de 100%. Déjalo vacío si no lo
-            sabes.
-          </p>
-        </Show>
-
-        <Show when={saleType() === 'unit'}>
-          <div class={styles.fila}>
-            <div class={styles.campo}>
-              <span class={styles.etiqueta}>Unidades por caja/paquete (opcional)</span>
-              <input
-                class={styles.input}
-                type="number"
-                min="1"
-                step="1"
-                placeholder="p. ej. 12"
-                value={packSize()}
-                onInput={(event) => setPackSize(event.currentTarget.value.replace(/\D/g, ''))}
-              />
-            </div>
-            <div class={styles.campo}>
-              <span class={styles.etiqueta}>Costo por caja/paquete S/</span>
-              <input
-                class={styles.input}
-                type="number"
-                step="0.10"
-                min="0"
-                placeholder="lo que cuesta la caja"
-                value={packCost()}
-                onInput={(event) => setPackCost(event.currentTarget.value)}
-              />
-            </div>
-          </div>
-          <Show when={!packEmpty() && !packComplete()}>
-            <p class={styles.error}>Completa unidades por caja y costo por caja, o deja ambos vacíos.</p>
-          </Show>
-          <Show when={packComplete()}>
-            <p class={styles.nota}>
-              Caja de {packSizeValue()} → costo unitario {formatSoles(derivedUnitCost() ?? 0)}
-            </p>
-          </Show>
-        </Show>
 
         <p class={styles.seccion}>Inventario</p>
 
@@ -590,62 +511,6 @@ export const ProductFormModal: Component<{
               <span class={styles.etiqueta}>0 = sin alerta de stock bajo para este producto</span>
             </Show>
           </div>
-        </div>
-
-        <div class={styles.campo}>
-          <span class={styles.etiqueta}>
-            Proveedores (ninguno = costo directo, sin orden de compra)
-          </span>
-          <For each={suppliers() ?? []}>
-            {(supplier) => (
-              <label class={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={supplierIds().includes(supplier.id)}
-                  onChange={(event) =>
-                    setSupplierIds(
-                      event.currentTarget.checked
-                        ? [...supplierIds(), supplier.id]
-                        : supplierIds().filter((id) => id !== supplier.id),
-                    )
-                  }
-                />
-                {supplier.name}
-              </label>
-            )}
-          </For>
-          <Show
-            when={creatingSupplier()}
-            fallback={
-              <button
-                type="button"
-                class={styles.secundario}
-                style={{ 'align-self': 'flex-start' }}
-                onClick={() => setCreatingSupplier(true)}
-              >
-                + Crear proveedor…
-              </button>
-            }
-          >
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                class={styles.input}
-                value={newSupplierName()}
-                onInput={(event) => setNewSupplierName(event.currentTarget.value)}
-                onKeyDown={(event) => event.key === 'Enter' && void quickCreateSupplier()}
-                placeholder="nombre del proveedor nuevo"
-                autofocus
-              />
-              <button
-                type="button"
-                class={styles.secundario}
-                disabled={newSupplierName().trim() === ''}
-                onClick={() => void quickCreateSupplier()}
-              >
-                Crear
-              </button>
-            </div>
-          </Show>
         </div>
 
         <p class={styles.seccion}>Opciones</p>

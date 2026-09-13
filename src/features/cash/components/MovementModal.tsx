@@ -45,6 +45,7 @@ export const MovementModal: Component<{
 
   return (
     <Modal
+      size="sm"
       title={
         props.movementKind === 'withdrawal'
           ? 'Retiro de efectivo'
@@ -53,6 +54,16 @@ export const MovementModal: Component<{
             : 'Ingreso de efectivo (refuerzo de fondo)'
       }
       onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} disabled={saving()} onClick={() => void save()}>
+            Registrar
+          </button>
+        </div>
+      }
     >
       <div class={forms.form}>
         <div class={forms.fila}>
@@ -88,14 +99,6 @@ export const MovementModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={forms.primario} disabled={saving()} onClick={() => void save()}>
-            Registrar
-          </button>
-        </div>
       </div>
     </Modal>
   );

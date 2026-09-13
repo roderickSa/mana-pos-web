@@ -6,7 +6,7 @@
 }
 
 .tecla {
-  min-height: 60px;
+  min-height: var(--alto-grande);
   font-size: 1.35rem;
   font-weight: 600;
   font-family: var(--fuente-dato);
@@ -36,7 +36,7 @@
 
 .confirmar {
   grid-column: 1 / -1;
-  min-height: 60px;
+  min-height: var(--alto-grande);
   font-size: 1.1rem;
   font-weight: 700;
   border: none;

@@ -1,10 +1,11 @@
 .vista {
   flex: 1;
+  min-height: 0;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .abrirCard {
@@ -33,7 +34,7 @@
   padding: 16px;
   font-size: 1.05rem;
   font-weight: 700;
-  min-height: 52px;
+  min-height: var(--alto-control);
 }
 
 .encabezado {
@@ -78,35 +79,6 @@
 
 .desglose {
   flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  align-content: start;
-}
-
-.desglose > div {
-  background: var(--superficie-panel);
-  border: 1px solid var(--linea);
-  border-radius: var(--radio);
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.desglose span {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  font-family: var(--fuente-dato);
-  letter-spacing: 0.06em;
-  color: var(--tinta-suave);
-  font-weight: 600;
-}
-
-.desglose b {
-  font-size: 1.15rem;
-  font-family: var(--fuente-dato);
-  font-variant-numeric: tabular-nums;
 }
 
 .acciones {
@@ -142,6 +114,42 @@
   border: 1px solid var(--linea);
   border-radius: var(--radio);
   padding: 16px 18px;
+}
+
+/* Los dos paneles del turno comparten la fila y el alto que queda: el de
+   movimientos crece sin techo durante el día, así que rueda por dentro en vez
+   de empujar el historial de cierres fuera de la pantalla. */
+.paneles {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 16px;
+}
+
+.panel,
+.historial {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panelRueda,
+.historialTabla {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Lo que entra a la caja se lee en verde; lo que sale, en rojo. */
+.entra {
+  color: var(--mana-verde);
+}
+
+.panel td:last-child:not(.entra) {
+  color: var(--peligro);
 }
 
 .movimientos h3 {

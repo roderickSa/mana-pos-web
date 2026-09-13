@@ -63,12 +63,18 @@
   font-size: 1.1rem;
 }
 
+/* El texto NO se estira: si lo hace, el chip de estado de cada tarjeta queda a
+   una altura distinta según lo largo de la explicación. El hueco sobrante cae
+   al final de la tarjeta, no en el medio. */
 .detalle {
   margin: 0;
   color: var(--tinta-suave);
   font-size: 0.88rem;
   line-height: 1.5;
-  flex: 1;
+}
+
+.tarjeta {
+  justify-content: flex-start;
 }
 
 .pesoVivo {
@@ -79,26 +85,6 @@
   font-family: var(--fuente-dato);
   font-variant-numeric: tabular-nums;
   color: var(--tinta-activa);
-}
-
-.estadoChip {
-  align-self: flex-start;
-  border-radius: var(--radio-chip);
-  padding: 4px 12px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: var(--superficie-app);
-  color: var(--tinta-suave);
-}
-
-.estadoOk {
-  background: var(--mana-verde-suave);
-  color: var(--tinta-activa);
-}
-
-.estadoDev {
-  background: var(--advertencia-fondo);
-  color: var(--advertencia-tinta);
 }
 
 .tarjeta button {
@@ -137,6 +123,20 @@
   flex-wrap: wrap;
 }
 
+/* La tarjeta es angosta: con la etiqueta al lado, el select quedaba en 50 px y
+   no se leía ni el nombre de la impresora. La etiqueta pasa a ser un rótulo. */
+.configFilaApilada {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.configControles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .configEtiqueta {
   font-size: 0.78rem;
   font-weight: 600;
@@ -150,7 +150,7 @@
 .configSelect {
   flex: 1;
   min-width: 0;
-  min-height: 44px;
+  min-height: var(--alto-control);
   border: 1.5px solid var(--linea);
   border-radius: var(--radio-chico);
   background: var(--superficie-panel);
@@ -161,7 +161,7 @@
 
 .configRefrescar {
   width: 44px;
-  height: 44px;
+  height: var(--alto-control);
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta-suave);
@@ -175,7 +175,7 @@
 }
 
 .configAnchos button {
-  min-height: 44px;
+  min-height: var(--alto-control);
   padding: 0 18px;
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
@@ -191,7 +191,7 @@
 }
 
 .configGuardar {
-  min-height: 44px;
+  min-height: var(--alto-control);
   padding: 0 22px;
   border: none;
   border-radius: var(--radio-boton);

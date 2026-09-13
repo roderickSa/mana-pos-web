@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createResource, createSignal, For, Show, type Component, type JSX } from 'solid-js';
 
 import {
   applyBulkPrices,
@@ -15,7 +15,9 @@ import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { formatSoles, solesInputToCents, centsToSolesInput } from '@/shared/lib/money';
 import { showNotice } from '@/shared/state/notices';
 import { Modal } from '@/shared/ui/Modal';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import forms from '@/shared/ui/forms.module.css';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import tabla from '@/shared/ui/tabla.module.css';
 import styles from './BulkPricesModal.module.css';
 
@@ -32,12 +34,7 @@ interface ImpactChange {
 // Cambiar cientos de precios de un clic es la acción más riesgosa del sistema:
 // antes de aplicar se muestra el impacto (cuántos, promedio y mayor subida)
 // y se pide una confirmación explícita.
-const ConfirmImpact: Component<{
-  changes: ImpactChange[];
-  busy: boolean;
-  onConfirm: () => void;
-  onBack: () => void;
-}> = (props) => {
+const ImpactSummary: Component<{ changes: ImpactChange[] }> = (props) => {
   const avgPercent = () => {
     const withOld = props.changes.filter((change) => change.oldPriceCents > 0);
     if (withOld.length === 0) return 0;
@@ -61,17 +58,27 @@ const ConfirmImpact: Component<{
         {' · '}Mayor subida: {biggest().name} ({formatSoles(biggest().oldPriceCents)} →{' '}
         {formatSoles(biggest().newPriceCents)}). Las ventas ya cobradas no cambian.
       </p>
-      <div class={forms.acciones}>
-        <button type="button" class={forms.secundario} disabled={props.busy} onClick={props.onBack}>
-          Volver
-        </button>
-        <button type="button" class={forms.primario} disabled={props.busy} onClick={props.onConfirm}>
-          {props.busy ? 'Aplicando…' : `Sí, aplicar ${props.changes.length} cambios`}
-        </button>
-      </div>
     </div>
   );
 };
+
+// Los botones de confirmar viven en el pie fijo del modal, nunca dentro del
+// cuerpo que rueda: con 200 productos en pantalla quedaban fuera de vista.
+const ConfirmActions: Component<{
+  count: number;
+  busy: boolean;
+  onConfirm: () => void;
+  onBack: () => void;
+}> = (props) => (
+  <div class={forms.acciones}>
+    <button type="button" class={forms.secundario} disabled={props.busy} onClick={props.onBack}>
+      Volver
+    </button>
+    <button type="button" class={forms.primario} disabled={props.busy} onClick={props.onConfirm}>
+      {props.busy ? 'Aplicando…' : `Sí, aplicar ${props.count} cambios`}
+    </button>
+  </div>
+);
 
 // Cambio masivo de precios (por categoría/proveedor, % o soles, con vista
 // previa de margen) + sugerencias para productos con margen bajo el umbral.
@@ -80,32 +87,40 @@ export const BulkPricesModal: Component<{ onClose: () => void; onApplied: () => 
 ) => {
   const [tab, setTab] = createSignal<'masivo' | 'margen'>('masivo');
 
+  const tabs = () => (
+    <div class={styles.tabs}>
+      <button
+        type="button"
+        classList={{ [styles.tabActiva]: tab() === 'masivo' }}
+        onClick={() => setTab('masivo')}
+      >
+        Cambio masivo
+      </button>
+      <button
+        type="button"
+        classList={{ [styles.tabActiva]: tab() === 'margen' }}
+        onClick={() => setTab('margen')}
+      >
+        Margen bajo
+      </button>
+    </div>
+  );
+
   return (
-    <Modal size="xl" title="Precios" onClose={props.onClose}>
-      <div class={styles.tabs}>
-        <button
-          type="button"
-          classList={{ [styles.tabActiva]: tab() === 'masivo' }}
-          onClick={() => setTab('masivo')}
-        >
-          Cambio masivo
-        </button>
-        <button
-          type="button"
-          classList={{ [styles.tabActiva]: tab() === 'margen' }}
-          onClick={() => setTab('margen')}
-        >
-          Margen bajo
-        </button>
-      </div>
-      <Show when={tab() === 'masivo'} fallback={<LowMarginTab onApplied={props.onApplied} />}>
-        <BulkTab onApplied={props.onApplied} />
-      </Show>
-    </Modal>
+    <Show
+      when={tab() === 'masivo'}
+      fallback={<LowMarginTab tabs={tabs()} onApplied={props.onApplied} onClose={props.onClose} />}
+    >
+      <BulkTab tabs={tabs()} onApplied={props.onApplied} onClose={props.onClose} />
+    </Show>
   );
 };
 
-const BulkTab: Component<{ onApplied: () => void }> = (props) => {
+const BulkTab: Component<{
+  tabs: JSX.Element;
+  onApplied: () => void;
+  onClose: () => void;
+}> = (props) => {
   const [category, setCategory] = createSignal('');
   const [supplierId, setSupplierId] = createSignal('');
   const [mode, setMode] = createSignal<'percent' | 'amount'>('percent');
@@ -173,7 +188,7 @@ const BulkTab: Component<{ onApplied: () => void }> = (props) => {
     }
   }
 
-  return (
+  const cuerpo = () => (
     <div class={forms.form}>
       <div class={styles.filtros}>
         <div class={forms.campo}>
@@ -248,72 +263,99 @@ const BulkTab: Component<{ onApplied: () => void }> = (props) => {
 
       <Show when={changes()}>
         {(list) => (
-          <div class={tabla.tablaContenedor} style={{ 'max-height': '40vh', 'overflow-y': 'auto' }}>
-            <table class={tabla.tabla}>
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Costo</th>
-                  <th>Precio</th>
-                  <th>Nuevo</th>
-                  <th>Margen</th>
-                </tr>
-              </thead>
-              <tbody>
-                <For each={list()}>
-                  {(change) => (
-                    <tr>
-                      <td>{change.name}{change.saleType === 'weight' ? ' (por kg)' : ''}</td>
-                      <td>{change.costCents > 0 ? formatSoles(change.costCents) : '—'}</td>
-                      <td>{formatSoles(change.oldPriceCents)}</td>
-                      <td><b>{formatSoles(change.newPriceCents)}</b></td>
-                      <td>
-                        {marginLabel(change.oldMarginPercent)} → <b>{marginLabel(change.newMarginPercent)}</b>
-                      </td>
-                    </tr>
-                  )}
-                </For>
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div class={tabla.tablaContenedor} style={{ 'max-height': '40vh', 'overflow-y': 'auto' }}>
+              <table class={tabla.tabla}>
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Costo</th>
+                    <th>Precio</th>
+                    <th>Nuevo</th>
+                    <th>Margen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <For each={list()}>
+                    {(change) => (
+                      <tr>
+                        <td>{change.name}{change.saleType === 'weight' ? ' (por kg)' : ''}</td>
+                        <td>{change.costCents > 0 ? formatSoles(change.costCents) : '—'}</td>
+                        <td>{formatSoles(change.oldPriceCents)}</td>
+                        <td><b>{formatSoles(change.newPriceCents)}</b></td>
+                        <td>
+                          {marginLabel(change.oldMarginPercent)} → <b>{marginLabel(change.newMarginPercent)}</b>
+                        </td>
+                      </tr>
+                    )}
+                  </For>
+                </tbody>
+              </table>
+            </div>
+            <TableFooter
+              total={list().length}
+              singular="producto cambia"
+              plural="productos cambian"
+            />
+          </>
         )}
       </Show>
 
-      <Show
-        when={!confirming()}
-        fallback={
-          <ConfirmImpact
-            changes={changes() ?? []}
-            busy={busy()}
-            onConfirm={() => void apply()}
-            onBack={() => setConfirming(false)}
-          />
-        }
-      >
-        <div class={forms.acciones}>
-          <button
-            type="button"
-            class={forms.secundario}
-            disabled={params() === null || busy()}
-            onClick={() => void preview()}
-          >
-            Ver cambios
-          </button>
-          <button
-            type="button"
-            class={forms.primario}
-            disabled={changes() === null || (changes() ?? []).length === 0 || busy()}
-            onClick={() => setConfirming(true)}
-          >
-            {`Aplicar a ${(changes() ?? []).length} productos`}
-          </button>
-        </div>
+      <Show when={confirming()}>
+        <ImpactSummary changes={changes() ?? []} />
       </Show>
     </div>
   );
+
+  const pie = () => (
+    <Show
+      when={!confirming()}
+      fallback={
+        <ConfirmActions
+          count={(changes() ?? []).length}
+          busy={busy()}
+          onConfirm={() => void apply()}
+          onBack={() => setConfirming(false)}
+        />
+      }
+    >
+      <div class={forms.acciones}>
+        <button type="button" class={forms.secundario} onClick={props.onClose}>
+          Cerrar
+        </button>
+        <button
+          type="button"
+          class={forms.secundario}
+          disabled={params() === null || busy()}
+          onClick={() => void preview()}
+        >
+          Ver cambios
+        </button>
+        <button
+          type="button"
+          class={forms.primario}
+          disabled={changes() === null || (changes() ?? []).length === 0 || busy()}
+          onClick={() => setConfirming(true)}
+        >
+          {`Aplicar a ${(changes() ?? []).length} productos`}
+        </button>
+      </div>
+    </Show>
+  );
+
+  return (
+    <Modal size="xl" title="Precios" onClose={props.onClose} footer={pie()}>
+      {props.tabs}
+      {cuerpo()}
+    </Modal>
+  );
 };
 
-const LowMarginTab: Component<{ onApplied: () => void }> = (props) => {
+const LowMarginTab: Component<{
+  tabs: JSX.Element;
+  onApplied: () => void;
+  onClose: () => void;
+}> = (props) => {
   const [threshold, setThreshold] = createSignal(20);
   const [excluded, setExcluded] = createSignal<Record<string, boolean>>({});
   const [priceDrafts, setPriceDrafts] = createSignal<Record<string, string>>({});
@@ -372,7 +414,7 @@ const LowMarginTab: Component<{ onApplied: () => void }> = (props) => {
     }
   }
 
-  return (
+  const cuerpo = () => (
     <div class={forms.form}>
       <div class={forms.campo} style={{ 'max-width': '220px' }}>
         <label class={forms.etiqueta} for="margen-umbral">Margen mínimo deseado (%)</label>
@@ -457,31 +499,56 @@ const LowMarginTab: Component<{ onApplied: () => void }> = (props) => {
               </For>
             </tbody>
           </table>
+          <Show when={items().length === 0}>
+            <EmptyState message="Ningún producto de esta selección tiene costo cargado, así que no hay precio que sugerir." />
+          </Show>
         </div>
+        <TableFooter
+          total={items().length}
+          singular="producto bajo el margen"
+          plural="productos bajo el margen"
+          detail={`${validSelection().length} seleccionados`}
+        />
       </Show>
 
-      <Show
-        when={!confirming()}
-        fallback={
-          <ConfirmImpact
-            changes={impactChanges()}
-            busy={busy()}
-            onConfirm={() => void apply()}
-            onBack={() => setConfirming(false)}
-          />
-        }
-      >
-        <div class={forms.acciones}>
-          <button
-            type="button"
-            class={forms.primario}
-            disabled={validSelection().length === 0 || busy()}
-            onClick={() => setConfirming(true)}
-          >
-            {`Aplicar ${validSelection().length} sugeridos`}
-          </button>
-        </div>
+      <Show when={confirming()}>
+        <ImpactSummary changes={impactChanges()} />
       </Show>
     </div>
+  );
+
+  const pie = () => (
+    <Show
+      when={!confirming()}
+      fallback={
+        <ConfirmActions
+          count={impactChanges().length}
+          busy={busy()}
+          onConfirm={() => void apply()}
+          onBack={() => setConfirming(false)}
+        />
+      }
+    >
+      <div class={forms.acciones}>
+        <button type="button" class={forms.secundario} onClick={props.onClose}>
+          Cerrar
+        </button>
+        <button
+          type="button"
+          class={forms.primario}
+          disabled={validSelection().length === 0 || busy()}
+          onClick={() => setConfirming(true)}
+        >
+          {`Aplicar ${validSelection().length} sugeridos`}
+        </button>
+      </div>
+    </Show>
+  );
+
+  return (
+    <Modal size="xl" title="Precios" onClose={props.onClose} footer={pie()}>
+      {props.tabs}
+      {cuerpo()}
+    </Modal>
   );
 };

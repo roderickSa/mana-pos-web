@@ -75,8 +75,16 @@ export async function registerCashMovement(
   return sendJson('POST', '/cash/movements', { kind, amountCents, concept });
 }
 
-export async function getCashHistory(): Promise<ClosedCashSessionDto[]> {
-  return getJson('/cash/history');
+export interface CashHistoryPageDto {
+  items: ClosedCashSessionDto[];
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+export async function getCashHistory(page: number, perPage: number): Promise<CashHistoryPageDto> {
+  const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+  return getJson(`/cash/history?${params.toString()}`);
 }
 
 export async function closeCash(

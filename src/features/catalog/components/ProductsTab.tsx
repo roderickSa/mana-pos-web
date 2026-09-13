@@ -9,6 +9,7 @@ import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
 import { allCategories } from '@/shared/state/categories';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { ActionsMenu, type ProductAction } from './ActionsMenu';
 import { CountModal } from '@/shared/ui/CountModal';
@@ -20,6 +21,7 @@ import { ProductFormModal } from './ProductFormModal';
 import { costOf, minimumOf, priceOf, stockOf } from '@/shared/lib/product-units';
 import styles from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
+import { EmptyState } from '@/shared/ui/EmptyState';
 
 const PER_PAGE = 50;
 
@@ -101,11 +103,8 @@ export const ProductsTab: Component = () => {
         shortCode: product.shortCode,
         name: product.name,
         category: product.category,
-        supplierIds: product.supplierIds,
         priceCents: priceOf(product),
         costCents: cents,
-        packSize: product.saleType === 'unit' ? product.packSize : null,
-        packCostCents: product.saleType === 'unit' ? product.packCostCents : null,
         stockMinimum: minimumOf(product),
         active: product.active,
         quickAccess: product.quickAccess,
@@ -386,14 +385,6 @@ export const ProductsTab: Component = () => {
                           </button>
                         </Show>
                       </Show>
-                      <Show when={product.saleType === 'unit' && product.packSize !== null}>
-                        <div
-                          class={styles.sub}
-                          title="Este producto se compra por caja: costo unitario derivado"
-                        >
-                          caja ×{product.saleType === 'unit' ? product.packSize : ''}
-                        </div>
-                      </Show>
                     </td>
                     <td class={styles.num}>
                       <Show
@@ -422,32 +413,31 @@ export const ProductsTab: Component = () => {
           </tbody>
         </table>
         <Show when={!result.loading && items().length === 0}>
-          <div class={styles.vacio}>
-            <p>No hay productos que coincidan con «{query()}».</p>
-            <Show when={queryIsBarcode()}>
-              <button
-                type="button"
-                class={styles.nuevo}
-                onClick={() => setModal({ kind: 'create', initialBarcode: query().trim() })}
-              >
-                Crear producto con el código {query().trim()}
-              </button>
-            </Show>
-          </div>
+          <EmptyState
+            message={`No hay productos que coincidan con «${query()}».`}
+            action={
+              <Show when={queryIsBarcode()}>
+                <button
+                  type="button"
+                  class={styles.nuevo}
+                  onClick={() => setModal({ kind: 'create', initialBarcode: query().trim() })}
+                >
+                  Crear producto con el código {query().trim()}
+                </button>
+              </Show>
+            }
+          />
         </Show>
       </div>
 
-      <div class={styles.paginacion}>
-        <button type="button" disabled={page() <= 1} onClick={() => setPage(page() - 1)}>
-          ‹ Anterior
-        </button>
-        <span>
-          Página {page()} de {totalPages()} · {total()} productos
-        </span>
-        <button type="button" disabled={page() >= totalPages()} onClick={() => setPage(page() + 1)}>
-          Siguiente ›
-        </button>
-      </div>
+      <TableFooter
+        total={total()}
+        singular="producto"
+        plural="productos"
+        page={page()}
+        lastPage={totalPages()}
+        onPage={setPage}
+      />
 
       {renderModal(modal(), closeAndRefresh, () => setModal({ kind: 'none' }))}
     </section>

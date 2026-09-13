@@ -12,6 +12,8 @@ import { apiErrorMessage } from '@/shared/api/client';
 import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { refreshCategories } from '@/shared/state/categories';
 import { showNotice } from '@/shared/state/notices';
+import { Chip } from '@/shared/ui/Chip';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { CategoryIcon, CATEGORY_ICON_KEYS } from '@/shared/ui/CategoryIcon';
 import { Modal } from '@/shared/ui/Modal';
 import tabla from '@/shared/ui/tabla.module.css';
@@ -76,7 +78,7 @@ export const CategoriesTab: Component = () => {
       <div class={tabla.encabezado}>
         <p class={tabla.vacio} style={{ padding: '0', 'text-align': 'left', flex: '1' }}>
           El orden de esta lista es el orden de las pestañas de Vender. El ícono y el color visten
-          los tiles de los productos sin foto.
+          los productos que no tienen foto.
         </p>
         <button type="button" class={tabla.nuevo} onClick={() => setCreating(true)}>
           + Nueva categoría
@@ -131,7 +133,11 @@ export const CategoriesTab: Component = () => {
                     </span>
                   </td>
                   <td class={tabla.num}>{category.productCount ?? 0}</td>
-                  <td class={tabla.sub}>{category.active ? 'activa' : 'inactiva'}</td>
+                  <td>
+                    <Chip tone={category.active ? 'exito' : 'neutro'}>
+                      {category.active ? 'activa' : 'inactiva'}
+                    </Chip>
+                  </td>
                   <td class={tabla.acciones}>
                     <button type="button" onClick={() => setEditing(category)}>
                       Editar
@@ -153,6 +159,12 @@ export const CategoriesTab: Component = () => {
           </tbody>
         </table>
       </div>
+
+      <TableFooter
+        total={(items() ?? []).length}
+        singular="categoría"
+        plural="categorías"
+      />
 
       <Show when={creating()}>
         <CategoryFormModal
@@ -229,7 +241,21 @@ const CategoryFormModal: Component<{
   }
 
   return (
-    <Modal title={props.title} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={props.title}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} disabled={saving()} onClick={() => void save()}>
+            Guardar
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <div class={forms.campo}>
           <span class={forms.etiqueta}>Nombre</span>
@@ -244,7 +270,7 @@ const CategoryFormModal: Component<{
         </div>
 
         <div class={forms.campo}>
-          <span class={forms.etiqueta}>Ícono (para tiles sin foto)</span>
+          <span class={forms.etiqueta}>Ícono (para los productos sin foto)</span>
             <div class={styles.pickerIconos}>
               <For each={[...CATEGORY_ICON_KEYS]}>
                 {(key) => (
@@ -263,7 +289,7 @@ const CategoryFormModal: Component<{
           </div>
 
           <div class={forms.campo}>
-            <span class={forms.etiqueta}>Color (barra del tile)</span>
+            <span class={forms.etiqueta}>Color (la barra de color del producto)</span>
             <div class={styles.pickerColores}>
               <For each={COLOR_KEYS}>
                 {(key) => (
@@ -284,14 +310,6 @@ const CategoryFormModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={forms.primario} disabled={saving()} onClick={() => void save()}>
-            Guardar
-          </button>
-        </div>
       </div>
     </Modal>
   );
@@ -328,7 +346,26 @@ const DeleteCategoryModal: Component<{
   }
 
   return (
-    <Modal size="sm" title={`Eliminar «${props.category.name}»`} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={`Eliminar «${props.category.name}»`}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class={styles.eliminar}
+            disabled={target() === '' || busy()}
+            onClick={() => void confirm()}
+          >
+            {busy() ? 'Eliminando…' : 'Sí, eliminar categoría'}
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <p class={forms.nota}>
           {props.category.productCount === 0
@@ -355,19 +392,6 @@ const DeleteCategoryModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class={styles.eliminar}
-            disabled={target() === '' || busy()}
-            onClick={() => void confirm()}
-          >
-            {busy() ? 'Eliminando…' : 'Sí, eliminar categoría'}
-          </button>
-        </div>
       </div>
     </Modal>
   );

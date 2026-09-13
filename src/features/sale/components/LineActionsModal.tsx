@@ -3,6 +3,7 @@ import { Show, type Component } from 'solid-js';
 import { formatKg, formatSoles } from '@/shared/lib/money';
 import type { TicketLine } from '@/shared/types';
 import { Modal } from '@/shared/ui/Modal';
+import forms from '@/shared/ui/forms.module.css';
 import styles from './LineActionsModal.module.css';
 
 // Panel táctil de la línea: tap en la fila del ticket → botones grandes,
@@ -18,7 +19,18 @@ export const LineActionsModal: Component<{
   const line = props.line;
 
   return (
-    <Modal size="sm" title={line.product.name} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={line.product.name}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Volver
+          </button>
+        </div>
+      }
+    >
       <div class={styles.cuerpo}>
         <p class={styles.resumen}>
           {line.kind === 'weight'

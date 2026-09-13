@@ -1,38 +1,3 @@
-.estado {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: var(--radio-chip);
-  border: 1px solid var(--chip-neutro-borde);
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--chip-neutro-fondo);
-  color: var(--chip-neutro-tinta);
-}
-
-.estadoAbierta {
-  background: var(--chip-info-fondo);
-  border-color: var(--chip-info-borde);
-  color: var(--chip-info-tinta);
-}
-
-.estadoParcial {
-  background: var(--advertencia-fondo);
-  border-color: var(--advertencia-borde);
-  color: var(--advertencia-tinta);
-}
-
-.estadoRecibida {
-  background: var(--chip-exito-fondo);
-  border-color: var(--chip-exito-borde);
-  color: var(--chip-exito-tinta);
-}
-
-.estadoCancelada {
-  background: var(--chip-peligro-fondo);
-  border-color: var(--chip-peligro-borde);
-  color: var(--chip-peligro-tinta);
-}
-
 .lineas {
   display: flex;
   flex-direction: column;
@@ -43,7 +8,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 110px 130px 110px 44px;
   gap: 8px;
-  align-items: end;
+  align-items: center;
   padding: 10px;
   border: 1px solid var(--linea);
   border-radius: 10px;
@@ -64,7 +29,7 @@
 
 .quitar {
   min-width: 44px;
-  min-height: 44px;
+  min-height: var(--alto-control);
   border: 1px solid var(--linea);
   border-radius: 10px;
   background: var(--superficie-panel);
@@ -93,7 +58,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
-  min-height: 44px;
+  min-height: var(--alto-control);
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -119,4 +84,139 @@
   .linea {
     grid-template-columns: minmax(0, 1fr) 110px 130px 110px 48px;
   }
+}
+
+/* Contexto del proveedor al armar la orden: cuánto se le suele gastar. */
+.contexto {
+  display: flex;
+  align-items: baseline;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  background: var(--superficie-app);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 10px 14px;
+  font-size: 0.88rem;
+}
+
+.contexto b {
+  font-variant-numeric: tabular-nums;
+}
+
+/* El costo pactado subió respecto de la última compra a ESE proveedor. */
+.subioCosto {
+  color: var(--alerta);
+  font-size: 0.78rem;
+}
+
+.bajoCosto {
+  color: var(--exito);
+  font-size: 0.78rem;
+}
+
+/* Armar la orden: cabecera fija, lista que rueda y pie fijo. Sin esto el
+   contenedor recortaba y con varias líneas los botones quedaban fuera. */
+.armado {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.datosOrden {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.listaLineas {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.sinLineas {
+  margin: 0;
+  padding: 22px;
+  text-align: center;
+  color: var(--tinta-suave);
+  background: var(--superficie-app);
+  border: 1px dashed var(--linea);
+  border-radius: var(--radio);
+}
+
+/* Pie fijo: el total y los botones siempre a la vista, como en los modales. */
+.pieOrden {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--linea);
+  padding-top: 12px;
+}
+
+.pieOrden .totalOrden {
+  margin: 0;
+}
+
+/* Buscador y atajo en la misma línea: cada bloque suelto le quita alto a la
+   lista de productos, que es donde de verdad se trabaja. */
+.agregar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Datos plegados: una línea con a quién y para cuándo, y se vuelve a abrir. */
+.resumenDatos {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1;
+  text-align: left;
+  background: var(--superficie-app);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 10px 14px;
+  min-height: var(--toque-min);
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.resumenDatos:hover {
+  border-color: var(--mana-verde);
+}
+
+.cambiar {
+  color: var(--tinta-activa);
+  font-weight: 600;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.plegado {
+  display: none;
+}
+
+/* Las etiquetas de los campos solo en la primera fila: repetirlas en cada
+   línea llena la pantalla de ruido cuando la orden tiene veinte productos. */
+.lineas > .linea:not(:first-child) span[class*='etiqueta'] {
+  display: none;
+}
+
+.encabezadoArmado h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.campoBuscar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }

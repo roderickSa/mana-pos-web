@@ -105,6 +105,34 @@ export const DiscountModal: Component<{
       title={line !== null ? `Descuento — ${line.product.name}` : 'Descuento al ticket'}
       size="sm"
       onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <Show when={currentCents > 0}>
+            <button
+              type="button"
+              class={`${forms.secundario} ${styles.quitar}`}
+              disabled={saving()}
+              onClick={() => {
+                applyDiscount(0);
+                props.onClose();
+              }}
+            >
+              Quitar descuento
+            </button>
+          </Show>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={saving()}
+            onClick={() => void confirm()}
+          >
+            {saving() ? 'Aplicando…' : 'Aplicar descuento'}
+          </button>
+        </div>
+      }
     >
       <div class={forms.form}>
         <div class={forms.campo}>
@@ -177,32 +205,6 @@ export const DiscountModal: Component<{
           <p class={forms.error}>{error()}</p>
         </Show>
 
-        <div class={forms.acciones}>
-          <Show when={currentCents > 0}>
-            <button
-              type="button"
-              class={`${forms.secundario} ${styles.quitar}`}
-              disabled={saving()}
-              onClick={() => {
-                applyDiscount(0);
-                props.onClose();
-              }}
-            >
-              Quitar descuento
-            </button>
-          </Show>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class={forms.primario}
-            disabled={saving()}
-            onClick={() => void confirm()}
-          >
-            {saving() ? 'Aplicando…' : 'Aplicar descuento'}
-          </button>
-        </div>
       </div>
     </Modal>
   );

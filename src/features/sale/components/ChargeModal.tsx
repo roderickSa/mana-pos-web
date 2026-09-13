@@ -96,10 +96,26 @@ export const ChargeModal: Component<{
 
   return (
     <Modal
+      size="md"
       title={`Cobrar ${formatSoles(props.totalCents)} — ${props.method}`}
       onClose={props.onClose}
       footer={
-        <Show when={done() === null}>
+        <Show
+          when={done() === null}
+          fallback={
+            <div class={styles.acciones}>
+              <button
+                type="button"
+                class={styles.cobrar}
+                onClick={props.onClose}
+                onKeyDown={(event) => event.key === 'Enter' && props.onClose()}
+                autofocus
+              >
+                Listo (Enter)
+              </button>
+            </div>
+          }
+        >
           <div class={styles.acciones}>
             <button type="button" class={styles.cancelar} onClick={props.onClose}>
               Cancelar
@@ -256,17 +272,6 @@ export const ChargeModal: Component<{
               <Show when={response().printerWarning}>
                 {(warning) => <p class={styles.aviso}>{warning()}</p>}
               </Show>
-              <div class={styles.acciones}>
-                <button
-                  type="button"
-                  class={styles.cobrar}
-                  onClick={props.onClose}
-                  onKeyDown={(event) => event.key === 'Enter' && props.onClose()}
-                  autofocus
-                >
-                  Listo (Enter)
-                </button>
-              </div>
             </div>
           )}
         </Match>

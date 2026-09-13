@@ -5,6 +5,7 @@ import { MOVEMENT_KIND_LABELS } from '@/shared/lib/labels';
 import { formatDateTime } from '@/shared/lib/dates';
 import type { ProductDto } from '@/shared/types';
 import { Modal } from '@/shared/ui/Modal';
+import forms from '@/shared/ui/forms.module.css';
 import styles from './KardexModal.module.css';
 
 export const KardexModal: Component<{
@@ -18,28 +19,26 @@ export const KardexModal: Component<{
   const unit = props.product.saleType === 'unit' ? 'unid.' : 'g';
 
   return (
-    <Modal title={`Movimientos — ${props.product.name}`} onClose={props.onClose}>
+    <Modal
+      size="md"
+      title={`Movimientos — ${props.product.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cerrar
+          </button>
+          <button type="button" class={forms.primario} onClick={() => props.onGoToKardex()}>
+            Ver todo en Kardex →
+          </button>
+        </div>
+      }
+    >
       <Show when={kardex()} fallback={<p class={styles.cargando}>Cargando movimientos…</p>}>
         {(data) => (
           <>
             <p class={styles.actual}>
               Stock actual: <b>{data().currentQuantity}</b> {unit}
-              {' · '}
-              <button
-                type="button"
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  color: 'var(--mana-verde)',
-                  'text-decoration': 'underline',
-                  cursor: 'pointer',
-                  padding: '0',
-                  font: 'inherit',
-                }}
-                onClick={() => props.onGoToKardex()}
-              >
-                ver todo en Kardex →
-              </button>
             </p>
             <div class={styles.lista}>
               <For each={data().movements}>

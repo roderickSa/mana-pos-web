@@ -31,7 +31,18 @@ export const QuantityModal: Component<{
   }
 
   return (
-    <Modal size="sm" title={`Cantidad — ${props.line.product.name}`} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={`Cantidad — ${props.line.product.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Volver
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <div class={forms.campo}>
           <label class={forms.etiqueta} for="cantidad-linea">

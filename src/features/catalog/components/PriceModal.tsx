@@ -39,11 +39,8 @@ export const PriceModal: Component<{
         shortCode: props.product.shortCode,
         name: props.product.name,
         category: props.product.category,
-        supplierIds: props.product.supplierIds,
         priceCents: newPriceCents(),
         costCents: costOf(props.product),
-        packSize: props.product.saleType === 'unit' ? props.product.packSize : null,
-        packCostCents: props.product.saleType === 'unit' ? props.product.packCostCents : null,
         stockMinimum:
           props.product.saleType === 'unit'
             ? props.product.stockMinimum
@@ -61,7 +58,21 @@ export const PriceModal: Component<{
   }
 
   return (
-    <Modal title={`Actualizar precio — ${props.product.name}`} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={`Actualizar precio — ${props.product.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={styles.acciones}>
+          <button type="button" class={styles.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={styles.primario} disabled={!valid() || saving()} onClick={save}>
+            Actualizar precio
+          </button>
+        </div>
+      }
+    >
       <div class={styles.form}>
         <p class={styles.nota}>
           Precio actual: <b>{formatSoles(priceOf(props.product))}</b>
@@ -89,14 +100,6 @@ export const PriceModal: Component<{
         <Show when={error() !== ''}>
           <p class={styles.error}>{error()}</p>
         </Show>
-        <div class={styles.acciones}>
-          <button type="button" class={styles.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={styles.primario} disabled={!valid() || saving()} onClick={save}>
-            Actualizar precio
-          </button>
-        </div>
       </div>
     </Modal>
   );

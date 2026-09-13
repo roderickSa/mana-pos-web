@@ -21,6 +21,7 @@ import {
   ticketTotalCents,
   undoRemoveLine,
 } from '@/features/sale/state/ticket';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { PaymentPicker } from './PaymentPicker';
 import styles from './TicketPanel.module.css';
 
@@ -169,7 +170,7 @@ export const TicketPanel: Component<{
           )}
         </For>
         <Show when={ticketLines().length === 0}>
-          <p class={styles.vacio}>Escanea o toca un producto para empezar la venta.</p>
+          <EmptyState message="Escanea o toca un producto para empezar la venta." />
         </Show>
       </div>
 

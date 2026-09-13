@@ -1,6 +1,7 @@
 import { For, type Component } from 'solid-js';
 
 import { Modal } from '@/shared/ui/Modal';
+import forms from '@/shared/ui/forms.module.css';
 import styles from './ShortcutsHelp.module.css';
 
 const SHORTCUTS: Array<{ keys: string; action: string; touch: string }> = [
@@ -21,7 +22,18 @@ const SHORTCUTS: Array<{ keys: string; action: string; touch: string }> = [
 ];
 
 export const ShortcutsHelp: Component<{ onClose: () => void }> = (props) => (
-  <Modal title="Atajos de teclado" onClose={props.onClose}>
+  <Modal
+    size="lg"
+    title="Atajos de teclado"
+    onClose={props.onClose}
+    footer={
+      <div class={forms.acciones}>
+        <button type="button" class={forms.secundario} onClick={props.onClose}>
+          Cerrar
+        </button>
+      </div>
+    }
+  >
     <div class={styles.lista}>
       <For each={SHORTCUTS}>
         {(item) => (

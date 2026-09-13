@@ -48,7 +48,52 @@ export const CustomerPickModal: Component<{
   }
 
   return (
-    <Modal title="Cliente de la venta" onClose={props.onClose}>
+    <Modal
+      size="md"
+      title="Cliente de la venta"
+      onClose={props.onClose}
+      footer={
+        <Show
+          when={!creating()}
+          fallback={
+            <div class={forms.acciones}>
+              <button type="button" class={forms.secundario} onClick={() => setCreating(false)}>
+                Volver
+              </button>
+              <button
+                type="button"
+                class={forms.primario}
+                disabled={newName().trim() === '' || saving()}
+                onClick={() => void saveNew()}
+              >
+                {saving() ? 'Creando…' : 'Crear y asignar'}
+              </button>
+            </div>
+          }
+        >
+          <div class={forms.acciones}>
+            <button
+              type="button"
+              class={forms.secundario}
+              onClick={() => {
+                setNewName(query().trim());
+                setCreating(true);
+              }}
+            >
+              + Nuevo cliente
+            </button>
+            <Show when={props.hasCustomer}>
+              <button type="button" class={forms.secundario} onClick={props.onClear}>
+                Quitar cliente
+              </button>
+            </Show>
+            <button type="button" class={forms.secundario} onClick={props.onClose}>
+              Cerrar
+            </button>
+          </div>
+        </Show>
+      }
+    >
       <div class={styles.cuerpo}>
         <Show
           when={!creating()}
@@ -77,19 +122,6 @@ export const CustomerPickModal: Component<{
               <Show when={error() !== ''}>
                 <p class={forms.error}>{error()}</p>
               </Show>
-              <div class={forms.acciones}>
-                <button type="button" class={forms.secundario} onClick={() => setCreating(false)}>
-                  Volver
-                </button>
-                <button
-                  type="button"
-                  class={forms.primario}
-                  disabled={newName().trim() === '' || saving()}
-                  onClick={() => void saveNew()}
-                >
-                  {saving() ? 'Creando…' : 'Crear y asignar'}
-                </button>
-              </div>
             </div>
           }
         >
@@ -122,26 +154,6 @@ export const CustomerPickModal: Component<{
             </Show>
           </div>
 
-          <div class={styles.acciones}>
-            <button
-              type="button"
-              class={styles.cancelar}
-              onClick={() => {
-                setNewName(query().trim());
-                setCreating(true);
-              }}
-            >
-              + Nuevo cliente
-            </button>
-            <Show when={props.hasCustomer}>
-              <button type="button" class={styles.cancelar} onClick={props.onClear}>
-                Quitar cliente
-              </button>
-            </Show>
-            <button type="button" class={styles.cancelar} onClick={props.onClose}>
-              Cerrar
-            </button>
-          </div>
         </Show>
       </div>
     </Modal>

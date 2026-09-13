@@ -5,7 +5,10 @@ import { createUser, listUsers, updateUser, type UserDto } from '@/shared/api/us
 import { formatDateTime } from '@/shared/lib/dates';
 import { showNotice } from '@/shared/state/notices';
 import { isOwner } from '@/shared/state/session';
+import { Chip } from '@/shared/ui/Chip';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { Modal } from '@/shared/ui/Modal';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 
@@ -67,7 +70,21 @@ const UserFormModal: Component<{
   }
 
   return (
-    <Modal title={editing === null ? 'Nuevo usuario' : 'Editar usuario'} onClose={props.onClose}>
+    <Modal
+      size="md"
+      title={editing === null ? 'Nuevo usuario' : 'Editar usuario'}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} disabled={saving() || name().trim() === '' || !pinValid()} onClick={save}>
+            {editing === null ? 'Crear usuario' : 'Guardar cambios'}
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <div class={forms.fila}>
           <div class={forms.campo}>
@@ -114,14 +131,6 @@ const UserFormModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={forms.primario} disabled={saving() || name().trim() === '' || !pinValid()} onClick={save}>
-            {editing === null ? 'Crear usuario' : 'Guardar cambios'}
-          </button>
-        </div>
       </div>
     </Modal>
   );
@@ -157,7 +166,26 @@ const ResetPinModal: Component<{
   }
 
   return (
-    <Modal size="sm" title={`Resetear PIN — ${props.user.name}`} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={`Resetear PIN — ${props.user.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={!pinValid()}
+            onClick={() => void save()}
+          >
+            Cambiar PIN
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <div class={forms.campo}>
           <span class={forms.etiqueta}>PIN nuevo (4-6 dígitos)</span>
@@ -175,14 +203,6 @@ const ResetPinModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={forms.primario} disabled={!pinValid()} onClick={() => void save()}>
-            Cambiar PIN
-          </button>
-        </div>
       </div>
     </Modal>
   );
@@ -229,7 +249,11 @@ export const UsersView: Component = () => {
                   <td class={tabla.sub}>
                     {user.lastLoginAt === null ? 'nunca' : formatDateTime(user.lastLoginAt)}
                   </td>
-                  <td class={tabla.sub}>{user.active ? 'activo' : 'inactivo'}</td>
+                  <td>
+                    <Chip tone={user.active ? 'exito' : 'neutro'}>
+                      {user.active ? 'activo' : 'inactivo'}
+                    </Chip>
+                  </td>
                   <td class={tabla.acciones}>
                     {/* Cuentas de dueño: solo otro dueño las toca (el API
                         también lo bloquea — esto solo evita el 403). Sin
@@ -259,7 +283,11 @@ export const UsersView: Component = () => {
             </For>
           </tbody>
         </table>
+        <Show when={!users.loading && (users() ?? []).length === 0}>
+          <EmptyState message="Todavía no hay usuarios dados de alta." />
+        </Show>
       </div>
+      <TableFooter total={(users() ?? []).length} singular="usuario" plural="usuarios" />
 
       {(() => {
         const state = modal();

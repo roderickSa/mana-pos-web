@@ -52,7 +52,21 @@ export const AdjustmentModal: Component<{
   }
 
   return (
-    <Modal title={`Merma / ajuste — ${props.product.name}`} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={`Merma / ajuste — ${props.product.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={styles.acciones}>
+          <button type="button" class={styles.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={styles.primario} disabled={saving()} onClick={save}>
+            Registrar ajuste
+          </button>
+        </div>
+      }
+    >
       <div class={styles.form}>
         <div class={styles.campo}>
           <span class={styles.etiqueta}>Motivo</span>
@@ -92,14 +106,6 @@ export const AdjustmentModal: Component<{
         <Show when={error() !== ''}>
           <p class={styles.error}>{error()}</p>
         </Show>
-        <div class={styles.acciones}>
-          <button type="button" class={styles.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={styles.primario} disabled={saving()} onClick={save}>
-            Registrar ajuste
-          </button>
-        </div>
       </div>
     </Modal>
   );

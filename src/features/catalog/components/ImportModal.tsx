@@ -50,31 +50,41 @@ export const ImportModal: Component<{
   }
 
   return (
-    <Modal title="Importar productos desde Excel" onClose={props.onClose}>
-      <div class={styles.form}>
-        <p class={styles.nota}>
-          1. Descarga la{' '}
+    <Modal
+      size="lg"
+      title="Importar productos desde Excel"
+      onClose={props.onClose}
+      footer={
+        <div class={styles.acciones}>
+          <button type="button" class={styles.secundario} onClick={props.onClose}>
+            {report() === null ? 'Cancelar' : 'Cerrar'}
+          </button>
           <button
             type="button"
-            style={{
-              border: 'none',
-              background: 'none',
-              color: 'var(--mana-verde)',
-              'text-decoration': 'underline',
-              cursor: 'pointer',
-              padding: '0',
-              font: 'inherit',
-            }}
-            onClick={() =>
-              void downloadFile('/catalog/products/import/template', 'plantilla-productos.xlsx')
-            }
+            class={styles.primario}
+            disabled={fileBase64() === null || importing()}
+            onClick={run}
           >
-            plantilla Excel
-          </button>{' '}
-          y llénala
-          (una fila por producto). 2. Súbela aquí. Las filas con errores se rechazan una por una y
-          te decimos por qué — las demás sí entran.
+            {importing() ? 'Importando…' : `Importar ${fileName()}`}
+          </button>
+        </div>
+      }
+    >
+      <div class={styles.form}>
+        <p class={styles.nota}>
+          1. Descarga la plantilla y llénala (una fila por producto). 2. Súbela aquí. Las filas con
+          errores se rechazan una por una y te decimos por qué — las demás sí entran.
         </p>
+        <button
+          type="button"
+          class={styles.secundario}
+          style={{ 'align-self': 'flex-start' }}
+          onClick={() =>
+            void downloadFile('/catalog/products/import/template', 'plantilla-productos.xlsx')
+          }
+        >
+          ⬇ Descargar plantilla Excel
+        </button>
         <div class={styles.campo}>
           <span class={styles.etiqueta}>Archivo (.xlsx o .csv)</span>
           <input
@@ -109,19 +119,6 @@ export const ImportModal: Component<{
           <p class={styles.error}>{error()}</p>
         </Show>
 
-        <div class={styles.acciones}>
-          <button type="button" class={styles.secundario} onClick={props.onClose}>
-            {report() === null ? 'Cancelar' : 'Cerrar'}
-          </button>
-          <button
-            type="button"
-            class={styles.primario}
-            disabled={fileBase64() === null || importing()}
-            onClick={run}
-          >
-            {importing() ? 'Importando…' : `Importar ${fileName()}`}
-          </button>
-        </div>
       </div>
     </Modal>
   );

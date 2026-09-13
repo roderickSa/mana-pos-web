@@ -11,7 +11,7 @@
   padding: 9px 16px;
   font-size: 0.85rem;
   font-weight: 600;
-  min-height: 42px;
+  min-height: var(--alto-control);
 }
 
 .boton:hover {
@@ -49,7 +49,11 @@
   font-size: 0.9rem;
   font-weight: 500;
   border-radius: 6px;
-  min-height: 42px;
+  min-height: var(--alto-control);
+}
+
+.lista button.peligro {
+  color: var(--peligro);
 }
 
 .lista button:hover {
@@ -57,14 +61,15 @@
   color: var(--tinta-activa);
 }
 
+.lista button.peligro:hover {
+  background: var(--chip-peligro-fondo);
+  color: var(--chip-peligro-tinta);
+}
+
 /* Táctil: el gatillo y las opciones del menú crecen a tamaño dedo. */
 @media (any-pointer: coarse) {
   .boton {
-    min-height: 48px;
     padding: 11px 20px;
   }
 
-  .lista button {
-    min-height: 50px;
-  }
 }

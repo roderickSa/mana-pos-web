@@ -1,6 +1,18 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
 
-import { linkProductSupplier, searchProducts, unlinkProductSupplier } from '@/shared/api/products';
+import {
+  linkProductSupplier,
+  linkProductsToSupplier,
+  listProductSupplies,
+  saveProductSupply,
+  searchProducts,
+  unlinkProductSupplier,
+  type ProductSupplyDto,
+} from '@/shared/api/products';
+import { centsToSolesInput, formatSoles, solesInputToCents } from '@/shared/lib/money';
+import { allCategories } from '@/shared/state/categories';
+import { Chip } from '@/shared/ui/Chip';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { ProductPicker } from '@/shared/ui/ProductPicker';
 import { createSupplier, listSuppliers, updateSupplier } from '@/shared/api/suppliers';
 import { beepError, beepOk } from '@/shared/lib/sounds';
@@ -10,6 +22,7 @@ import type { SupplierDto } from '@/shared/types';
 import { Modal } from '@/shared/ui/Modal';
 import styles from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { apiErrorMessage } from '@/shared/api/client';
 
 const DIAS: Array<{ key: string; label: string }> = [
@@ -77,7 +90,21 @@ const SupplierFormModal: Component<{
   }
 
   return (
-    <Modal title={editing === null ? 'Nuevo proveedor' : 'Editar proveedor'} onClose={props.onClose}>
+    <Modal
+      size="md"
+      title={editing === null ? 'Nuevo proveedor' : 'Editar proveedor'}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} disabled={name().trim() === '' || saving()} onClick={save}>
+            {editing === null ? 'Crear proveedor' : 'Guardar cambios'}
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <div class={forms.campo}>
           <span class={forms.etiqueta}>Nombre</span>
@@ -145,14 +172,6 @@ const SupplierFormModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={forms.primario} disabled={name().trim() === '' || saving()} onClick={save}>
-            {editing === null ? 'Crear proveedor' : 'Guardar cambios'}
-          </button>
-        </div>
       </div>
     </Modal>
   );
@@ -209,7 +228,11 @@ export const SuppliersTab: Component = () => {
                   </td>
                   <td class={styles.sub}>{supplier.contactName ?? '—'}</td>
                   <td class={styles.sub}>{supplier.notes ?? '—'}</td>
-                  <td class={styles.sub}>{supplier.active ? 'activo' : 'inactivo'}</td>
+                  <td>
+                    <Chip tone={supplier.active ? 'exito' : 'neutro'}>
+                      {supplier.active ? 'activo' : 'inactivo'}
+                    </Chip>
+                  </td>
                   <td class={styles.acciones}>
                     <button type="button" onClick={() => setModal({ kind: 'edit', supplier })}>
                       Editar
@@ -228,14 +251,25 @@ export const SuppliersTab: Component = () => {
           </tbody>
         </table>
         <Show when={!suppliers.loading && (suppliers() ?? []).length === 0}>
-          <div class={styles.vacio}>
-            <p>Aún no hay proveedores.</p>
-            <button type="button" class={styles.nuevo} onClick={() => setModal({ kind: 'create' })}>
-              + Crear el primer proveedor
-            </button>
-          </div>
+          <EmptyState
+            message="Aún no hay proveedores."
+            action={
+              <button
+                type="button"
+                class={styles.nuevo}
+                onClick={() => setModal({ kind: 'create' })}
+              >
+                + Crear el primer proveedor
+              </button>
+            }
+          />
         </Show>
       </div>
+      <TableFooter
+        total={(suppliers() ?? []).length}
+        singular="proveedor"
+        plural="proveedores"
+      />
 
       <Show when={modal().kind !== 'none'}>
         {(() => {
@@ -268,6 +302,8 @@ const SupplierProductsModal: Component<{
   onClose: () => void;
 }> = (props) => {
   const [version, setVersion] = createSignal(0);
+  const [bulkCategory, setBulkCategory] = createSignal('');
+  const [linkingBulk, setLinkingBulk] = createSignal(false);
 
   const [linked, { refetch }] = createResource(version, () =>
     searchProducts('', null, true, false, props.supplier.id),
@@ -295,8 +331,40 @@ const SupplierProductsModal: Component<{
     }
   }
 
+  // Asociar de a uno mil productos no es viable: una categoría de un golpe.
+  async function addCategory(): Promise<void> {
+    if (bulkCategory() === '' || linkingBulk()) return;
+    setLinkingBulk(true);
+    try {
+      const result = await linkProductsToSupplier(props.supplier.id, { category: bulkCategory() });
+      beepOk();
+      showNotice(
+        `${result.linkedCount} productos de «${bulkCategory()}» quedaron asociados a ${props.supplier.name}`,
+      );
+      setBulkCategory('');
+      setVersion((value) => value + 1);
+      void refetch();
+    } catch (cause) {
+      beepError();
+      showNotice(apiErrorMessage(cause, 'No se pudo asociar la categoría.'));
+    } finally {
+      setLinkingBulk(false);
+    }
+  }
+
   return (
-    <Modal size="lg" title={`Productos de ${props.supplier.name}`} onClose={props.onClose}>
+    <Modal
+      size="lg"
+      title={`Productos de ${props.supplier.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Listo
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <div class={forms.campo}>
           <span class={forms.etiqueta}>Asociar producto (nombre, o escanea el código y Enter)</span>
@@ -309,40 +377,220 @@ const SupplierProductsModal: Component<{
           />
         </div>
 
+        <div class={forms.campo}>
+          <span class={forms.etiqueta}>O asocia una categoría entera de una vez</span>
+          <div style={{ display: 'flex', gap: '8px', 'flex-wrap': 'wrap' }}>
+            <select
+              id="asociar-categoria"
+              class={forms.select}
+              style={{ flex: '1', 'min-width': '180px' }}
+              value={bulkCategory()}
+              onChange={(event) => setBulkCategory(event.currentTarget.value)}
+            >
+              <option value="">— Elige categoría —</option>
+              <For each={allCategories()}>
+                {(item) => <option value={item.slug}>{item.name}</option>}
+              </For>
+            </select>
+            <button
+              type="button"
+              class={forms.secundario}
+              disabled={bulkCategory() === '' || linkingBulk()}
+              onClick={() => void addCategory()}
+            >
+              Asociar categoría
+            </button>
+          </div>
+        </div>
+
         <p class={forms.nota}>
           {(linked() ?? []).length === 0
             ? 'Este proveedor aún no tiene productos asociados: asócialos arriba para poder armarle órdenes de compra.'
-            : `${(linked() ?? []).length} productos asociados — solo estos aparecen al armarle una orden de compra.`}
+            : 'Solo estos aparecen al armarle una orden de compra.'}
         </p>
         <div style={{ display: 'flex', 'flex-direction': 'column', gap: '6px' }}>
           <For each={linked() ?? []}>
             {(product) => (
-              <div
-                style={{
-                  display: 'flex',
-                  'align-items': 'center',
-                  'justify-content': 'space-between',
-                  gap: '8px',
-                  'border-bottom': '1px dashed var(--linea)',
-                  padding: '6px 0',
-                }}
-              >
-                <span>
-                  {product.name}
-                  {product.active ? '' : ' (inactivo)'}
-                </span>
-                <button
-                  type="button"
-                  class={forms.secundario}
-                  onClick={() => void remove(product)}
-                >
-                  Quitar
-                </button>
-              </div>
+              <SupplyRow
+                product={product}
+                supplierId={props.supplier.id}
+                version={version()}
+                onRemove={() => void remove(product)}
+              />
             )}
           </For>
         </div>
+        <TableFooter
+          total={(linked() ?? []).length}
+          singular="producto asociado"
+          plural="productos asociados"
+        />
       </div>
     </Modal>
+  );
+};
+
+// Condiciones de este proveedor para un producto: su costo y su empaque, que
+// no tienen por qué coincidir con los de otro proveedor del mismo producto.
+const SupplyRow: Component<{
+  product: ProductDto;
+  supplierId: string;
+  version: number;
+  onRemove: () => void;
+}> = (props) => {
+  const [supply, { refetch }] = createResource(
+    () => props.version,
+    async (): Promise<ProductSupplyDto | null> => {
+      const all = await listProductSupplies(props.product.id);
+      return all.find((item) => item.supplierId === props.supplierId) ?? null;
+    },
+  );
+  const [editing, setEditing] = createSignal(false);
+  const [cost, setCost] = createSignal('');
+  const [packSize, setPackSize] = createSignal('');
+  const [packCost, setPackCost] = createSignal('');
+  const [saving, setSaving] = createSignal(false);
+  const [error, setError] = createSignal('');
+
+  const isWeight = () => props.product.saleType === 'weight';
+  const costLabel = () => (isWeight() ? 'Costo/kg S/' : 'Costo/unidad S/');
+
+  function startEditing(): void {
+    const current = supply();
+    setCost(current?.unitCostCents == null ? '' : centsToSolesInput(current.unitCostCents));
+    setPackSize(current?.packSize == null ? '' : String(current.packSize));
+    setPackCost(current?.packCostCents == null ? '' : centsToSolesInput(current.packCostCents));
+    setError('');
+    setEditing(true);
+  }
+
+  async function save(): Promise<void> {
+    if (saving()) return;
+    const unitCostCents = solesInputToCents(cost());
+    const size = Number.parseInt(packSize(), 10) || null;
+    const packCostCents = solesInputToCents(packCost());
+    if ((size === null) !== (packCostCents === null)) {
+      setError('El empaque va completo: unidades por caja y costo por caja, o ninguno.');
+      return;
+    }
+    if (size !== null && unitCostCents === null) {
+      setError('Para cargar el empaque hace falta el costo de este proveedor.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await saveProductSupply(props.product.id, props.supplierId, {
+        unitCostCents,
+        packSize: isWeight() ? null : size,
+        packCostCents: isWeight() ? null : packCostCents,
+        supplierSku: null,
+        preferred: false,
+      });
+      beepOk();
+      setEditing(false);
+      void refetch();
+    } catch (cause) {
+      beepError();
+      setError(apiErrorMessage(cause, 'No se pudieron guardar las condiciones.'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const resumen = () => {
+    const current = supply();
+    if (current == null || current.unitCostCents == null) return 'sin costo cargado';
+    const unidad = isWeight() ? '/kg' : 'c/u';
+    const caja =
+      current.packSize == null || current.packCostCents == null
+        ? ''
+        : ` · caja ×${current.packSize} a ${formatSoles(current.packCostCents)}`;
+    return `${formatSoles(current.unitCostCents)} ${unidad}${caja}`;
+  };
+
+  return (
+    <div style={{ 'border-bottom': '1px dashed var(--linea)', padding: '8px 0' }}>
+      <div
+        style={{
+          display: 'flex',
+          'align-items': 'center',
+          'justify-content': 'space-between',
+          gap: '8px',
+          'flex-wrap': 'wrap',
+        }}
+      >
+        <div>
+          <div>
+            {props.product.name}
+            {props.product.active ? '' : ' (inactivo)'}
+          </div>
+          <div class={forms.nota} style={{ margin: '0' }}>
+            {resumen()}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button type="button" class={forms.secundario} onClick={startEditing}>
+            Condiciones
+          </button>
+          <button type="button" class={forms.secundario} onClick={props.onRemove}>
+            Quitar
+          </button>
+        </div>
+      </div>
+
+      <Show when={editing()}>
+        <div class={forms.fila} style={{ 'margin-top': '8px' }}>
+          <div class={forms.campo}>
+            <span class={forms.etiqueta}>{costLabel()}</span>
+            <input
+              id={`costo-${props.product.id}`}
+              class={forms.input}
+              type="number"
+              step="0.10"
+              min="0"
+              value={cost()}
+              onInput={(event) => setCost(event.currentTarget.value)}
+            />
+          </div>
+          <Show when={!isWeight()}>
+            <div class={forms.campo}>
+              <span class={forms.etiqueta}>Unidades por caja</span>
+              <input
+                id={`caja-${props.product.id}`}
+                class={forms.input}
+                type="number"
+                min="1"
+                value={packSize()}
+                onInput={(event) => setPackSize(event.currentTarget.value)}
+              />
+            </div>
+            <div class={forms.campo}>
+              <span class={forms.etiqueta}>Costo por caja S/</span>
+              <input
+                id={`costo-caja-${props.product.id}`}
+                class={forms.input}
+                type="number"
+                step="0.10"
+                min="0"
+                value={packCost()}
+                onInput={(event) => setPackCost(event.currentTarget.value)}
+              />
+            </div>
+          </Show>
+        </div>
+        <Show when={error() !== ''}>
+          <p class={forms.error}>{error()}</p>
+        </Show>
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={() => setEditing(false)}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} disabled={saving()} onClick={save}>
+            Guardar condiciones
+          </button>
+        </div>
+      </Show>
+    </div>
   );
 };

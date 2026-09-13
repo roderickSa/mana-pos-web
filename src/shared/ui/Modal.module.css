@@ -117,7 +117,7 @@
   color: var(--tinta-suave);
   font-size: 1rem;
   min-width: 44px;
-  min-height: 44px;
+  min-height: var(--alto-control);
   border-radius: var(--radio-chico);
   flex-shrink: 0;
 }
@@ -129,7 +129,6 @@
 @media (any-pointer: coarse) {
   .cerrar {
     min-width: 48px;
-    min-height: 48px;
     font-size: 1.15rem;
   }
 }

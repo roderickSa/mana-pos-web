@@ -6,7 +6,9 @@ import { formatKg } from '@/shared/lib/money';
 import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { AdjustmentModal } from './AdjustmentModal';
 import { CountModal } from '@/shared/ui/CountModal';
 import { EntryModal } from './EntryModal';
@@ -117,21 +119,18 @@ export const AdjustmentsTab: Component<{ onGoToKardex: () => void }> = (props) =
           </tbody>
         </table>
         <Show when={!result.loading && items().length === 0}>
-          <p class={styles.vacio}>No hay productos que coincidan con la búsqueda.</p>
+          <EmptyState message="No hay productos que coincidan con la búsqueda." />
         </Show>
       </div>
 
-      <div class={styles.paginacion}>
-        <button type="button" disabled={page() <= 1} onClick={() => setPage(page() - 1)}>
-          ‹ Anterior
-        </button>
-        <span>
-          Página {page()} de {totalPages()} · {total()} productos
-        </span>
-        <button type="button" disabled={page() >= totalPages()} onClick={() => setPage(page() + 1)}>
-          Siguiente ›
-        </button>
-      </div>
+      <TableFooter
+        total={total()}
+        singular="producto"
+        plural="productos"
+        page={page()}
+        lastPage={totalPages()}
+        onPage={setPage}
+      />
 
       {(() => {
         const state = modal();

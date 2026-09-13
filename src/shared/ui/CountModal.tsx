@@ -39,7 +39,21 @@ export const CountModal: Component<{
   }
 
   return (
-    <Modal title={`Actualizar stock — ${props.product.name}`} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={`Actualizar stock — ${props.product.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={styles.acciones}>
+          <button type="button" class={styles.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={styles.primario} disabled={saving()} onClick={save}>
+            Actualizar stock
+          </button>
+        </div>
+      }
+    >
       <div class={styles.form}>
         <p class={styles.nota}>
           El sistema registra <b>{stockOf(props.product)}</b> {unitLabel(props.product)}. Escribe la
@@ -60,14 +74,6 @@ export const CountModal: Component<{
         <Show when={error() !== ''}>
           <p class={styles.error}>{error()}</p>
         </Show>
-        <div class={styles.acciones}>
-          <button type="button" class={styles.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={styles.primario} disabled={saving()} onClick={save}>
-            Actualizar stock
-          </button>
-        </div>
       </div>
     </Modal>
   );

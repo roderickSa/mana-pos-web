@@ -47,6 +47,21 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
+/* Sin flechitas en los campos numéricos: en la PC de la tienda se teclea o se
+   usa el keypad en pantalla, y el spinner solo roba ancho al número. Estaba
+   resuelto en un solo modal; ahora vale para toda la app. */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 input,
 select,
 textarea {
@@ -75,25 +90,25 @@ body {
    Los módulos pueden dar más (48px), pero nunca menos. */
 @media (any-pointer: coarse) {
   button {
-    min-height: 44px;
+    min-height: var(--alto-control);
     min-width: 44px;
   }
 
   input,
   select {
-    min-height: 44px;
+    min-height: var(--alto-control);
   }
 
   input[type='checkbox'],
   input[type='radio'] {
     width: 24px;
-    height: 24px;
-    min-height: 24px;
+    height: var(--alto-control);
+    min-height: var(--alto-control);
   }
 
   label:has(input[type='checkbox']),
   label:has(input[type='radio']) {
-    min-height: 44px;
+    min-height: var(--alto-control);
     display: flex;
     align-items: center;
     gap: 10px;

@@ -1,4 +1,9 @@
+/* Igual que el resto de las vistas con tabla: el encabezado y el pie quedan
+   fijos y solo rueda la tabla, para que el conteo del pie se vea siempre. */
 .vista {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -28,7 +33,7 @@
   font-weight: 600;
   padding: 8px 14px;
   border-radius: var(--radio-boton);
-  min-height: 40px;
+  min-height: var(--alto-control);
 }
 
 .rapidoActivo {
@@ -36,76 +41,12 @@
   color: var(--tinta-sobre-relleno);
 }
 
-.fecha {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.72rem;
-  color: var(--tinta-suave);
-  font-family: var(--fuente-dato);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.fecha input {
-  font: inherit;
-  font-size: 0.95rem;
-  text-transform: none;
-  letter-spacing: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--linea);
-  border-radius: var(--radio-boton);
-  background: var(--superficie-panel);
-  color: var(--tinta);
-  min-height: 44px;
-}
-
-/* Tiles de resumen: cifra grande en condensada, etiqueta mono en caja alta. */
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 10px;
-}
-
-.tile {
-  background: var(--superficie-panel);
-  border: 1px solid var(--linea);
-  border-radius: var(--radio);
-  padding: 12px 14px;
+.panel {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.tileEtiqueta {
-  font-family: var(--fuente-dato);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--tinta-suave);
-}
-
-.tileCifra {
-  font-family: var(--fuente-precio);
-  font-size: 1.7rem;
-  font-weight: 700;
-  line-height: 1.05;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.tileDetalle {
-  font-size: 0.8rem;
-  color: var(--tinta-suave);
-}
-
-.tileUtilidad {
-  border-color: color-mix(in srgb, var(--mana-verde) 40%, var(--linea));
-  background: var(--mana-verde-suave);
-}
-
-.panel {
+  gap: 10px;
   background: var(--superficie-panel);
   border: 1px solid var(--linea);
   border-radius: var(--radio);
@@ -113,7 +54,7 @@
 }
 
 .panelTitulo {
-  margin: 0 0 10px;
+  margin: 0;
   font-family: var(--fuente-dato);
   font-size: 0.78rem;
   text-transform: uppercase;
@@ -161,7 +102,10 @@
   grid-template-columns: repeat(24, minmax(0, 1fr));
   gap: 3px;
   align-items: end;
-  height: 150px;
+  /* Crece con el panel: antes quedaba una franja de 150 px y medio panel
+     vacío debajo. */
+  flex: 1;
+  min-height: 150px;
   padding-top: 18px;
 }
 
@@ -194,9 +138,10 @@
   margin-top: 4px;
 }
 
+/* La cifra del pico va pegada encima de SU barra, no en el techo del panel:
+   con el gráfico alto quedaba flotando a media pantalla. */
 .horaPico {
-  position: absolute;
-  top: -18px;
+  margin-bottom: 3px;
   font-family: var(--fuente-dato);
   font-size: 0.72rem;
   font-weight: 600;
@@ -205,12 +150,6 @@
 
 .negativo {
   color: var(--peligro);
-}
-
-.vacio {
-  color: var(--tinta-suave);
-  text-align: center;
-  padding: 24px;
 }
 
 .cargando {

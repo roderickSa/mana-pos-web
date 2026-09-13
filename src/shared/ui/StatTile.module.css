@@ -1,0 +1,75 @@
+/* Tarjeta de cifra: etiqueta arriba, número grande, detalle debajo. Cuatro
+   features la tenían escrita a mano con seis tamaños distintos de número. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.densa {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px;
+}
+
+/* La cifra nunca se parte: un «S/ 100.00» en dos líneas se lee como dos
+   números distintos. La etiqueta sí puede envolver. */
+.densa .cifra {
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.densa .tile {
+  padding: 12px 14px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 14px 16px;
+}
+
+.etiqueta {
+  font-family: var(--fuente-dato);
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.cifra {
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.detalle {
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+  line-height: 1.35;
+}
+
+/* Tonos: el que importa se destaca, el que va mal se ve rojo. */
+.destacado {
+  background: var(--verde-suave);
+  border-color: var(--chip-exito-borde);
+}
+
+.atencion {
+  background: var(--advertencia-fondo);
+  border-color: var(--advertencia-borde);
+}
+
+.atencion .etiqueta,
+.atencion .detalle {
+  color: var(--advertencia-tinta);
+}
+
+.malo .cifra {
+  color: var(--peligro);
+}

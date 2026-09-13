@@ -37,7 +37,30 @@ export const CreditChargeModal: Component<{
   }
 
   return (
-    <Modal title={`Fiar ${formatSoles(props.totalCents)}`} onClose={props.onClose}>
+    <Modal
+      size="md"
+      title={`Fiar ${formatSoles(props.totalCents)}`}
+      onClose={props.onClose}
+      footer={
+        <div class={styles.acciones}>
+          <button type="button" class={styles.cancelar} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class={styles.confirmar}
+            disabled={selected() === null || charging()}
+            onClick={() => void confirm()}
+          >
+            {charging()
+              ? 'Registrando…'
+              : selected() === null
+                ? 'Elige un cliente'
+                : `Fiar a ${selected()?.name}`}
+          </button>
+        </div>
+      }
+    >
       <div class={styles.cuerpo}>
         <input
           class={styles.buscador}
@@ -81,23 +104,6 @@ export const CreditChargeModal: Component<{
           <p class={styles.error}>{error()}</p>
         </Show>
 
-        <div class={styles.acciones}>
-          <button type="button" class={styles.cancelar} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class={styles.confirmar}
-            disabled={selected() === null || charging()}
-            onClick={() => void confirm()}
-          >
-            {charging()
-              ? 'Registrando…'
-              : selected() === null
-                ? 'Elige un cliente'
-                : `Fiar a ${selected()?.name}`}
-          </button>
-        </div>
       </div>
     </Modal>
   );

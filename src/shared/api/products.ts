@@ -7,12 +7,9 @@ export interface CreateProductPayload {
   shortCode: string | null;
   name: string;
   category: string;
-  supplierIds: string[];
   priceCents: number;
   costCents: number;
   // Solo productos por unidad; para pesables van null.
-  packSize: number | null;
-  packCostCents: number | null;
   stockMinimum: number;
   quickAccess: boolean;
   // true = el usuario ya confirmó que el nombre repetido es intencional.
@@ -24,11 +21,8 @@ export interface UpdateProductPayload {
   shortCode: string | null;
   name: string;
   category: string;
-  supplierIds: string[];
   priceCents: number;
   costCents: number;
-  packSize: number | null;
-  packCostCents: number | null;
   stockMinimum: number;
   active: boolean;
   quickAccess: boolean;
@@ -106,11 +100,8 @@ export async function createProduct(payload: CreateProductPayload): Promise<Prod
           shortCode: payload.shortCode,
           name: payload.name,
           category: payload.category,
-          supplierIds: payload.supplierIds,
           priceCents: payload.priceCents,
           costCents: payload.costCents,
-          packSize: payload.packSize,
-          packCostCents: payload.packCostCents,
           stockMinimum: payload.stockMinimum,
           quickAccess: payload.quickAccess,
           allowDuplicateName: payload.allowDuplicateName === true,
@@ -121,7 +112,6 @@ export async function createProduct(payload: CreateProductPayload): Promise<Prod
           shortCode: payload.shortCode,
           name: payload.name,
           category: payload.category,
-          supplierIds: payload.supplierIds,
           pricePerKgCents: payload.priceCents,
           costPerKgCents: payload.costCents,
           stockMinimumGrams: payload.stockMinimum,
@@ -182,4 +172,73 @@ export interface ImportReportDto {
 
 export async function importProducts(fileBase64: string): Promise<ImportReportDto> {
   return sendJson('POST', '/catalog/products/import', { fileBase64 });
+}
+
+// Asociación masiva: una categoría entera o una lista de productos.
+export async function linkProductsToSupplier(
+  supplierId: string,
+  selection: { category: string } | { productIds: string[] },
+): Promise<{ linkedCount: number }> {
+  return sendJson('POST', '/catalog/products/suppliers/bulk', { supplierId, ...selection });
+}
+
+export interface ProductSupplyDto {
+  productId: string;
+  supplierId: string;
+  // Condiciones de ESTE proveedor. Nulas mientras nadie las haya capturado.
+  unitCostCents: number | null;
+  // Cómo lo vende: caja, saco, docena. packSize es cuánto de lo NUESTRO trae
+  // (unidades, o gramos en los pesables).
+  presentationName: string | null;
+  packSize: number | null;
+  packCostCents: number | null;
+  supplierSku: string | null;
+  preferred: boolean;
+  updatedAt: string | null;
+}
+
+export async function listProductSupplies(productId: string): Promise<ProductSupplyDto[]> {
+  return getJson(`/catalog/products/${productId}/supplies`);
+}
+
+export async function saveProductSupply(
+  productId: string,
+  supplierId: string,
+  terms: {
+    unitCostCents: number | null;
+    presentationName?: string | null;
+    packSize: number | null;
+    packCostCents: number | null;
+    supplierSku: string | null;
+    preferred: boolean;
+  },
+): Promise<ProductSupplyDto> {
+  return sendJson('PUT', `/catalog/products/${productId}/supplies/${supplierId}`, terms);
+}
+
+export interface SupplyBoardRowDto {
+  productId: string;
+  productName: string;
+  category: string;
+  saleType: 'unit' | 'weight';
+  priceCents: number;
+  supplierId: string;
+  supplierName: string;
+  unitCostCents: number | null;
+  presentationName: string | null;
+  packSize: number | null;
+  packCostCents: number | null;
+  preferred: boolean;
+}
+
+export async function supplyBoard(filters: {
+  supplier?: string;
+  category?: string;
+  onlyMulti?: boolean;
+}): Promise<SupplyBoardRowDto[]> {
+  const params = new URLSearchParams();
+  if (filters.supplier !== undefined && filters.supplier !== '') params.set('supplier', filters.supplier);
+  if (filters.category !== undefined && filters.category !== '') params.set('category', filters.category);
+  if (filters.onlyMulti === true) params.set('onlyMulti', 'true');
+  return getJson(`/catalog/supplies?${params.toString()}`);
 }

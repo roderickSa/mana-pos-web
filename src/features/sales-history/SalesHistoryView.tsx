@@ -10,8 +10,12 @@ import { showNotice } from '@/shared/state/notices';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
 import { currentUserName, isManager } from '@/shared/state/session';
 import { verifyManagerPin } from '@/shared/api/users';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { DateField } from '@/shared/ui/DateField';
 import { Modal } from '@/shared/ui/Modal';
+import { Chip } from '@/shared/ui/Chip';
+import { StatTile, StatTiles } from '@/shared/ui/StatTile';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 import styles from './SalesHistoryView.module.css';
@@ -273,55 +277,40 @@ export const SalesHistoryView: Component = () => {
                 · {data().chargedCount} cobradas · {voidedCount()} anuladas
               </Show>
             </p>
-            <div class={styles.resumen}>
-              <div
-                class={styles.tarjeta}
-                title="Total del período contando solo las ventas cobradas (las anuladas no suman)"
-              >
-                <span>Cobrado</span>
-                <b>{formatSoles(data().chargedTotalCents)}</b>
-              </div>
-              <div class={styles.tarjeta} title="Desglose informativo: el precio ya incluye IGV">
-                <span>Base / IGV {data().igv.ratePercent}%</span>
-                <b>
-                  {formatSoles(data().igv.baseCents)} · {formatSoles(data().igv.igvCents)}
-                </b>
-              </div>
+            <StatTiles>
+              <StatTile
+                label="Cobrado"
+                tone="destacado"
+                value={formatSoles(data().chargedTotalCents)}
+                detail="solo ventas cobradas; las anuladas no suman"
+              />
+              <StatTile
+                label="Base imponible"
+                value={formatSoles(data().igv.baseCents)}
+                detail={`IGV ${data().igv.ratePercent}% = ${formatSoles(data().igv.igvCents)} · el precio ya lo incluye`}
+              />
               {/* Las 4 formas de pago SIEMPRE visibles: un método en 0 también
                   es información (nadie pagó con tarjeta hoy). */}
               <For each={['cash', 'yape', 'card', 'credit']}>
                 {(method) => (
-                  <div class={styles.tarjeta}>
-                    <span>{METHOD_LABELS[method] ?? method}</span>
-                    <b>
-                      {formatSoles(
-                        data().byMethod.find((entry) => entry.method === method)?.amountCents ?? 0,
-                      )}
-                    </b>
-                  </div>
+                  <StatTile
+                    label={METHOD_LABELS[method] ?? method}
+                    value={formatSoles(
+                      data().byMethod.find((entry) => entry.method === method)?.amountCents ?? 0,
+                    )}
+                  />
                 )}
               </For>
               <For each={data().soldByUser.length > 1 ? data().soldByUser : []}>
                 {(entry) => (
-                  <div class={styles.tarjeta}>
-                    <span>Vendido por {entry.user}</span>
-                    <b>
-                      {entry.count} · {formatSoles(entry.totalCents)}
-                    </b>
-                  </div>
+                  <StatTile
+                    label={`Vendido por ${entry.user}`}
+                    value={formatSoles(entry.totalCents)}
+                    detail={`${entry.count} tickets`}
+                  />
                 )}
               </For>
-              <For each={data().voidedByUser}>
-                {(entry) => (
-                  <div class={`${styles.tarjeta} ${styles.tarjetaAnulaciones}`}>
-                    <span>Anuladas por {entry.user}</span>
-                    <b>
-                      {entry.count} · {formatSoles(entry.totalCents)}
-                    </b>
-                  </div>
-                )}
-              </For>
-            </div>
+            </StatTiles>
           </>
         )}
       </Show>
@@ -362,12 +351,9 @@ export const SalesHistoryView: Component = () => {
                     <b class={styles.monto}>{formatSoles(item.totalCents)}</b>
                   </td>
                   <td>
-                    <span
-                      class={styles.estado}
-                      classList={{ [styles.estadoAnulada]: item.status === 'voided' }}
-                    >
+                    <Chip tone={item.status === 'charged' ? 'exito' : 'peligro'}>
                       {item.status === 'charged' ? 'cobrada' : 'anulada'}
-                    </span>
+                    </Chip>
                   </td>
                   <td class={tabla.acciones} onClick={(event) => event.stopPropagation()}>
                     <Show when={item.status === 'charged'}>
@@ -397,28 +383,41 @@ export const SalesHistoryView: Component = () => {
           </tbody>
         </table>
         <Show when={!result.loading && items().length === 0}>
-          <p class={tabla.vacio}>No hay ventas con esos filtros.</p>
+          <EmptyState message="No hay ventas con esos filtros." />
         </Show>
       </div>
 
-      <div class={tabla.paginacion}>
-        <button type="button" disabled={page() <= 1} onClick={() => setPage(page() - 1)}>
-          ‹ Anterior
-        </button>
-        <span>
-          Página {page()} de {totalPages()} · {total()} ventas
-        </span>
-        <button type="button" disabled={page() >= totalPages()} onClick={() => setPage(page() + 1)}>
-          Siguiente ›
-        </button>
-      </div>
+      <TableFooter
+        total={total()}
+        singular="venta"
+        plural="ventas"
+        page={page()}
+        lastPage={totalPages()}
+        onPage={setPage}
+      />
 
       <Show when={voiding()}>
         {(ticket) => (
           <Modal
+            size="sm"
             title={`Anular venta #${ticket().number}`}
             dismissOnBackdrop={false}
             onClose={closeVoidModal}
+            footer={
+              <div class={forms.acciones}>
+                <button type="button" class={forms.secundario} onClick={closeVoidModal}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  class={styles.anular}
+                  disabled={voidReason().trim().length < 3 || voidingBusy()}
+                  onClick={() => void confirmVoid()}
+                >
+                  Sí, anular venta
+                </button>
+              </div>
+            }
           >
             <div class={forms.form}>
               <p class={forms.nota}>
@@ -465,26 +464,28 @@ export const SalesHistoryView: Component = () => {
               <Show when={voidError() !== ''}>
                 <p class={forms.error}>{voidError()}</p>
               </Show>
-              <div class={forms.acciones}>
-                <button type="button" class={forms.secundario} onClick={closeVoidModal}>
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  class={styles.anular}
-                  disabled={voidReason().trim().length < 3 || voidingBusy()}
-                  onClick={() => void confirmVoid()}
-                >
-                  Sí, anular venta
-                </button>
-              </div>
             </div>
           </Modal>
         )}
       </Show>
 
       <Show when={detailId() !== null}>
-        <Modal size="lg" title="Detalle de la venta" onClose={() => setDetailId(null)}>
+        <Modal
+          size="lg"
+          title="Detalle de la venta"
+          onClose={() => setDetailId(null)}
+          footer={
+            <div class={forms.acciones}>
+              <button
+                type="button"
+                class={forms.secundario}
+                onClick={() => setDetailId(null)}
+              >
+                Cerrar
+              </button>
+            </div>
+          }
+        >
           <Show when={detail()} fallback={<p class={styles.cargando}>Cargando…</p>}>
             {(ticket) => (
               <TicketDetail

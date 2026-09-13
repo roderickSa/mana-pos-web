@@ -9,6 +9,10 @@ import {showNotice } from '@/shared/state/notices';
 import {beepError, beepSuccess } from '@/shared/lib/sounds';
 import forms from '@/shared/ui/forms.module.css';
 import styles from './CashView.module.css';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { StatTile, StatTiles } from '@/shared/ui/StatTile';
+import { TableFooter } from '@/shared/ui/TableFooter';
+import tabla from '@/shared/ui/tabla.module.css';
 import { MOVEMENT_LABELS, type ModalState } from './components/cash.helpers';
 import { ClosingsHistory } from './components/ClosingsHistory';
 import { MovementModal } from './components/MovementModal';
@@ -138,15 +142,17 @@ export const CashView: Component = () => {
                       </div>
 
                       <div class={styles.desglose}>
-                        <div><span>Fondo inicial</span><b>{formatSoles(open().breakdown.openingCents)}</b></div>
-                        <div><span>Ventas en efectivo</span><b>{formatSoles(open().breakdown.cashSalesCents)}</b></div>
-                        <div><span>Abonos de fiado</span><b>{formatSoles(open().breakdown.cashAbonosCents)}</b></div>
-                        <div><span>Ingresos de efectivo</span><b>{formatSoles(open().breakdown.depositsCents)}</b></div>
-                        <div><span>Retiros</span><b>−{formatSoles(open().breakdown.withdrawalsCents)}</b></div>
-                        <div><span>Gastos</span><b>−{formatSoles(open().breakdown.expensesCents)}</b></div>
-                        <Show when={open().breakdown.refundsCents > 0}>
-                          <div><span>Devoluciones</span><b>−{formatSoles(open().breakdown.refundsCents)}</b></div>
-                        </Show>
+                        <StatTiles dense>
+                          <StatTile label="Fondo inicial" value={formatSoles(open().breakdown.openingCents)} />
+                          <StatTile label="Ventas en efectivo" value={formatSoles(open().breakdown.cashSalesCents)} />
+                          <StatTile label="Abonos de fiado" value={formatSoles(open().breakdown.cashAbonosCents)} />
+                          <StatTile label="Ingresos de efectivo" value={formatSoles(open().breakdown.depositsCents)} />
+                          <StatTile label="Retiros" value={`−${formatSoles(open().breakdown.withdrawalsCents)}`} />
+                          <StatTile label="Gastos" value={`−${formatSoles(open().breakdown.expensesCents)}`} />
+                          <Show when={open().breakdown.refundsCents > 0}>
+                            <StatTile label="Devoluciones" value={`−${formatSoles(open().breakdown.refundsCents)}`} />
+                          </Show>
+                        </StatTiles>
                       </div>
                     </div>
 
@@ -165,24 +171,54 @@ export const CashView: Component = () => {
                       </button>
                     </div>
 
-                    <div class={styles.movimientos}>
-                      <h3>Movimientos del turno</h3>
-                      <For each={open().movements}>
-                        {(movement) => (
-                          <p class={forms.nota} style={{ 'border-bottom': '1px dashed var(--linea)', padding: '6px 0' }}>
-                            {formatTime(movement.createdAt)}
-                            {' · '}
-                            {MOVEMENT_LABELS[movement.kind]} · {movement.concept} ·{' '}
-                            <b style={{ color: movement.kind === 'deposit' ? 'var(--exito)' : 'var(--peligro)' }}>
-                              {movement.kind === 'deposit' ? '+' : '−'}
-                              {formatSoles(movement.amountCents)}
-                            </b>
-                          </p>
-                        )}
-                      </For>
-                      <Show when={open().movements.length === 0}>
-                        <p class={forms.nota}>Sin retiros ni gastos en este turno.</p>
-                      </Show>
+                    <div class={styles.paneles}>
+                      <div class={`${styles.movimientos} ${styles.panel}`}>
+                        <h3>Movimientos del turno</h3>
+                        <div class={styles.panelRueda}>
+                          <Show
+                            when={open().movements.length > 0}
+                            fallback={
+                              <EmptyState message="Sin retiros ni gastos en este turno." />
+                            }
+                          >
+                            <table class={tabla.tabla}>
+                              <thead>
+                                <tr>
+                                  <th>Hora</th>
+                                  <th>Tipo</th>
+                                  <th>Concepto</th>
+                                  <th class={tabla.num}>Monto</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <For each={open().movements}>
+                                  {(movement) => (
+                                    <tr>
+                                      <td class={tabla.sub}>{formatTime(movement.createdAt)}</td>
+                                      <td>{MOVEMENT_LABELS[movement.kind]}</td>
+                                      <td class={tabla.sub}>{movement.concept}</td>
+                                      <td
+                                        class={tabla.num}
+                                        classList={{ [styles.entra]: movement.kind === 'deposit' }}
+                                      >
+                                        {movement.kind === 'deposit' ? '+' : '−'}
+                                        {formatSoles(movement.amountCents)}
+                                      </td>
+                                    </tr>
+                                  )}
+                                </For>
+                              </tbody>
+                            </table>
+                          </Show>
+                        </div>
+                        <TableFooter
+                          total={open().movements.length}
+                          singular="movimiento"
+                          plural="movimientos"
+                        />
+                      </div>
+
+                      <ClosingsHistory version={cashRefreshVersion()} />
                     </div>
                   </>
                 )}
@@ -191,8 +227,6 @@ export const CashView: Component = () => {
           }}
         </Match>
       </Switch>
-
-      <ClosingsHistory version={cashRefreshVersion()} />
 
       {renderModal(modal(), setModal, () => {
         bumpCashRefresh();

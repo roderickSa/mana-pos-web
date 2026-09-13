@@ -35,3 +35,10 @@ export function allCategories(): CategoryDto[] {
 export function refreshCategories(): void {
   void refetch();
 }
+
+// El servidor devuelve el slug («lacteos-y-embutidos»); la pantalla muestra el
+// nombre con el que la categoría se creó. Si no está cargada, el slug es mejor
+// que un hueco.
+export function categoryName(slug: string): string {
+  return loaded().find((category) => category.slug === slug)?.name ?? slug;
+}

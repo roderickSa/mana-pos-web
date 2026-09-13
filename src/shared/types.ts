@@ -26,9 +26,6 @@ export interface UnitProductDto extends ProductBase {
   saleType: 'unit';
   priceCents: number;
   costCents: number;
-  // Compra por empaque: 1 caja/paquete = packSize unidades a packCostCents.
-  packSize: number | null;
-  packCostCents: number | null;
   stockUnits: number;
   stockMinimum: number;
 }

@@ -11,7 +11,32 @@ import forms from '@/shared/ui/forms.module.css';
 import styles from '../CashView.module.css';
 
 export const ClosedSummaryModal: Component<{ result: CloseResultDto; onClose: () => void }> = (props) => (
-  <Modal title="Corte de caja" onClose={props.onClose}>
+  <Modal
+    size="md"
+    title="Corte de caja"
+    onClose={props.onClose}
+    footer={
+      <div class={forms.acciones}>
+        <button
+          type="button"
+          class={forms.secundario}
+          onClick={() =>
+            void printLastCloseSummary()
+              .then((result) => showNotice(result.message))
+              .catch((cause) => {
+                beepError();
+                showNotice(apiErrorMessage(cause, 'No se pudo imprimir el resumen.'));
+              })
+          }
+        >
+          🖨 Imprimir resumen
+        </button>
+        <button type="button" class={forms.primario} onClick={props.onClose} autofocus>
+          Listo
+        </button>
+      </div>
+    }
+  >
     <div class={forms.form}>
       <div class={styles.corteResumen}>
         <div><span>Esperado</span><b>{formatSoles(props.result.session.expectedCashCents)}</b></div>
@@ -43,25 +68,6 @@ export const ClosedSummaryModal: Component<{ result: CloseResultDto; onClose: ()
           .map((entry) => `${METHOD_LABELS[entry.method] ?? entry.method} ${formatSoles(entry.amountCents)}`)
           .join(' · ') || 'sin ventas'}
       </p>
-      <div class={forms.acciones}>
-        <button
-          type="button"
-          class={forms.secundario}
-          onClick={() =>
-            void printLastCloseSummary()
-              .then((result) => showNotice(result.message))
-              .catch((cause) => {
-                beepError();
-                showNotice(apiErrorMessage(cause, 'No se pudo imprimir el resumen.'));
-              })
-          }
-        >
-          🖨 Imprimir resumen
-        </button>
-        <button type="button" class={forms.primario} onClick={props.onClose} autofocus>
-          Listo
-        </button>
-      </div>
     </div>
   </Modal>
 );

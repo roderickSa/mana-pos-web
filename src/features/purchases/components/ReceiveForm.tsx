@@ -34,6 +34,8 @@ export const ReceiveForm: Component<{
   const [drafts, setDrafts] = createSignal(initialDrafts);
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
+  const [documentNumber, setDocumentNumber] = createSignal('');
+  const [paymentTerms, setPaymentTerms] = createSignal('');
 
   function draftOf(line: PurchaseOrderLineDto): ReceiveDraft {
     return drafts().get(line.id) ?? { quantity: '', cost: '', expiry: '' };
@@ -84,7 +86,13 @@ export const ReceiveForm: Component<{
       });
     }
     try {
-      const updated = await receivePurchaseOrder(props.order.id, receptionId(), payload);
+      const updated = await receivePurchaseOrder(
+        props.order.id,
+        receptionId(),
+        payload,
+        documentNumber().trim() === '' ? null : documentNumber().trim(),
+        paymentTerms().trim() === '' ? null : paymentTerms().trim(),
+      );
       beepSuccess();
       showNotice(
         updated.status === 'received' ? 'Orden recibida completa' : 'Recepción parcial registrada',
@@ -99,6 +107,36 @@ export const ReceiveForm: Component<{
 
   return (
     <div class={formStyles.form}>
+      <div class={formStyles.fila}>
+        <div class={formStyles.campo}>
+          <span class={formStyles.etiqueta}>Factura o guía (opcional)</span>
+          <input
+            id="recepcion-documento"
+            class={formStyles.input}
+            placeholder="p. ej. F001-4821"
+            value={documentNumber()}
+            onInput={(event) => setDocumentNumber(event.currentTarget.value)}
+          />
+        </div>
+        <div class={formStyles.campo}>
+          <span class={formStyles.etiqueta}>Cómo se pagó (opcional)</span>
+          <input
+            id="recepcion-pago"
+            class={formStyles.input}
+            list="condiciones-pago"
+            placeholder="contado, crédito 15 días…"
+            value={paymentTerms()}
+            onInput={(event) => setPaymentTerms(event.currentTarget.value)}
+          />
+          <datalist id="condiciones-pago">
+            <option value="contado" />
+            <option value="crédito 7 días" />
+            <option value="crédito 15 días" />
+            <option value="crédito 30 días" />
+          </datalist>
+        </div>
+      </div>
+
       <p class={formStyles.nota}>
         Ajusta lo que llegó de verdad. Lo que dejes en 0 queda pendiente para otra recepción. El
         costo real actualiza el costo del producto y el kardex.

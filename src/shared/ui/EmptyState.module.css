@@ -1,0 +1,22 @@
+/* Lo que se ve cuando no hay nada. Dice por qué está vacío y qué hacer, en vez
+   de dejar la tabla en blanco. */
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--tinta-suave);
+}
+
+.mensaje {
+  margin: 0;
+  max-width: 46ch;
+}
+
+.titulo {
+  margin: 0;
+  color: var(--tinta);
+  font-weight: 600;
+}

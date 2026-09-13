@@ -68,38 +68,40 @@ export const WeightModal: Component<{
         </div>
       }
     >
-      <Show when={scaleGrams() !== null}>
-        <button type="button" class={styles.balanzaViva} onClick={confirmFromScale}>
-          <span class={styles.balanzaEtiqueta}>Balanza</span>
-          <b>{formatKg(scaleGrams() ?? 0)}</b>
-          <span>Usar este peso · {formatSoles(priceFor(scaleGrams() ?? 0))}</span>
-        </button>
-      </Show>
-      <Show when={scaleGrams() === null && scale() != null}>
-        <p class={styles.ayuda}>{scale()?.message ?? 'Balanza sin lectura — usa el peso manual.'}</p>
-      </Show>
+      <div class={styles.cuerpo}>
+        <Show when={scaleGrams() !== null}>
+          <button type="button" class={styles.balanzaViva} onClick={confirmFromScale}>
+            <span class={styles.balanzaEtiqueta}>Balanza</span>
+            <b>{formatKg(scaleGrams() ?? 0)}</b>
+            <span>Usar este peso · {formatSoles(priceFor(scaleGrams() ?? 0))}</span>
+          </button>
+        </Show>
+        <Show when={scaleGrams() === null && scale() != null}>
+          <p class={styles.ayuda}>{scale()?.message ?? 'Balanza sin lectura — usa el peso manual.'}</p>
+        </Show>
 
-      <input
-        class={styles.input}
-        type="number"
-        inputmode="numeric"
-        placeholder="gramos, p. ej. 645"
-        aria-label={`Gramos de ${props.product.name}`}
-        value={grams()}
-        onInput={(event) => setGrams(event.currentTarget.value)}
-        onKeyDown={(event) => event.key === 'Enter' && confirmManual()}
-        autofocus
-      />
-      <div class={styles.presets}>
-        <For each={PRESET_GRAMS}>
-          {(preset) => (
-            <button type="button" class={styles.preset} onClick={() => setGrams(String(preset))}>
-              {preset >= 1000 ? `${preset / 1000} kg` : `${preset} g`}
-            </button>
-          )}
-        </For>
+        <input
+          class={styles.input}
+          type="number"
+          inputmode="numeric"
+          placeholder="gramos, p. ej. 645"
+          aria-label={`Gramos de ${props.product.name}`}
+          value={grams()}
+          onInput={(event) => setGrams(event.currentTarget.value)}
+          onKeyDown={(event) => event.key === 'Enter' && confirmManual()}
+          autofocus
+        />
+        <div class={styles.presets}>
+          <For each={PRESET_GRAMS}>
+            {(preset) => (
+              <button type="button" class={styles.preset} onClick={() => setGrams(String(preset))}>
+                {preset >= 1000 ? `${preset / 1000} kg` : `${preset} g`}
+              </button>
+            )}
+          </For>
+        </div>
+        <Keypad value={grams()} onChange={setGrams} />
       </div>
-      <Keypad value={grams()} onChange={setGrams} />
     </Modal>
   );
 };

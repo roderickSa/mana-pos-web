@@ -47,7 +47,26 @@ export const CloseModal: Component<{
   }
 
   return (
-    <Modal title="Cerrar caja — arqueo" onClose={props.onClose}>
+    <Modal
+      size="md"
+      title="Cerrar caja — arqueo"
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={saving()}
+            onClick={() => void save()}
+          >
+            Cerrar caja
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <p class={forms.nota}>
           Cuenta el efectivo del cajón y escríbelo. El sistema compara contra lo esperado y registra
@@ -82,19 +101,6 @@ export const CloseModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class={forms.primario}
-            disabled={saving()}
-            onClick={() => void save()}
-          >
-            Cerrar caja
-          </button>
-        </div>
       </div>
     </Modal>
   );

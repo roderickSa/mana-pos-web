@@ -1,6 +1,8 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
 import { focusOnMount } from '@/shared/lib/focus';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { DateField } from '@/shared/ui/DateField';
+import { EmptyState } from '@/shared/ui/EmptyState';
 
 import { movementsExportUrl, searchMovements } from '@/shared/api/inventory';
 import { downloadFile } from '@/shared/api/client';
@@ -162,29 +164,41 @@ export const KardexTab: Component = () => {
           </tbody>
         </table>
         <Show when={!result.loading && items().length === 0}>
-          <p class={styles.vacio}>No hay movimientos con esos filtros.</p>
+          <EmptyState message="No hay movimientos con esos filtros." />
         </Show>
       </div>
 
       <Show when={ticketId() !== null}>
-        <Modal size="md" title="Ticket del movimiento" onClose={() => setTicketId(null)}>
+        <Modal
+          size="md"
+          title="Ticket del movimiento"
+          onClose={() => setTicketId(null)}
+          footer={
+            <div class={forms.acciones}>
+              <button
+                type="button"
+                class={forms.secundario}
+                onClick={() => setTicketId(null)}
+              >
+                Cerrar
+              </button>
+            </div>
+          }
+        >
           <Show when={ticket()} fallback={<p class={forms.nota}>Cargando…</p>}>
             {(detail) => <KardexTicketDetail ticket={detail()} />}
           </Show>
         </Modal>
       </Show>
 
-      <div class={styles.paginacion}>
-        <button type="button" disabled={page() <= 1} onClick={() => setPage(page() - 1)}>
-          ‹ Anterior
-        </button>
-        <span>
-          Página {page()} de {totalPages()} · {total()} movimientos
-        </span>
-        <button type="button" disabled={page() >= totalPages()} onClick={() => setPage(page() + 1)}>
-          Siguiente ›
-        </button>
-      </div>
+      <TableFooter
+        total={total()}
+        singular="movimiento"
+        plural="movimientos"
+        page={page()}
+        lastPage={totalPages()}
+        onPage={setPage}
+      />
     </section>
   );
 };

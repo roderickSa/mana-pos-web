@@ -7,7 +7,7 @@ import {
   receivePurchaseOrder,
   type PurchaseOrderLineDto,
 } from '@/shared/api/purchases';
-import { centsToSolesInput, formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
+import { formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
 import { DateField } from '@/shared/ui/DateField';
 import { Modal } from '@/shared/ui/Modal';
@@ -26,6 +26,11 @@ interface LinkedOrder {
   line: PurchaseOrderLineDto;
 }
 
+// Cuántas órdenes pendientes se miran para ofrecer el vínculo. Una tienda no
+// tiene 50 pedidos sin recibir a la vez; si los tuviera, la orden vieja se
+// busca desde Compras.
+const PENDING_ORDERS_TO_SCAN = 50;
+
 export const EntryModal: Component<{
   product: ProductDto;
   onDone: (message: string) => void;
@@ -36,14 +41,10 @@ export const EntryModal: Component<{
   const [quantity, setQuantity] = createSignal('');
   const [unitCost, setUnitCost] = createSignal('');
   const [boxes, setBoxes] = createSignal('');
-  const [unitsPerBox, setUnitsPerBox] = createSignal(
-    unitProduct !== null && unitProduct.packSize !== null ? String(unitProduct.packSize) : '',
-  );
-  const [boxCost, setBoxCost] = createSignal(
-    unitProduct !== null && unitProduct.packCostCents !== null
-      ? centsToSolesInput(unitProduct.packCostCents)
-      : '',
-  );
+  // La caja ya no vive en el producto sino en las condiciones de cada
+  // proveedor; en una entrada directa, sin orden detrás, se teclea.
+  const [unitsPerBox, setUnitsPerBox] = createSignal('');
+  const [boxCost, setBoxCost] = createSignal('');
   const [expiry, setExpiry] = createSignal('');
   const [error, setError] = createSignal('');
   const [linkToOrder, setLinkToOrder] = createSignal(true);
@@ -52,9 +53,8 @@ export const EntryModal: Component<{
   // entrada puede vincularse a ella (baja el pendiente en vez de quedar suelta).
   const [linkedOrder] = createResource<LinkedOrder | null>(async () => {
     try {
-      const orders = await listPurchaseOrders();
-      for (const summary of orders) {
-        if (summary.status !== 'open' && summary.status !== 'partial') continue;
+      const orders = await listPurchaseOrders(1, PENDING_ORDERS_TO_SCAN, true);
+      for (const summary of orders.items) {
         const order = await getPurchaseOrder(summary.id);
         const line = order.lines.find(
           (item) => item.productId === props.product.id && item.pendingQuantity > 0,
@@ -103,7 +103,7 @@ export const EntryModal: Component<{
   const boxCount = () => Number.parseInt(boxes(), 10) || 0;
   const boxUnits = () => Number.parseInt(unitsPerBox(), 10) || 0;
   const totalUnits = () => boxCount() * boxUnits();
-  // Costo unitario derivado del costo por caja (vacío = no actualizar costo).
+  // Costo unitario derivado del costo por caja.
   const derivedCost = () => {
     const cents = solesInputToCents(boxCost());
     return cents === null || cents <= 0 || boxUnits() <= 0 ? null : Math.round(cents / boxUnits());
@@ -118,8 +118,12 @@ export const EntryModal: Component<{
     const value = enteredQuantity();
     if (value <= 0) return;
     const costCents = enteredCost();
-    if (!byBoxes() && costCents !== null && costCents <= 0) {
-      setError('El costo debe ser mayor a cero, o déjalo vacío.');
+    if (costCents === null || costCents <= 0) {
+      setError(
+        byBoxes()
+          ? 'Falta el costo por caja: búscalo en la factura del proveedor.'
+          : 'Falta el costo: búscalo en la factura del proveedor.',
+      );
       return;
     }
     const order = linkedOrder();
@@ -144,9 +148,7 @@ export const EntryModal: Component<{
       }
       await registerEntry(props.product.id, value, costCents, expiry().trim() === '' ? null : expiry());
       props.onDone(
-        `Entrada registrada: +${value} ${unitLabel(props.product)}${
-          costCents === null ? '' : ' — costo actualizado'
-        }`,
+        `Entrada registrada: +${value} ${unitLabel(props.product)} — costo actualizado`,
       );
     } catch (cause) {
       beepError();
@@ -158,9 +160,25 @@ export const EntryModal: Component<{
 
   return (
     <Modal
+      size="md"
       title={`Entrada de mercancía — ${props.product.name}`}
       dismissOnBackdrop={false}
       onClose={props.onClose}
+      footer={
+        <div class={styles.acciones}>
+          <button type="button" class={styles.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class={styles.primario}
+            disabled={enteredQuantity() <= 0 || (enteredCost() ?? 0) <= 0 || saving()}
+            onClick={save}
+          >
+            Registrar entrada
+          </button>
+        </div>
+      }
     >
       <div class={styles.form}>
         <Show when={unitProduct !== null}>
@@ -191,7 +209,7 @@ export const EntryModal: Component<{
                 />
               </div>
               <div class={styles.campo}>
-                <span class={styles.etiqueta}>Costo S/ {costUnitLabel()} (opcional)</span>
+                <span class={styles.etiqueta}>Costo S/ {costUnitLabel()}</span>
                 <input
                   class={styles.input}
                   type="number"
@@ -232,7 +250,7 @@ export const EntryModal: Component<{
               />
             </div>
             <div class={styles.campo}>
-              <span class={styles.etiqueta}>Costo por caja S/ (opcional)</span>
+              <span class={styles.etiqueta}>Costo por caja S/</span>
               <input
                 class={styles.input}
                 type="number"
@@ -283,25 +301,12 @@ export const EntryModal: Component<{
           <DateField inputClass={styles.input} value={expiry()} onChange={setExpiry} />
         </div>
         <p class={styles.nota}>
-          Si capturas el costo, el margen se calcula con este costo de última compra. La fecha de
-          vencimiento alimenta la pestaña «Por vencer».
+          El costo es obligatorio: con él se calcula el margen y se valoriza el kardex. La fecha
+          de vencimiento alimenta la pestaña «Por vencer».
         </p>
         <Show when={error() !== ''}>
           <p class={styles.error}>{error()}</p>
         </Show>
-        <div class={styles.acciones}>
-          <button type="button" class={styles.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class={styles.primario}
-            disabled={enteredQuantity() <= 0 || saving()}
-            onClick={save}
-          >
-            Registrar entrada
-          </button>
-        </div>
       </div>
     </Modal>
   );

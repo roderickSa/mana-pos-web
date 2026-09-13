@@ -102,7 +102,7 @@
   padding: 6px 14px;
   font-size: 0.78rem;
   font-weight: 600;
-  min-height: 36px;
+  min-height: var(--alto-compacto);
 }
 
 .deshacer:hover {
@@ -201,7 +201,7 @@
 
 .paso {
   width: 32px;
-  height: 32px;
+  height: var(--alto-compacto);
   border: 1px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta);
@@ -239,7 +239,7 @@
   border: 1px solid var(--linea);
   background: var(--superficie-panel);
   border-radius: var(--radio-boton);
-  min-height: 34px;
+  min-height: var(--alto-compacto);
   white-space: nowrap;
 }
 
@@ -265,7 +265,7 @@
   color: var(--peligro);
   font-size: 0.9rem;
   width: 32px;
-  height: 32px;
+  height: var(--alto-compacto);
   border-radius: var(--radio-chico);
   opacity: 0;
   transition: opacity 100ms ease;
@@ -289,7 +289,7 @@
   font-size: 0.9rem;
   font-weight: 700;
   width: 32px;
-  height: 32px;
+  height: var(--alto-compacto);
   border-radius: var(--radio-chico);
   opacity: 0;
   transition: opacity 100ms ease;
@@ -322,7 +322,6 @@
   .quitar {
     opacity: 1;
     width: 44px;
-    height: 44px;
     font-size: 1.05rem;
     background: color-mix(in srgb, var(--peligro) 8%, transparent);
   }
@@ -330,14 +329,12 @@
   .descontar {
     opacity: 1;
     width: 44px;
-    height: 44px;
     font-size: 1.05rem;
     background: color-mix(in srgb, var(--tinta) 6%, transparent);
   }
 
   .paso {
     width: 44px;
-    height: 40px;
     font-size: 1.15rem;
   }
 
@@ -350,13 +347,6 @@
     padding-top: 10px;
     padding-bottom: 10px;
   }
-}
-
-.vacio {
-  color: var(--tinta-suave);
-  font-size: 0.88rem;
-  text-align: center;
-  margin: 28px 16px;
 }
 
 /* El totalizador: único bloque oscuro de la pantalla — ancla la composición
@@ -420,7 +410,7 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   box-shadow: var(--sombra-boton);
-  min-height: 56px;
+  min-height: var(--alto-grande);
 }
 
 .cobrar:disabled {
@@ -451,7 +441,7 @@
   padding: 10px;
   font-size: 0.85rem;
   font-weight: 600;
-  min-height: 44px;
+  min-height: var(--alto-control);
 }
 
 .esperaBoton:disabled {
@@ -470,16 +460,11 @@
 
 @media (any-pointer: coarse) {
   .deshacer {
-    min-height: 44px;
     padding: 9px 18px;
   }
 
-  .esperaBoton {
-    min-height: 48px;
-  }
 
   .peso {
-    min-height: 44px;
     padding: 9px 14px;
   }
 }

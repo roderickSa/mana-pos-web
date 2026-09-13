@@ -33,7 +33,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 52px;
+  min-height: var(--alto-control);
 }
 
 .cliente:hover {
@@ -86,7 +86,7 @@
   border-radius: var(--radio-boton);
   padding: 12px 22px;
   font-weight: 600;
-  min-height: 48px;
+  min-height: var(--alto-control);
 }
 
 .confirmar {
@@ -96,7 +96,7 @@
   border-radius: var(--radio-boton);
   padding: 12px 24px;
   font-weight: 700;
-  min-height: 48px;
+  min-height: var(--alto-control);
 }
 
 .confirmar:disabled {

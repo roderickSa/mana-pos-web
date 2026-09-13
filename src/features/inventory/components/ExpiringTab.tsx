@@ -1,4 +1,5 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { DateField } from '@/shared/ui/DateField';
 import { ConfirmModal } from '@/shared/ui/ConfirmModal';
 import { Modal } from '@/shared/ui/Modal';
@@ -16,6 +17,8 @@ import { apiErrorMessage } from '@/shared/api/client';
 import { formatKg } from '@/shared/lib/money';
 import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
+import { Chip } from '@/shared/ui/Chip';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 import { formatDateOnly } from '@/shared/lib/dates';
@@ -152,16 +155,13 @@ export const ExpiringTab: Component = () => {
                   <td class={tabla.sub}>{formatDateOnly(item.receivedAt)}</td>
                   <td class={tabla.sub}>{formatDateOnly(item.expiryDate)}</td>
                   <td>
-                    <span
-                      class={styles.chip}
-                      classList={{ [styles.chipVencido]: item.daysLeft <= 0 }}
-                    >
+                    <Chip tone={item.daysLeft <= 0 ? 'peligro' : 'alerta'}>
                       {item.daysLeft <= 0
                         ? item.daysLeft === 0
                           ? 'vence hoy'
                           : `vencido hace ${-item.daysLeft} d`
                         : `vence en ${item.daysLeft} d`}
-                    </span>
+                    </Chip>
                   </td>
                   <td class={tabla.acciones}>
                     <Show
@@ -209,12 +209,17 @@ export const ExpiringTab: Component = () => {
           </tbody>
         </table>
         <Show when={!list.loading && (list()?.items.length ?? 0) === 0}>
-          <p class={tabla.vacio}>
-            Nada por vencer en los próximos {list()?.alertDays ?? 7} días. Captura fechas de
-            vencimiento en las entradas de mercancía para verlas aquí.
-          </p>
+          <EmptyState
+            message={`Nada por vencer en los próximos ${list()?.alertDays ?? 7} días. Captura fechas de vencimiento en las entradas de mercancía para verlas aquí.`}
+          />
         </Show>
       </div>
+
+      <TableFooter
+        total={list()?.items.length ?? 0}
+        singular="lote por vencer"
+        plural="lotes por vencer"
+      />
 
       <Show when={merma()}>
         {(item) => (

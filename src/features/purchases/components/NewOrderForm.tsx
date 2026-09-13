@@ -1,8 +1,18 @@
 import {createResource, createSignal, For, Index, Show, type Component } from 'solid-js';
 
 
-import {createPurchaseOrder } from '@/shared/api/purchases';
-import {linkProductSupplier, searchProducts } from '@/shared/api/products';
+import {
+  createPurchaseOrder,
+  supplierPurchaseContext,
+  type SupplierContextDto,
+} from '@/shared/api/purchases';
+import { DateField } from '@/shared/ui/DateField';
+import {
+  linkProductSupplier,
+  listProductSupplies,
+  searchProducts,
+  type ProductSupplyDto,
+} from '@/shared/api/products';
 import { listSuppliers } from '@/shared/api/suppliers';
 import {centsToSolesInput, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import {beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
@@ -24,16 +34,83 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
   const [saving, setSaving] = createSignal(false);
   const [suggesting, setSuggesting] = createSignal(false);
   const [toAssociate, setToAssociate] = createSignal<ProductDto | null>(null);
+  const [expectedAt, setExpectedAt] = createSignal('');
+  const [context, setContext] = createSignal<SupplierContextDto | null>(null);
+  // Proveedor, fecha y notas se ponen una vez; después estorban. Se pliegan
+  // solos al agregar el primer producto y se abren con un clic.
+  const [datosAbiertos, setDatosAbiertos] = createSignal(true);
+  // Condiciones de ESTE proveedor por producto, cacheadas a medida que se usan.
+  const [supplies, setSupplies] = createSignal<Record<string, ProductSupplyDto | null>>({});
+
+  const supplyOf = (productId: string): ProductSupplyDto | null =>
+    supplies()[productId] ?? null;
+
+  async function loadContext(id: string): Promise<void> {
+    if (id === '') {
+      setContext(null);
+      return;
+    }
+    try {
+      setContext(await supplierPurchaseContext(id));
+    } catch {
+      setContext(null);
+    }
+  }
+
+  // Traer lo último que se le pidió: casi siempre se le pide lo mismo.
+  async function copyLastOrder(): Promise<void> {
+    const last = context()?.lastOrder;
+    if (last === null || last === undefined) return;
+    const productos = await searchProducts('', null, false, false, supplierId());
+    const porId = new Map(productos.map((item) => [item.id, item]));
+    const nuevas: DraftLine[] = [];
+    for (const linea of last.lines) {
+      const product = porId.get(linea.productId);
+      if (product === undefined) continue;
+      await loadSupply(product.id);
+      const packSize = product.saleType === 'unit' ? (supplyOf(product.id)?.packSize ?? null) : null;
+      const cantidad =
+        packSize !== null
+          ? String(Math.max(1, Math.round(linea.quantityOrdered / packSize)))
+          : product.saleType === 'weight'
+            ? String(linea.quantityOrdered / 1000)
+            : String(linea.quantityOrdered);
+      const costo = packSize !== null ? linea.packCostCents : linea.unitCostCents;
+      nuevas.push({
+        product,
+        quantity: cantidad,
+        cost: costo === null || costo <= 0 ? '' : centsToSolesInput(costo),
+        packSize,
+      });
+    }
+    if (nuevas.length === 0) {
+      showNotice('Los productos de esa orden ya no están disponibles.');
+      return;
+    }
+    setLines(nuevas);
+    beepOk();
+    showNotice(`${nuevas.length} líneas traídas de la orden #${last.number} — revisa los costos`);
+  }
+
+  async function loadSupply(productId: string): Promise<void> {
+    if (productId in supplies()) return;
+    try {
+      const all = await listProductSupplies(productId);
+      const mine = all.find((item) => item.supplierId === supplierId()) ?? null;
+      setSupplies({ ...supplies(), [productId]: mine });
+    } catch {
+      setSupplies({ ...supplies(), [productId]: null });
+    }
+  }
 
   // Reposición sugerida: llegar a 2× el mínimo. En cajas si se compra por
   // caja; en kilos con un decimal para pesables.
-  function suggestedQuantity(product: ProductDto): string {
+  function suggestedQuantity(product: ProductDto, packSize: number | null): string {
     if (product.saleType === 'weight') {
       const neededGrams = Math.max(product.stockMinimumGrams * 2 - product.stockGrams, 500);
       return String(Math.ceil(neededGrams / 100) / 10);
     }
     const needed = Math.max(product.stockMinimum * 2 - product.stockUnits, 1);
-    const packSize = packSizeOf(product);
     if (packSize !== null) return String(Math.max(1, Math.ceil(needed / packSize)));
     return String(needed);
   }
@@ -64,8 +141,11 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
         );
         return;
       }
+      await Promise.all(fresh.map((product) => loadSupply(product.id)));
       for (const product of fresh) {
-        addProduct(product, suggestedQuantity(product));
+        const supply = supplyOf(product.id);
+        const packSize = product.saleType === 'unit' ? (supply?.packSize ?? null) : null;
+        addProduct(product, suggestedQuantity(product, packSize));
       }
       beepOk();
       showNotice(`${fresh.length} productos bajo mínimo agregados — revisa las cantidades`);
@@ -79,9 +159,10 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
 
   // El picker muestra TODO el catálogo: si el producto no está asociado al
   // proveedor, se ofrece asociarlo al vuelo (antes el formulario nacía vacío).
-  function pickProduct(product: ProductDto): void {
+  async function pickProduct(product: ProductDto): Promise<void> {
     if (supplierId() === '') return;
     if (product.supplierIds.includes(supplierId())) {
+      await loadSupply(product.id);
       addProduct(product);
       return;
     }
@@ -93,6 +174,7 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
     if (product === null) return;
     try {
       await linkProductSupplier(product.id, supplierId());
+      await loadSupply(product.id);
       addProduct(product);
       beepOk();
       showNotice(`«${product.name}» quedó asociado a este proveedor`);
@@ -103,21 +185,25 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
     setToAssociate(null);
   }
 
+  // El costo y el empaque salen de las condiciones de ESTE proveedor. El
+  // producto solo guarda el costo de la última compra, que puede ser de otro.
   function addProduct(product: ProductDto, quantity = ''): void {
-    const packSize = packSizeOf(product);
-    // Costo sugerido: última compra (por caja si se compra por caja).
+    setDatosAbiertos(false);
+    const supply = supplyOf(product.id);
+    const packSize = product.saleType === 'unit' ? (supply?.packSize ?? null) : null;
     const suggested =
       product.saleType === 'weight'
-        ? product.costPerKgCents
+        ? (supply?.unitCostCents ?? product.costPerKgCents)
         : packSize !== null
-          ? product.packCostCents
-          : product.costCents;
+          ? (supply?.packCostCents ?? null)
+          : (supply?.unitCostCents ?? product.costCents);
     setLines([
       ...lines(),
       {
         product,
-        quantity,
+        quantity: quantity === '' ? '' : quantity,
         cost: suggested === null || suggested <= 0 ? '' : centsToSolesInput(suggested),
+        packSize,
       },
     ]);
   }
@@ -137,17 +223,17 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
     lines().every((line) => quantityUnits(line) > 0 && unitCostCents(line) !== null);
 
   function quantityLabel(line: DraftLine): string {
-    if (packSizeOf(line.product) !== null) return 'Cajas';
+    if (packSizeOf(line) !== null) return 'Cajas';
     return line.product.saleType === 'weight' ? 'Kilos' : 'Unidades';
   }
 
   function costLabel(line: DraftLine): string {
-    if (packSizeOf(line.product) !== null) return 'Costo/caja S/';
+    if (packSizeOf(line) !== null) return 'Costo/caja S/';
     return line.product.saleType === 'weight' ? 'Costo/kg S/' : 'Costo/u S/';
   }
 
   function lineHint(line: DraftLine): string {
-    const packSize = packSizeOf(line.product);
+    const packSize = packSizeOf(line);
     const units = quantityUnits(line);
     const cost = unitCostCents(line);
     if (packSize !== null && units > 0) {
@@ -156,7 +242,17 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
     return '';
   }
 
-  async function save(): Promise<void> {
+  // Aviso de costo: si lo pactado está por encima de lo que este proveedor
+  // cobraba, conviene verlo ANTES de mandar la orden.
+  function costChange(line: DraftLine): { pct: number; before: number } | null {
+    const before = supplyOf(line.product.id)?.unitCostCents ?? null;
+    const now = unitCostCents(line);
+    if (before === null || before <= 0 || now === null) return null;
+    const pct = Math.round(((now - before) / before) * 100);
+    return pct === 0 ? null : { pct, before };
+  }
+
+  async function save(asDraft: boolean): Promise<void> {
     if (!valid() || saving()) return;
     setSaving(true);
     setError('');
@@ -164,8 +260,10 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
       await createPurchaseOrder(
         supplierId(),
         notes().trim() === '' ? null : notes().trim(),
+        expectedAt().trim() === '' ? null : expectedAt(),
+        asDraft,
         lines().map((line) => {
-          const packSize = packSizeOf(line.product);
+          const packSize = packSizeOf(line);
           return {
             productId: line.product.id,
             quantity: quantityUnits(line),
@@ -176,7 +274,7 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
         }),
       );
       beepSuccess();
-      showNotice('Orden de compra creada');
+      showNotice(asDraft ? 'Borrador guardado' : 'Orden de compra creada');
       props.onDone();
     } catch {
       beepError();
@@ -187,12 +285,27 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
 
   return (
     <>
-      <div class={tabla.encabezado}>
-        <h2>Nueva orden de compra</h2>
+      <div class={`${tabla.encabezado} ${styles.encabezadoArmado}`}>
+        <h3>Nueva orden</h3>
+        <Show when={!datosAbiertos()}>
+          <button
+            type="button"
+            class={styles.resumenDatos}
+            onClick={() => setDatosAbiertos(true)}
+          >
+            <span>
+              <b>{(suppliers() ?? []).find((item) => item.id === supplierId())?.name ?? ''}</b>
+              {expectedAt() === '' ? '' : ` · entrega ${expectedAt()}`}
+              {notes().trim() === '' ? '' : ` · ${notes().trim()}`}
+            </span>
+            <span class={styles.cambiar}>Cambiar</span>
+          </button>
+        </Show>
       </div>
-      {/* Bloque contenido: a ancho completo el nombre quedaba pegado a la
-          izquierda y el costo a 1200px de distancia. */}
-      <div class={formStyles.form} style={{ 'max-width': '860px' }}>
+      {/* Cabecera fija, lista que rueda y pie fijo: con varias líneas el
+          contenedor recortaba y los botones quedaban fuera de alcance. */}
+      <div class={styles.armado}>
+        <div class={styles.datosOrden} classList={{ [styles.plegado]: !datosAbiertos() }}>
         <div class={formStyles.fila}>
           <div class={formStyles.campo}>
             <span class={formStyles.etiqueta}>Proveedor</span>
@@ -203,6 +316,8 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
                 // Cambiar de proveedor reinicia la orden: sus productos son otros.
                 setSupplierId(event.currentTarget.value);
                 setLines([]);
+                setSupplies({});
+                void loadContext(event.currentTarget.value);
               }}
             >
               <option value="">— Elige proveedor —</option>
@@ -210,6 +325,14 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
                 {(supplier) => <option value={supplier.id}>{supplier.name}</option>}
               </For>
             </select>
+          </div>
+          <div class={formStyles.campo}>
+            <span class={formStyles.etiqueta}>Quedó en entregar el</span>
+            <DateField
+              inputClass={formStyles.input}
+              value={expectedAt()}
+              onChange={setExpectedAt}
+            />
           </div>
           <div class={formStyles.campo}>
             <span class={formStyles.etiqueta}>Notas (opcional)</span>
@@ -221,43 +344,47 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
             />
           </div>
         </div>
+        </div>
 
-        <div class={formStyles.campo}>
-          <span class={formStyles.etiqueta}>
-            Agregar producto (nombre, o escanea el código y Enter)
-          </span>
-          <ProductPicker
+        <div class={styles.agregar}>
+          <div class={styles.campoBuscar}>
+            <ProductPicker
             placeholder={
               supplierId() === ''
                 ? 'primero elige el proveedor'
-                : 'busca por nombre, escanea o teclea el código y Enter'
+                : 'Agregar producto: busca, escanea o teclea el código y Enter'
             }
             disabled={supplierId() === ''}
             accept={(product) => !lines().some((line) => line.product.id === product.id)}
             meta={(product) =>
               product.saleType === 'weight'
                 ? `${formatSoles(product.costPerKgCents)} /kg`
-                : product.packSize !== null && product.packCostCents !== null
-                  ? `caja ×${product.packSize} · ${formatSoles(product.packCostCents)}`
-                  : formatSoles(product.costCents)
+                : formatSoles(product.costCents)
             }
-            onPick={pickProduct}
-          />
-          <div class={formStyles.acciones} style={{ 'justify-content': 'flex-start' }}>
-            <button
-              type="button"
-              class={formStyles.secundario}
-              disabled={supplierId() === '' || suggesting()}
-              title="Precarga los productos de este proveedor que están bajo su stock mínimo, con cantidad sugerida"
-              onClick={() => void suggestLowStock()}
-            >
-              ⚡ Sugerir bajo mínimo
-            </button>
+              onPick={(product) => void pickProduct(product)}
+            />
           </div>
-          <p class={formStyles.nota}>
-            Puedes buscar cualquier producto: si no está asociado a este proveedor, te
-            preguntará si lo asocias al agregarlo.
-          </p>
+          <button
+            type="button"
+            class={formStyles.secundario}
+            disabled={supplierId() === '' || suggesting()}
+            title="Precarga los productos de este proveedor que están bajo su stock mínimo, con cantidad sugerida"
+            onClick={() => void suggestLowStock()}
+          >
+            ⚡ Sugerir bajo mínimo
+          </button>
+          <Show when={context()?.lastOrder}>
+            {(last) => (
+              <button
+                type="button"
+                class={formStyles.secundario}
+                title="Trae las líneas de la última orden a este proveedor"
+                onClick={() => void copyLastOrder()}
+              >
+                Repetir orden #{last().number}
+              </button>
+            )}
+          </Show>
         </div>
 
         <Show when={toAssociate()}>
@@ -293,7 +420,13 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
           )}
         </Show>
 
-        <div class={styles.lineas}>
+        <div class={styles.listaLineas}>
+          <Show when={lines().length === 0}>
+            <p class={styles.sinLineas}>
+              Todavía no agregaste productos. Búscalos arriba o usa «Sugerir bajo mínimo».
+            </p>
+          </Show>
+          <div class={styles.lineas}>
           {/* Index, no For: For identifica filas por referencia y updateLine
               recrea el objeto en cada tecla — re-montaba la fila y el input
               perdía el foco. Index mantiene el DOM estable por posición. */}
@@ -303,6 +436,16 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
                 <div>
                   <div class={styles.lineaNombre}>{line().product.name}</div>
                   <div class={styles.lineaSub}>{lineHint(line())}</div>
+                  <Show when={costChange(line())}>
+                    {(change) => (
+                      <div
+                        class={change().pct > 0 ? styles.subioCosto : styles.bajoCosto}
+                      >
+                        {change().pct > 0 ? '▲' : '▼'} {Math.abs(change().pct)}% vs la última
+                        compra ({formatSoles(change().before)})
+                      </div>
+                    )}
+                  </Show>
                 </div>
                 <div class={formStyles.campo}>
                   <span class={formStyles.etiqueta}>{quantityLabel(line())}</span>
@@ -347,22 +490,45 @@ export const NewOrderForm: Component<{ onDone: () => void; onCancel: () => void 
               </div>
             )}
           </Index>
+          </div>
         </div>
 
-        <Show when={lines().length > 0}>
-          <p class={styles.totalOrden}>Total de la orden: {formatSoles(totalCents())}</p>
-        </Show>
-        <Show when={error() !== ''}>
-          <p class={formStyles.error}>{error()}</p>
-        </Show>
-
-        <div class={formStyles.acciones}>
+        <div class={styles.pieOrden}>
+          <p class={styles.totalOrden}>
+            {lines().length} {lines().length === 1 ? 'producto' : 'productos'} ·{' '}
+            {formatSoles(totalCents())}
+            <Show when={(context()?.averageCents ?? 0) > 0}>
+              <span class={formStyles.nota}>
+                {' '}
+                · sueles gastarle {formatSoles(context()?.averageCents ?? 0)}
+              </span>
+            </Show>
+          </p>
+          <Show when={error() !== ''}>
+            <p class={formStyles.error}>{error()}</p>
+          </Show>
+          <div class={formStyles.acciones}>
           <button type="button" class={formStyles.secundario} onClick={props.onCancel}>
             Cancelar
           </button>
-          <button type="button" class={formStyles.primario} disabled={!valid() || saving()} onClick={save}>
-            Crear orden
+          <button
+            type="button"
+            class={formStyles.secundario}
+            disabled={!valid() || saving()}
+            title="Guarda sin comprometer nada: se puede seguir editando"
+            onClick={() => void save(true)}
+          >
+            Guardar borrador
           </button>
+            <button
+              type="button"
+              class={formStyles.primario}
+              disabled={!valid() || saving()}
+              onClick={() => void save(false)}
+            >
+              Crear orden
+            </button>
+          </div>
         </div>
       </div>
     </>

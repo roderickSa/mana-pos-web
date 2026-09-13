@@ -64,7 +64,7 @@
   align-items: center;
   gap: 10px;
   font-size: 0.95rem;
-  min-height: 44px;
+  min-height: var(--alto-control);
 }
 
 .check input {
@@ -87,7 +87,7 @@
   border-radius: var(--radio-boton);
   padding: 10px 20px;
   font-weight: 600;
-  min-height: 44px;
+  min-height: var(--alto-control);
 }
 
 .primario {
@@ -97,7 +97,7 @@
   border-radius: var(--radio-boton);
   padding: 10px 22px;
   font-weight: 700;
-  min-height: 44px;
+  min-height: var(--alto-control);
 }
 
 .primario:disabled,
@@ -120,4 +120,74 @@
   color: var(--tinta-suave);
   font-size: 0.9rem;
   line-height: 1.45;
+}
+
+/* Pestaña que no está a la vista: se oculta sin desmontar, para no perder lo
+   que ya se escribió en el formulario. */
+.oculto {
+  display: none;
+}
+
+/* Códigos alias: un chip con su botón de quitar. El ✕ es el objetivo táctil,
+   así que manda la altura del chip. */
+.alias {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.aliasChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--alto-compacto);
+  padding: 0 4px 0 12px;
+  border-radius: var(--radio-chip);
+  background: var(--superficie-app);
+  border: 1px solid var(--linea);
+  font-variant-numeric: tabular-nums;
+}
+
+.aliasQuitar {
+  border: none;
+  background: none;
+  color: var(--tinta-suave);
+  min-width: var(--alto-compacto);
+  min-height: var(--alto-compacto);
+  border-radius: var(--radio-chip);
+  font-size: 1rem;
+}
+
+.aliasQuitar:hover {
+  color: var(--peligro);
+}
+
+/* Pestañas dentro de un modal. La barra de las vistas (tabla.subnav) trae el
+   padding de página y deja el primer campo pegado al borde de la pestaña. */
+.pestanas {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 16px;
+  border-bottom: 1.5px solid var(--linea);
+  padding-bottom: 0;
+}
+
+.pestana {
+  border: 1.5px solid transparent;
+  border-bottom: none;
+  background: none;
+  color: var(--tinta-suave);
+  border-radius: var(--radio-chico) var(--radio-chico) 0 0;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-height: var(--alto-control);
+  margin-bottom: -1.5px;
+}
+
+.pestanaActiva {
+  background: var(--superficie-panel);
+  color: var(--tinta-activa);
+  border-color: var(--linea);
+  border-bottom: 1.5px solid var(--superficie-panel);
 }

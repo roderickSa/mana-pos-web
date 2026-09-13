@@ -20,7 +20,7 @@
   padding: 10px 20px;
   font-size: 0.9rem;
   font-weight: 600;
-  min-height: 44px;
+  min-height: var(--alto-control);
 }
 
 .subtabActiva {
@@ -71,7 +71,7 @@
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
-  min-height: 40px;
+  min-height: var(--alto-control);
 }
 
 .alertaBajo:hover {
@@ -280,7 +280,7 @@
   padding: 7px 12px;
   font-size: 0.8rem;
   font-weight: 600;
-  min-height: 38px;
+  min-height: var(--alto-compacto);
   cursor: pointer;
   text-decoration: none;
 }
@@ -302,48 +302,9 @@
   padding: 32px;
 }
 
-.paginacion {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  font-size: 0.85rem;
-  color: var(--tinta-suave);
-  font-family: var(--fuente-dato);
-  font-variant-numeric: tabular-nums;
-}
-
-.paginacion button {
-  border: 1.5px solid var(--linea);
-  background: var(--superficie-panel);
-  color: var(--tinta);
-  border-radius: var(--radio-boton);
-  padding: 9px 18px;
-  font-weight: 600;
-  min-height: 42px;
-}
-
-.paginacion button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* Pantalla táctil: los botones de acción por fila y la paginación crecen a
-   tamaño dedo (≥44px) — con mouse se quedan compactos. */
+/* Pantalla táctil: los botones de acción por fila se separan y respiran; la
+   altura la pone la escala de theme.css. */
 @media (any-pointer: coarse) {
-  .alertaBajo {
-    min-height: 48px;
-  }
-
-  .buscador {
-    min-height: 52px;
-  }
-
-  .importar,
-  .nuevo {
-    min-height: 52px;
-  }
-
   .acciones button {
     margin-right: 8px;
   }
@@ -351,17 +312,7 @@
   .tabla tbody button,
   .acciones button,
   .acciones a {
-    min-height: 44px;
     padding: 9px 16px;
-  }
-
-  .paginacion button {
-    min-height: 48px;
-    padding: 11px 22px;
-  }
-
-  .subtab {
-    min-height: 48px;
   }
 }
 
@@ -415,7 +366,7 @@
   letter-spacing: inherit;
   padding: 0;
   cursor: pointer;
-  min-height: 32px;
+  min-height: var(--alto-compacto);
 }
 
 .ordenable:hover {
@@ -425,7 +376,6 @@
 /* Los encabezados ordenables son botones: en táctil también miden 44 px. */
 @media (any-pointer: coarse) {
   .ordenable {
-    min-height: 44px;
     padding: 0 4px;
   }
 }

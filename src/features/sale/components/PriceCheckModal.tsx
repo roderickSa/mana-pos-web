@@ -5,6 +5,7 @@ import { formatSoles } from '@/shared/lib/money';
 import { beepError, beepOk } from '@/shared/lib/sounds';
 import type { ProductDto } from '@/shared/types';
 import { Modal } from '@/shared/ui/Modal';
+import forms from '@/shared/ui/forms.module.css';
 import styles from './PriceCheckModal.module.css';
 
 // Consulta de precio: el cliente pregunta "¿cuánto está?", se escanea y se ve
@@ -44,7 +45,18 @@ export const PriceCheckModal: Component<{ onClose: () => void }> = (props) => {
   }
 
   return (
-    <Modal title="Consulta de precio" onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title="Consulta de precio"
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cerrar
+          </button>
+        </div>
+      }
+    >
       <div class={styles.cuerpo}>
         <input
           ref={inputRef}

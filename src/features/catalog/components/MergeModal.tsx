@@ -42,7 +42,38 @@ export const MergeModal: Component<{
   }
 
   return (
-    <Modal title={`Fusionar duplicado — ${props.product.name}`} onClose={props.onClose}>
+    <Modal
+      size="md"
+      title={`Fusionar duplicado — ${props.product.name}`}
+      onClose={props.onClose}
+      footer={
+        <Show
+          when={duplicate() !== null}
+          fallback={
+            <div class={styles.acciones}>
+              <button type="button" class={styles.secundario} onClick={props.onClose}>
+                Cancelar
+              </button>
+            </div>
+          }
+        >
+          <div class={styles.acciones}>
+            <button type="button" class={styles.secundario} onClick={() => setDuplicate(null)}>
+              Elegir otro
+            </button>
+            <button
+              type="button"
+              class={styles.primario}
+              style={{ background: 'var(--peligro)' }}
+              disabled={merging()}
+              onClick={() => void confirmMerge()}
+            >
+              Fusionar productos
+            </button>
+          </div>
+        </Show>
+      }
+    >
       <div class={styles.form}>
         <p class={styles.nota}>
           Este producto queda como <b>maestro</b>. Busca el duplicado que quieres absorber: su
@@ -74,33 +105,12 @@ export const MergeModal: Component<{
                 {stockLabel(loser())}) y todo pasará a <b>«{props.product.name}»</b>. Esta acción
                 no se puede deshacer.
               </p>
-              <div class={styles.acciones}>
-                <button type="button" class={styles.secundario} onClick={() => setDuplicate(null)}>
-                  Elegir otro
-                </button>
-                <button
-                  type="button"
-                  class={styles.primario}
-                  style={{ background: 'var(--peligro)' }}
-                  disabled={merging()}
-                  onClick={() => void confirmMerge()}
-                >
-                  Fusionar productos
-                </button>
-              </div>
             </>
           )}
         </Show>
 
         <Show when={error() !== ''}>
           <p class={styles.error}>{error()}</p>
-        </Show>
-        <Show when={duplicate() === null}>
-          <div class={styles.acciones}>
-            <button type="button" class={styles.secundario} onClick={props.onClose}>
-              Cancelar
-            </button>
-          </div>
         </Show>
       </div>
     </Modal>

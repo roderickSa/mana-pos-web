@@ -4,6 +4,7 @@ import {type TicketDetailDto } from '@/shared/api/sales';
 import {formatKg, formatSoles } from '@/shared/lib/money';
 import {METHOD_LABELS } from '@/shared/lib/labels';
 import {formatDateTime } from '@/shared/lib/dates';
+import { Chip } from '@/shared/ui/Chip';
 import forms from '@/shared/ui/forms.module.css';
 import styles from '../SalesHistoryView.module.css';
 import {refundChannelLabel } from './sales-history.helpers';
@@ -12,12 +13,9 @@ export const TicketDetail: Component<{ ticket: TicketDetailDto; onRefund: () => 
   <div class={styles.detalle}>
     <div class={styles.detalleCabecera}>
       <span class={styles.detalleNumero}>#{props.ticket.number}</span>
-      <span
-        class={styles.estado}
-        classList={{ [styles.estadoAnulada]: props.ticket.status === 'voided' }}
-      >
+      <Chip tone={props.ticket.status === 'charged' ? 'exito' : 'peligro'}>
         {props.ticket.status === 'charged' ? 'cobrada' : 'anulada'}
-      </span>
+      </Chip>
       <span class={styles.detalleMeta}>
         {props.ticket.chargedAt === null ? '' : formatDateTime(props.ticket.chargedAt)} ·{' '}
         {props.ticket.userId}

@@ -2,24 +2,28 @@
 
 import {type PurchaseOrderStatus } from '@/shared/api/purchases';
 import {solesInputToCents } from '@/shared/lib/money';
+import type { ChipTone } from '@/shared/ui/Chip';
 import type {ProductDto } from '@/shared/types';
-import styles from '../PurchasesView.module.css';
 
 export const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
+  draft: 'borrador',
   open: 'abierta',
   partial: 'parcial',
   received: 'recibida',
   cancelled: 'cancelada',
+  closed: 'cerrada',
 };
 
-export function statusClass(status: PurchaseOrderStatus): string {
-  const byStatus: Record<PurchaseOrderStatus, string> = {
-    open: styles.estadoAbierta,
-    partial: styles.estadoParcial,
-    received: styles.estadoRecibida,
-    cancelled: styles.estadoCancelada,
+export function statusTone(status: PurchaseOrderStatus): ChipTone {
+  const byStatus: Record<PurchaseOrderStatus, ChipTone> = {
+    draft: 'neutro',
+    open: 'info',
+    partial: 'alerta',
+    received: 'exito',
+    cancelled: 'peligro',
+    closed: 'peligro',
   };
-  return `${styles.estado} ${byStatus[status]}`;
+  return byStatus[status];
 }
 
 
@@ -29,14 +33,19 @@ export interface DraftLine {
   product: ProductDto;
   quantity: string;
   cost: string;
+  // Empaque de ESTE proveedor: uno vende cajas de 12 y otro de 24. Null cuando
+  // el proveedor no tiene empaque cargado y se compra por unidad.
+  packSize: number | null;
 }
 
-export function packSizeOf(product: ProductDto): number | null {
-  return product.saleType === 'unit' ? product.packSize : null;
+// El empaque de la línea manda sobre el del producto: el producto guarda uno
+// solo y con dos proveedores sería el del equivocado.
+export function packSizeOf(line: DraftLine): number | null {
+  return line.product.saleType === 'unit' ? line.packSize : null;
 }
 
 export function quantityUnits(line: DraftLine): number {
-  const packSize = packSizeOf(line.product);
+  const packSize = packSizeOf(line);
   if (packSize !== null) {
     return (Number.parseInt(line.quantity, 10) || 0) * packSize;
   }
@@ -51,7 +60,7 @@ export function quantityUnits(line: DraftLine): number {
 export function unitCostCents(line: DraftLine): number | null {
   const cents = solesInputToCents(line.cost);
   if (cents === null || cents <= 0) return null;
-  const packSize = packSizeOf(line.product);
+  const packSize = packSizeOf(line);
   return packSize === null ? cents : Math.round(cents / packSize);
 }
 

@@ -6,7 +6,7 @@
   padding: 12px 22px;
   font-weight: 700;
   font-size: 0.95rem;
-  min-height: 44px;
+  min-height: var(--alto-control);
   cursor: pointer;
   touch-action: manipulation;
 }

@@ -1,6 +1,6 @@
-import { createSignal, For, Show, type Component } from 'solid-js';
+import { type Component } from 'solid-js';
 
-import styles from '@/shared/ui/ActionsMenu.module.css';
+import { RowMenu } from '@/shared/ui/RowMenu';
 
 // Solo lo del producto en sí: entradas/mermas/conteos viven en el tab Ajustes,
 // y el histórico en el tab Kardex.
@@ -13,39 +13,14 @@ const ACTIONS: Array<{ key: ProductAction; label: string }> = [
   { key: 'merge', label: 'Fusionar duplicado…' },
 ];
 
-export const ActionsMenu: Component<{ onSelect: (action: ProductAction) => void }> = (props) => {
-  const [open, setOpen] = createSignal(false);
-
-  return (
-    <div class={styles.contenedor}>
-      <button
-        type="button"
-        class={styles.boton}
-        aria-haspopup="menu"
-        aria-expanded={open()}
-        onClick={() => setOpen(!open())}
-      >
-        Acciones ▾
-      </button>
-      <Show when={open()}>
-        <div class={styles.fondo} onClick={() => setOpen(false)} />
-        <div class={styles.lista} role="menu">
-          <For each={ACTIONS}>
-            {(action) => (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  props.onSelect(action.key);
-                }}
-              >
-                {action.label}
-              </button>
-            )}
-          </For>
-        </div>
-      </Show>
-    </div>
-  );
-};
+export const ActionsMenu: Component<{ onSelect: (action: ProductAction) => void }> = (props) => (
+  <RowMenu
+    label="Acciones ▾"
+    ariaLabel="Acciones del producto"
+    items={ACTIONS}
+    onSelect={(key) => {
+      const action = ACTIONS.find((item) => item.key === key);
+      if (action !== undefined) props.onSelect(action.key);
+    }}
+  />
+);

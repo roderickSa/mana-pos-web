@@ -1,0 +1,108 @@
+.resumenDato b {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.bien {
+  color: var(--exito);
+}
+
+.mal {
+  color: var(--peligro);
+}
+
+/* Fila ya contada: se apaga para que la vista quede en lo que falta. */
+.filaContada {
+  background: var(--superficie-app);
+  color: var(--tinta-suave);
+}
+
+/* Barra de avance: lo primero que se mira al volver a la pantalla. */
+.estado {
+  display: flex;
+  align-items: baseline;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  background: var(--superficie-panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 10px 14px;
+}
+
+.avance {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.avance b {
+  font-size: 1.25rem;
+}
+
+.contexto {
+  color: var(--tinta-suave);
+  font-size: 0.86rem;
+  flex: 1;
+}
+
+.aviso {
+  font-size: 0.78rem;
+  color: var(--alerta);
+  white-space: nowrap;
+}
+
+/* Columnas con medida: sin esto el nombre se come la fila y los números
+   quedan a media pantalla del encabezado. */
+.colSistema {
+  width: 120px;
+}
+
+.colContado {
+  width: 150px;
+}
+
+.colAccion {
+  width: 140px;
+}
+
+.celdaNombre {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compacta pero tocable: se teclea de pie, con el producto en la mano. */
+.entrada {
+  width: 100%;
+  min-height: var(--alto-control);
+  padding: 8px 10px;
+  text-align: right;
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+  background: var(--superficie-panel);
+  border: 1.5px solid var(--linea);
+  border-radius: var(--radio-boton);
+  color: var(--tinta);
+}
+
+.entrada:focus {
+  border-color: var(--mana-verde);
+  outline: none;
+}
+
+.yaContado {
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mismo rótulo que «Movimientos del turno» o «Cierres anteriores» en Caja. */
+.tituloHistorial {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  font-family: var(--fuente-dato);
+  letter-spacing: 0.07em;
+  color: var(--tinta-suave);
+}

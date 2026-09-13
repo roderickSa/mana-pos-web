@@ -45,6 +45,9 @@ export interface HourSalesDto {
 export interface SalesReportDto {
   from: string;
   to: string;
+  // Desde cuándo el costo sale de la venta misma; antes de esa fecha se
+  // valoriza al costo de hoy. Nula mientras ninguna venta lo tenga.
+  exactCostFrom: string | null;
   totals: SalesTotalsDto;
   byDay: DailySalesDto[];
   byProduct: ProductSalesDto[];

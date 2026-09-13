@@ -10,10 +10,20 @@ import {OrdersList } from './components/OrdersList';
 import { NewOrderForm } from './components/NewOrderForm';
 import {OrderDetailModal } from './components/OrderDetailModal';
 
+// Las órdenes se acumulan: una tienda que compra dos veces por semana llega a
+// cientos en el año. Se piden de a página, como ventas y productos.
+const PER_PAGE = 25;
+
 const OrdersSection: Component = () => {
   const [mode, setMode] = createSignal<'lista' | 'nueva'>('lista');
   const [refresh, setRefresh] = createSignal(0);
-  const [orders] = createResource(refresh, () => listPurchaseOrders());
+  const [page, setPage] = createSignal(1);
+  const [orders] = createResource(
+    () => ({ refresh: refresh(), page: page() }),
+    (params) => listPurchaseOrders(params.page, PER_PAGE),
+  );
+  const total = () => orders()?.total ?? 0;
+  const lastPage = () => Math.max(1, Math.ceil(total() / PER_PAGE));
   const [detail, setDetail] = createSignal<{ order: PurchaseOrderDto; supplierName: string } | null>(
     null,
   );
@@ -32,7 +42,11 @@ const OrdersSection: Component = () => {
         when={mode() === 'nueva'}
         fallback={
           <OrdersList
-            orders={orders() ?? []}
+            orders={orders()?.items ?? []}
+            total={total()}
+            page={page()}
+            lastPage={lastPage()}
+            onPage={setPage}
             loading={orders.loading}
             onNew={() => setMode('nueva')}
             onOpen={openDetail}
@@ -42,6 +56,7 @@ const OrdersSection: Component = () => {
         <NewOrderForm
           onDone={() => {
             setMode('lista');
+            setPage(1);
             setRefresh((value) => value + 1);
           }}
           onCancel={() => setMode('lista')}

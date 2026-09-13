@@ -40,7 +40,9 @@ src/
                            inventory, sales, cash, customers, purchases, categories, prices,
                            devices, settings, suppliers, users
     ui/                  → componentes genéricos: Modal (focus trap, velo opcional), ConfirmModal,
-                           Keypad, DateField, ProductPicker, CategoryIcon
+                           CountModal, Keypad, DateField, ProductPicker, CategoryIcon,
+                           Chip (estados), RowMenu (menú ⋯ de fila), EmptyState (tabla sin datos),
+                           StatTile/StatTiles (fila de cifras), TableFooter (pie de tabla)
                            + CSS compartido: forms.module.css (formularios/modales)
                            y tabla.module.css (vistas con tabla, subtabs, paginación)
     lib/                 → utilidades puras: money (redondeo a S/0.10), dates, labels, sounds, focus,
@@ -60,11 +62,20 @@ src/
 
 ### Convenciones UI
 
-- Botones táctiles ≥ 44px vía `@media (any-pointer: coarse)` (red global en `app/index.css`
-  + refuerzos por módulo). `any-pointer`, no `pointer`: la PC de tienda tiene mouse Y touch.
+- Tres alturas de control, todas desde `app/theme.css`: `--alto-control` (48px, la normal y el
+  piso táctil), `--alto-compacto` (36px, solo filas densas) y `--alto-grande` (56px, acción
+  principal y keypad). Un único `@media (any-pointer: coarse)` sube la escala entera; ningún
+  archivo declara px propios. `any-pointer`, no `pointer`: la PC de tienda tiene mouse Y touch.
 - Colores SOLO desde tokens de `app/theme.css` («un color, un trabajo»); modo noche incluido.
 - Tipografía IBM Plex self-hosted; pesos usados = pesos cargados (sin bold sintético).
 - Una operación = un modal; los modales con formulario largo no se cierran por clic en el velo.
+- Todo modal declara `size` (sm/md/lg/xl) y `footer`: los botones van en el pie fijo, nunca en el
+  cuerpo que rueda.
+- Toda tabla de listado termina en `TableFooter`: dice cuántas filas hay y, si hay más de una
+  página, pagina. Va FUERA del contenedor que rueda, si no se va con el scroll. Con la tabla
+  vacía no se dibuja: ahí habla el `EmptyState` y un «0 productos» sería ruido. Nunca se
+  condiciona a mano (un `Show when={totalPages() > 1}` alrededor esconde el conteo).
+- `npm run revisar:ui` verifica pies de modal y de tabla, alturas y componentes compartidos.
 - La barra de búsqueda solo busca (nombre o código de barras); las acciones viven en el menú «Acciones» de cada fila.
 - Dinero en el front: `shared/lib/money.ts` (`roundToDimeCents`, `isDimeCents`); el server es autoritativo.
 - Sonidos (`shared/lib/sounds.ts`): bip = acción, doble bip = operación completada, grave = error.

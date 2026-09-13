@@ -14,6 +14,7 @@ import { formatKg } from '@/shared/lib/money';
 import { beepError } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import { isManager } from '@/shared/state/session';
+import { Chip } from '@/shared/ui/Chip';
 import styles from './DevicesView.module.css';
 
 export const DevicesView: Component = () => {
@@ -57,12 +58,9 @@ export const DevicesView: Component = () => {
             <h3>Impresora de vouchers</h3>
           </header>
           <p class={styles.detalle}>{status()?.printer.message ?? 'Consultando…'}</p>
-          <span
-            class={styles.estadoChip}
-            classList={{ [styles.estadoOk]: mode() === 'real', [styles.estadoDev]: mode() === 'simulated' }}
-          >
+          <Chip tone={mode() === 'real' ? 'exito' : 'alerta'}>
             {mode() === 'real' ? 'configurada' : 'simulada'}
-          </span>
+          </Chip>
           <button type="button" disabled={busy()} onClick={() => void run(printTestPage)}>
             Imprimir página de prueba
           </button>
@@ -80,12 +78,9 @@ export const DevicesView: Component = () => {
             Se abre solo al cobrar en efectivo, con el pulso que envía la impresora. También puedes
             abrirlo desde aquí.
           </p>
-          <span
-            class={styles.estadoChip}
-            classList={{ [styles.estadoOk]: mode() === 'real', [styles.estadoDev]: mode() === 'simulated' }}
-          >
+          <Chip tone={mode() === 'real' ? 'exito' : 'alerta'}>
             {mode() === 'real' ? 'conectado vía impresora' : 'simulado'}
-          </span>
+          </Chip>
           <button type="button" disabled={busy()} onClick={() => void run(openDrawer)}>
             Abrir cajón
           </button>
@@ -103,15 +98,9 @@ export const DevicesView: Component = () => {
             <p class={styles.pesoVivo}>{formatKg(status()?.scale.grams ?? 0)}</p>
             <p class={styles.detalle}>Lectura en vivo — así se captura el peso al vender granel.</p>
           </Show>
-          <span
-            class={styles.estadoChip}
-            classList={{
-              [styles.estadoOk]: status()?.scale.connected === true,
-              [styles.estadoDev]: status()?.scale.connected !== true,
-            }}
-          >
+          <Chip tone={status()?.scale.connected === true ? 'exito' : 'alerta'}>
             {status()?.scale.connected === true ? 'conectada' : mode() === 'simulated' ? 'simulada' : 'desconectada'}
-          </span>
+          </Chip>
         </article>
 
         <article class={styles.tarjeta}>
@@ -123,7 +112,7 @@ export const DevicesView: Component = () => {
             Funciona como un teclado USB: no necesita configuración. Para probarlo, ve a Caja y
             escanea cualquier producto — el código cae en el buscador y se agrega solo.
           </p>
-          <span class={`${styles.estadoChip} ${styles.estadoOk}`}>plug & play</span>
+          <Chip tone="exito">plug &amp; play</Chip>
         </article>
       </div>
     </section>
@@ -179,31 +168,33 @@ const PrinterConfigForm: Component = () => {
 
   return (
     <div class={styles.configImpresora}>
-      <div class={styles.configFila}>
+      <div class={`${styles.configFila} ${styles.configFilaApilada}`}>
         <label class={styles.configEtiqueta} for="impresora-nombre">
           Impresora del sistema
         </label>
-        <select
-          id="impresora-nombre"
-          class={styles.configSelect}
-          value={nameValue()}
-          onChange={(event) => setNameDraft(event.currentTarget.value)}
-        >
-          <option value="">Por defecto (auto)</option>
-          <For each={options()}>{(name) => <option value={name}>{name}</option>}</For>
-        </select>
-        <button
-          type="button"
-          class={styles.configRefrescar}
-          title="Volver a buscar impresoras instaladas"
-          aria-label="Refrescar lista de impresoras"
-          onClick={() => void refetchPrinters()}
-        >
-          ⟳
-        </button>
+        <div class={styles.configControles}>
+          <select
+            id="impresora-nombre"
+            class={styles.configSelect}
+            value={nameValue()}
+            onChange={(event) => setNameDraft(event.currentTarget.value)}
+          >
+            <option value="">Por defecto (auto)</option>
+            <For each={options()}>{(name) => <option value={name}>{name}</option>}</For>
+          </select>
+          <button
+            type="button"
+            class={styles.configRefrescar}
+            title="Volver a buscar impresoras instaladas"
+            aria-label="Refrescar lista de impresoras"
+            onClick={() => void refetchPrinters()}
+          >
+            ⟳
+          </button>
+        </div>
       </div>
 
-      <div class={styles.configFila}>
+      <div class={`${styles.configFila} ${styles.configFilaApilada}`}>
         <span class={styles.configEtiqueta}>Ancho del papel</span>
         <div class={styles.configAnchos} role="radiogroup" aria-label="Ancho del papel">
           <button

@@ -1,0 +1,62 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--linea);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: var(--superficie-panel);
+}
+
+.fila + .fila {
+  border-top: 1px solid var(--linea);
+}
+
+.datos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nombre {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detalle {
+  font-size: 0.86rem;
+  color: var(--tinta-suave);
+}
+
+.acciones {
+  display: flex;
+  gap: 6px;
+}
+
+.vacio {
+  color: var(--tinta-suave);
+  background: var(--superficie-app);
+  border: 1px dashed var(--linea);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 0;
+}
+
+.chipCabecera {
+  background: var(--chip-info-fondo);
+  color: var(--chip-info-tinta);
+  border: 1px solid var(--chip-info-borde);
+}
+

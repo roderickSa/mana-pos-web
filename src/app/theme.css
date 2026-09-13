@@ -110,6 +110,12 @@
   --radio-boton: 6px;
   --radio-chip: 4px;
   --toque-min: 48px;
+  /* Escala de alturas: todo control declara una de estas tres, nunca un número
+     propio. «control» es la altura normal —y es el piso táctil—, «compacto»
+     solo para filas densas, «grande» para la acción principal y el keypad. */
+  --alto-control: var(--toque-min);
+  --alto-compacto: 36px;
+  --alto-grande: 56px;
   --sombra-suave: 0 1px 2px rgba(24, 38, 32, 0.06), 0 2px 8px rgba(24, 38, 32, 0.05);
   --sombra-panel: 0 6px 24px rgba(24, 38, 32, 0.1);
 }
@@ -165,4 +171,13 @@
   --sombra-boton: 0 3px 0 rgba(0, 0, 0, 0.5);
   --sombra-suave: 0 1px 3px rgba(0, 0, 0, 0.4);
   --sombra-panel: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* En táctil desaparece lo compacto: nada baja del piso de 48 px y la acción
+   principal crece. Una sola regla mueve la escala entera. */
+@media (any-pointer: coarse) {
+  :root {
+    --alto-compacto: var(--toque-min);
+    --alto-grande: 60px;
+  }
 }

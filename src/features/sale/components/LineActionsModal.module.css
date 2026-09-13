@@ -15,7 +15,7 @@
 
 /* Botones a tamaño dedo: el panel existe para no fallar el toque. */
 .accion {
-  min-height: 56px;
+  min-height: var(--alto-grande);
   border: 1.5px solid var(--linea);
   background: var(--superficie-panel);
   color: var(--tinta);
@@ -33,7 +33,7 @@
 
 .quitar {
   margin-top: 10px;
-  min-height: 56px;
+  min-height: var(--alto-grande);
   border: 1.5px solid color-mix(in srgb, var(--peligro) 45%, transparent);
   background: color-mix(in srgb, var(--peligro) 8%, transparent);
   color: var(--peligro);

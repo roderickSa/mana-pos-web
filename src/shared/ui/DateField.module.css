@@ -12,7 +12,7 @@
 
 .boton {
   min-width: 44px;
-  min-height: 44px;
+  min-height: var(--alto-control);
   border: 1px solid var(--linea);
   border-radius: 10px;
   background: var(--superficie-panel);

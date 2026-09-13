@@ -1,5 +1,7 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
 import { focusOnMount } from '@/shared/lib/focus';
+import { StatTile, StatTiles } from '@/shared/ui/StatTile';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import { Keypad } from '@/shared/ui/Keypad';
 
 import {
@@ -18,6 +20,7 @@ import { beepError, beepSuccess } from '@/shared/lib/sounds';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
 import { Modal } from '@/shared/ui/Modal';
 import tabla from '@/shared/ui/tabla.module.css';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import forms from '@/shared/ui/forms.module.css';
 
 type ModalState =
@@ -83,7 +86,21 @@ const CustomerFormModal: Component<{
   }
 
   return (
-    <Modal title={editing === null ? 'Nuevo cliente' : 'Editar cliente'} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={editing === null ? 'Nuevo cliente' : 'Editar cliente'}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} onClick={save}>
+            {editing === null ? 'Crear cliente' : 'Guardar cambios'}
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <div class={forms.campo}>
           <span class={forms.etiqueta}>Nombre</span>
@@ -113,14 +130,6 @@ const CustomerFormModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={forms.primario} onClick={save}>
-            {editing === null ? 'Crear cliente' : 'Guardar cambios'}
-          </button>
-        </div>
       </div>
     </Modal>
   );
@@ -161,7 +170,21 @@ const AbonoModal: Component<{
   }
 
   return (
-    <Modal title={`Abonar — ${props.account.name}`} onClose={props.onClose}>
+    <Modal
+      size="sm"
+      title={`Abonar — ${props.account.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button type="button" class={forms.primario} onClick={save}>
+            Registrar abono
+          </button>
+        </div>
+      }
+    >
       <div class={forms.form}>
         <p class={forms.nota}>
           Deuda actual: <b>{formatSoles(props.account.balanceCents)}</b>
@@ -196,57 +219,94 @@ const AbonoModal: Component<{
         <Show when={error() !== ''}>
           <p class={forms.error}>{error()}</p>
         </Show>
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button type="button" class={forms.primario} onClick={save}>
-            Registrar abono
-          </button>
-        </div>
       </div>
     </Modal>
   );
 };
 
+// El fiado suma a la deuda; lo demás la baja. El nombre lo dice, no el signo.
+function entryLabel(entry: { kind: string; paymentMethod: string | null }): string {
+  if (entry.kind === 'charge') return 'Fiado';
+  if (entry.kind === 'reversal') return 'Anulación de la venta';
+  if (entry.kind === 'refund') return 'Devolución';
+  return `Abono (${entry.paymentMethod === 'cash' ? 'efectivo' : 'Yape'})`;
+}
+
 const StatementModal: Component<{ account: CustomerAccountDto; onClose: () => void }> = (props) => {
   const [data] = createResource(() => getStatement(props.account.id));
 
   return (
-    <Modal title={`Estado de cuenta — ${props.account.name}`} onClose={props.onClose}>
+    <Modal
+      size="lg"
+      title={`Estado de cuenta — ${props.account.name}`}
+      onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cerrar
+          </button>
+        </div>
+      }
+    >
       <Show when={data()} fallback={<p class={forms.nota}>Cargando…</p>}>
         {(statement) => (
           <div class={forms.form}>
-            <p class={forms.nota}>
-              Deuda: <b>{formatSoles(statement().account.balanceCents)}</b> · Límite:{' '}
-              {formatSoles(statement().account.creditLimitCents)} · Disponible:{' '}
-              {formatSoles(statement().account.availableCents)}
-            </p>
-            <div>
-              <For each={statement().entries}>
-                {(entry) => (
-                  <p class={forms.nota} style={{ 'border-bottom': '1px dashed var(--linea)', padding: '6px 0' }}>
-                    {formatDateTime(entry.createdAt)}{' '}
-                    ·{' '}
-                    {entry.kind === 'charge'
-                      ? 'Fiado'
-                      : entry.kind === 'reversal'
-                        ? 'Anulación de la venta'
-                        : entry.kind === 'refund'
-                          ? 'Devolución'
-                          : `Abono (${entry.paymentMethod === 'cash' ? 'efectivo' : 'Yape'})`}
-                    {' · '}
-                    <b style={{ color: entry.kind === 'charge' ? 'var(--peligro)' : 'var(--mana-verde)' }}>
-                      {entry.kind === 'charge' ? '+' : '−'}
-                      {formatSoles(entry.amountCents)}
-                    </b>
-                  </p>
-                )}
-              </For>
-              <Show when={statement().entries.length === 0}>
-                <p class={forms.nota}>Sin movimientos todavía.</p>
-              </Show>
-            </div>
+            <StatTiles dense>
+              <StatTile
+                label="Deuda"
+                value={formatSoles(statement().account.balanceCents)}
+                tone={statement().account.balanceCents > 0 ? 'malo' : 'normal'}
+              />
+              <StatTile label="Límite" value={formatSoles(statement().account.creditLimitCents)} />
+              <StatTile
+                label="Disponible"
+                value={formatSoles(statement().account.availableCents)}
+              />
+            </StatTiles>
+
+            <Show
+              when={statement().entries.length > 0}
+              fallback={<EmptyState message="Sin movimientos todavía." />}
+            >
+              <div class={tabla.tablaContenedor} style={{ 'max-height': '40vh' }}>
+                <table class={tabla.tabla}>
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Concepto</th>
+                      <th class={tabla.num}>Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <For each={statement().entries}>
+                      {(entry) => (
+                        <tr>
+                          <td class={tabla.sub}>{formatDateTime(entry.createdAt)}</td>
+                          <td>{entryLabel(entry)}</td>
+                          <td class={tabla.num}>
+                            <span
+                              class={tabla.stock}
+                              classList={{
+                                [tabla.stockCero]: entry.kind === 'charge',
+                                [tabla.positivo]: entry.kind !== 'charge',
+                              }}
+                            >
+                              {entry.kind === 'charge' ? '+' : '−'}
+                              {formatSoles(entry.amountCents)}
+                            </span>
+                          </td>
+                        </tr>
+                      )}
+                    </For>
+                  </tbody>
+                </table>
+              </div>
+            </Show>
+            <TableFooter
+              total={statement().entries.length}
+              singular="movimiento"
+              plural="movimientos"
+            />
           </div>
         )}
       </Show>
@@ -438,33 +498,34 @@ export const ClientesView: Component = () => {
             </tbody>
           </table>
           <Show when={!result.loading && accounts().length === 0}>
-            <div class={tabla.vacio}>
-              <Show
-                when={!(tab() === 'fiado' && onlyDebtors())}
-                fallback={<p>Nadie debe nada. 🎉</p>}
-              >
-                <p>Aún no hay clientes registrados.</p>
-                <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
-                  + Crear el primer cliente
-                </button>
-              </Show>
-            </div>
+            <Show
+              when={!(tab() === 'fiado' && onlyDebtors())}
+              fallback={<EmptyState message="Nadie debe nada. 🎉" />}
+            >
+              <EmptyState
+                message="Aún no hay clientes registrados."
+                action={
+                  <button
+                    type="button"
+                    class={tabla.nuevo}
+                    onClick={() => setModal({ kind: 'create' })}
+                  >
+                    + Crear el primer cliente
+                  </button>
+                }
+              />
+            </Show>
           </Show>
         </div>
 
-        <Show when={totalPages() > 1}>
-          <div class={tabla.paginacion}>
-            <button type="button" disabled={page() <= 1} onClick={() => setPage(page() - 1)}>
-              ‹ Anterior
-            </button>
-            <span>
-              Página {page()} de {totalPages()} · {total()} clientes
-            </span>
-            <button type="button" disabled={page() >= totalPages()} onClick={() => setPage(page() + 1)}>
-              Siguiente ›
-            </button>
-          </div>
-        </Show>
+        <TableFooter
+          total={total()}
+          singular="cliente"
+          plural="clientes"
+          page={page()}
+          lastPage={totalPages()}
+          onPage={setPage}
+        />
 
         {renderModal(modal(), closeAndRefresh, () => setModal({ kind: 'none' }))}
       </section>

@@ -7,6 +7,7 @@ import {ApiError, apiErrorMessage } from '@/shared/api/client';
 import {isManager } from '@/shared/state/session';
 import {verifyManagerPin } from '@/shared/api/users';
 import {Modal } from '@/shared/ui/Modal';
+import { TableFooter } from '@/shared/ui/TableFooter';
 import forms from '@/shared/ui/forms.module.css';
 import styles from '../SalesHistoryView.module.css';
 import {REFUND_REASONS } from './sales-history.helpers';
@@ -138,6 +139,21 @@ export const RefundModal: Component<{
       title={`Devolver de la venta #${props.ticket.number}`}
       dismissOnBackdrop={false}
       onClose={props.onClose}
+      footer={
+        <div class={forms.acciones}>
+          <button type="button" class={forms.secundario} onClick={props.onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class={forms.primario}
+            disabled={!anySelected() || reason().trim().length < 3 || saving()}
+            onClick={() => void confirm()}
+          >
+            {saving() ? 'Registrando…' : `Devolver ${formatSoles(estimateCents())}`}
+          </button>
+        </div>
+      }
     >
       <div class={forms.form}>
         <p class={forms.nota}>
@@ -222,6 +238,12 @@ export const RefundModal: Component<{
             </For>
           </tbody>
         </table>
+        <TableFooter
+          total={props.ticket.lines.length}
+          singular="línea de la venta"
+          plural="líneas de la venta"
+          detail={`${props.ticket.lines.filter((line) => quantityOf(line.id) > 0).length} marcadas`}
+        />
 
         <div class={forms.campo}>
           <span class={forms.etiqueta}>Motivo (obligatorio)</span>
@@ -274,19 +296,6 @@ export const RefundModal: Component<{
           </p>
         </Show>
 
-        <div class={forms.acciones}>
-          <button type="button" class={forms.secundario} onClick={props.onClose}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            class={forms.primario}
-            disabled={!anySelected() || reason().trim().length < 3 || saving()}
-            onClick={() => void confirm()}
-          >
-            {saving() ? 'Registrando…' : `Devolver ${formatSoles(estimateCents())}`}
-          </button>
-        </div>
       </div>
     </Modal>
   );

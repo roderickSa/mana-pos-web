@@ -38,7 +38,7 @@
   padding: 8px 18px;
   font-size: 0.9rem;
   font-weight: 700;
-  min-height: 38px;
+  min-height: var(--alto-compacto);
 }
 
 .navActiva {
@@ -50,6 +50,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: var(--alto-compacto);
   background: rgba(255, 255, 255, 0.12);
   border-radius: var(--radio-boton);
   padding: 6px 14px;
@@ -189,11 +190,6 @@
 
 @media (any-pointer: coarse) {
   .navBoton {
-    min-height: 46px;
     padding: 10px 20px;
-  }
-
-  .chip {
-    min-height: 44px;
   }
 }

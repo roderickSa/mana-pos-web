@@ -22,7 +22,7 @@ export interface KardexDto {
 export async function registerEntry(
   productId: string,
   quantity: number,
-  unitCostCents: number | null = null,
+  unitCostCents: number,
   expiryDate: string | null = null,
 ): Promise<MovementDto> {
   return sendJson('POST', '/inventory/entries', { productId, quantity, unitCostCents, expiryDate });
@@ -129,4 +129,95 @@ export async function getExpiryAlertDays(): Promise<{ days: number }> {
 
 export async function setExpiryAlertDays(days: number): Promise<{ days: number }> {
   return sendJson('PUT', '/settings/expiry', { days });
+}
+
+export interface CountSessionLineDto {
+  productId: string;
+  countedQuantity: number;
+  countedBy: string;
+  countedAt: string;
+}
+
+export interface OpenCountSessionDto {
+  id: string;
+  status: 'open';
+  category: string | null;
+  openedBy: string;
+  openedAt: string;
+  lines: CountSessionLineDto[];
+}
+
+export interface CountedDifferenceDto {
+  productId: string;
+  countedQuantity: number;
+  systemQuantity: number;
+  differenceQuantity: number;
+  differenceCents: number;
+}
+
+export interface ClosedCountSessionDto {
+  id: string;
+  status: 'closed';
+  category: string | null;
+  openedBy: string;
+  openedAt: string;
+  closedBy: string;
+  closedAt: string;
+  note: string | null;
+  productsCounted: number;
+  productsMatched: number;
+  productsOff: number;
+  shortageCents: number;
+  overageCents: number;
+  netCents: number;
+  differences: CountedDifferenceDto[];
+}
+
+export async function getOpenCountSession(): Promise<OpenCountSessionDto | null> {
+  return getJson('/inventory/counts/sessions/open');
+}
+
+export interface ClosedCountSessionsPageDto {
+  items: ClosedCountSessionDto[];
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+export async function listClosedCountSessions(
+  page: number,
+  perPage: number,
+): Promise<ClosedCountSessionsPageDto> {
+  const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+  return getJson(`/inventory/counts/sessions?${params.toString()}`);
+}
+
+export async function startCountSession(category: string | null): Promise<OpenCountSessionDto> {
+  return sendJson('POST', '/inventory/counts/sessions', { category });
+}
+
+export async function recordCount(
+  sessionId: string,
+  productId: string,
+  countedQuantity: number,
+): Promise<CountSessionLineDto> {
+  return sendJson('POST', `/inventory/counts/sessions/${sessionId}/lines`, {
+    productId,
+    countedQuantity,
+  });
+}
+
+export async function removeCount(sessionId: string, productId: string): Promise<{ ok: true }> {
+  return sendJson('DELETE', `/inventory/counts/sessions/${sessionId}/lines/${productId}`);
+}
+
+export async function closeCountSession(
+  sessionId: string,
+  note: string | null,
+): Promise<ClosedCountSessionDto> {
+  return sendJson('POST', `/inventory/counts/sessions/${sessionId}/close`, { note });
+}
+
+export async function discardCountSession(sessionId: string): Promise<{ ok: true }> {
+  return sendJson('DELETE', `/inventory/counts/sessions/${sessionId}`);
 }
