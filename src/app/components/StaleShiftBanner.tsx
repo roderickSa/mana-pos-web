@@ -1,4 +1,5 @@
 import { Show, type Component } from 'solid-js';
+import { A } from '@solidjs/router';
 
 import type { CashSessionDto } from '@/shared/api/cash';
 import { cashStatus } from '@/shared/state/cash-status';
@@ -13,7 +14,7 @@ const SHIFT_LABELS: Record<CashSessionDto['shift'], string> = {
   afternoon: 'tarde',
 };
 
-export const StaleShiftBanner: Component<{ onGoToCash: () => void }> = (props) => {
+export const StaleShiftBanner: Component = () => {
   const session = (): CashSessionDto | null => {
     const status = cashStatus();
     return status !== undefined && status.open ? status.session : null;
@@ -43,9 +44,9 @@ export const StaleShiftBanner: Component<{ onGoToCash: () => void }> = (props) =
             {openedAnotherDay() ? ' (se abrió otro día)' : ''} — lo abrió {current().openedBy}.
             ¿Olvidaste cerrar caja? Ciérralo y abre el turno de hoy antes de vender.
           </span>
-          <button type="button" class={styles.accion} onClick={props.onGoToCash}>
+          <A href="/caja" class={styles.accion}>
             Ir a Caja a cerrarlo
-          </button>
+          </A>
         </div>
       )}
     </Show>

@@ -1,7 +1,8 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
 import { focusOnMount } from '@/shared/lib/focus';
 
-import { searchProductsPage } from '@/shared/api/products';
+import { getProduct, searchProductsPage } from '@/shared/api/products';
 import { formatKg } from '@/shared/lib/money';
 import { beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
@@ -15,17 +16,25 @@ import { EntryModal } from './EntryModal';
 import { KardexModal } from './KardexModal';
 import { RowMenu } from '@/shared/ui/RowMenu';
 import styles from '@/shared/ui/tabla.module.css';
+import { createUrlNumber, createUrlText } from '@/shared/lib/url-state';
+import { entityAction, subPath, withSearch } from '@/shared/lib/modal-route';
 
 const PER_PAGE = 50;
 
-type ModalState =
-  | { kind: 'none' }
-  | { kind: 'entry' | 'adjust' | 'count' | 'kardex'; product: ProductDto };
+const ENTRADAS_PATH = '/inventario/entradas';
+// Los nombres de la URL son los de la pantalla: /entradas/<id>/merma.
+const ACCIONES = ['entrada', 'merma', 'conteo', 'kardex'] as const;
 
-export const AdjustmentsTab: Component<{ onGoToKardex: () => void }> = (props) => {
-  const [query, setQuery] = createSignal('');
-  const [page, setPage] = createSignal(1);
-  const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
+export const AdjustmentsTab: Component = () => {
+  const navigate = useNavigate();
+  const [query, setQuery] = createUrlText('q');
+  const [page, setPage] = createUrlNumber('pagina', 1);
+  // Qué modal está abierto lo dice la URL, no una señal.
+  const location = useLocation();
+  const abierta = () => entityAction(subPath(ENTRADAS_PATH, location.pathname), ACCIONES);
+  const abrir = (id: string, accion: (typeof ACCIONES)[number]): void =>
+    navigate(withSearch(`${ENTRADAS_PATH}/${id}/${accion}`, location.search));
+  const cerrar = (): void => navigate(withSearch(ENTRADAS_PATH, location.search));
 
   const [result, { refetch }] = createResource(
     () => ({ query: query(), page: page() }),
@@ -33,12 +42,40 @@ export const AdjustmentsTab: Component<{ onGoToKardex: () => void }> = (props) =
   );
 
   const items = () => result()?.items ?? [];
+
+  // El producto sale de la página cargada si está ahí, y se pide por id si se
+  // entró a la URL de frente.
+  const enLista = (id: string): ProductDto | undefined =>
+    items().find((product) => product.id === id);
+  const [buscado] = createResource(
+    () => {
+      const abierto = abierta();
+      return abierto === undefined || enLista(abierto.id) !== undefined ? undefined : abierto.id;
+    },
+    (id) => getProduct(id),
+  );
+  const producto = (): ProductDto | undefined => {
+    const abierto = abierta();
+    if (abierto === undefined) return undefined;
+    // Mientras se busca el siguiente, el recurso devuelve el anterior: sin
+    // comparar el id, el modal mostraría otro producto que el de la URL.
+    const encontrado = enLista(abierto.id) ?? buscado();
+    return encontrado?.id === abierto.id ? encontrado : undefined;
+  };
+
+  createEffect(() => {
+    if (abierta() === undefined) return;
+    if (result.loading || buscado.loading) return;
+    if (producto() !== undefined) return;
+    showNotice('Ese producto ya no está');
+    navigate(withSearch(ENTRADAS_PATH, location.search), { replace: true });
+  });
   const total = () => result()?.total ?? 0;
   const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
 
   function closeAndRefresh(message: string): void {
     beepSuccess();
-    setModal({ kind: 'none' });
+    cerrar();
     showNotice(message);
     void refetch();
   }
@@ -97,10 +134,10 @@ export const AdjustmentsTab: Component<{ onGoToKardex: () => void }> = (props) =
                   </td>
                   {/* Lo frecuente a la vista; conteo y kardex al menú ⋯. */}
                   <td class={styles.acciones}>
-                    <button type="button" onClick={() => setModal({ kind: 'entry', product })}>
+                    <button type="button" onClick={() => abrir(product.id, 'entrada')}>
                       Entrada
                     </button>
-                    <button type="button" onClick={() => setModal({ kind: 'adjust', product })}>
+                    <button type="button" onClick={() => abrir(product.id, 'merma')}>
                       Merma
                     </button>
                     <RowMenu
@@ -108,9 +145,7 @@ export const AdjustmentsTab: Component<{ onGoToKardex: () => void }> = (props) =
                         { key: 'count', label: 'Conteo físico' },
                         { key: 'kardex', label: 'Ver kardex' },
                       ]}
-                      onSelect={(key) =>
-                        setModal({ kind: key === 'count' ? 'count' : 'kardex', product })
-                      }
+                      onSelect={(key) => abrir(product.id, key === 'count' ? 'conteo' : 'kardex')}
                     />
                   </td>
                 </tr>
@@ -133,31 +168,24 @@ export const AdjustmentsTab: Component<{ onGoToKardex: () => void }> = (props) =
       />
 
       {(() => {
-        const state = modal();
-        switch (state.kind) {
-          case 'none':
-            return null;
-          case 'entry':
-            return (
-              <EntryModal product={state.product} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />
-            );
-          case 'adjust':
-            return (
-              <AdjustmentModal product={state.product} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />
-            );
-          case 'count':
-            return (
-              <CountModal product={state.product} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />
-            );
+        const abierto = abierta();
+        const product = producto();
+        if (abierto === undefined || product === undefined) return null;
+        switch (abierto.action) {
+          case 'entrada':
+            return <EntryModal product={product} onDone={closeAndRefresh} onClose={cerrar} />;
+          case 'merma':
+            return <AdjustmentModal product={product} onDone={closeAndRefresh} onClose={cerrar} />;
+          case 'conteo':
+            return <CountModal product={product} onDone={closeAndRefresh} onClose={cerrar} />;
           case 'kardex':
             return (
               <KardexModal
-                product={state.product}
-                onClose={() => setModal({ kind: 'none' })}
-                onGoToKardex={() => {
-                  setModal({ kind: 'none' });
-                  props.onGoToKardex();
-                }}
+                product={product}
+                onClose={cerrar}
+                onGoToKardex={() =>
+                  navigate(`/inventario/kardex?q=${encodeURIComponent(product.name)}`)
+                }
               />
             );
         }

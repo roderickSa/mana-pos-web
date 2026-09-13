@@ -1,9 +1,11 @@
 import { createSignal } from 'solid-js';
 
+import { readRawStored, writeRawStored } from '@/shared/lib/storage';
+
 // Preferencias de accesibilidad por usuario (la pantalla se mira a ~80 cm;
 // cada cajera decide si necesita texto más grande o modo noche).
-const BIG_TEXT_PREFIX = 'mana-pos-texto-grande:';
-const NIGHT_PREFIX = 'mana-pos-modo-noche:';
+const BIG_TEXT_PREFIX = 'mana-pos-texto-grande:' as const;
+const NIGHT_PREFIX = 'mana-pos-modo-noche:' as const;
 
 // Tres pasos de tamaño: 100% / 115% / 130% (el valor guardado '1' de la
 // versión toggle anterior se lee como nivel 1).
@@ -36,21 +38,21 @@ export function nightModeEnabled(): boolean {
 }
 
 export function loadPreferencesFor(userId: string): void {
-  const stored = localStorage.getItem(BIG_TEXT_PREFIX + userId);
+  const stored = readRawStored(`${BIG_TEXT_PREFIX}${userId}`);
   applyTextLevel(stored === '2' ? 2 : stored === '1' ? 1 : 0);
-  applyNight(localStorage.getItem(NIGHT_PREFIX + userId) === '1');
+  applyNight(readRawStored(`${NIGHT_PREFIX}${userId}`) === '1');
 }
 
 // A+ cicla 100% → 115% → 130% → 100%.
 export function toggleBigText(userId: string): void {
   const next: TextLevel = textLevel() === 0 ? 1 : textLevel() === 1 ? 2 : 0;
-  localStorage.setItem(BIG_TEXT_PREFIX + userId, String(next));
+  writeRawStored(`${BIG_TEXT_PREFIX}${userId}`, String(next));
   applyTextLevel(next);
 }
 
 export function toggleNightMode(userId: string): void {
   const enabled = !night();
-  localStorage.setItem(NIGHT_PREFIX + userId, enabled ? '1' : '0');
+  writeRawStored(`${NIGHT_PREFIX}${userId}`, enabled ? '1' : '0');
   applyNight(enabled);
 }
 

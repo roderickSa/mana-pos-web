@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import solid from 'vite-plugin-solid'
 
 export default defineConfig({
@@ -8,6 +8,13 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  // Tests de lógica pura (rutas, guardado, borradores). Lo visual se verifica
+  // con scripts/probar-recarga.mjs sobre el navegador de verdad.
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.spec.ts', 'src/**/*.spec.tsx'],
+    globals: true,
   },
   server: {
     port: 5173,

@@ -1,4 +1,5 @@
 import { createEffect, createResource, createSignal, onCleanup, onMount, Show, type Component } from 'solid-js';
+import { A } from '@solidjs/router';
 
 import { ApiError } from '@/shared/api/client';
 import { getProduct, getProductByBarcode, searchProducts } from '@/shared/api/products';
@@ -15,10 +16,12 @@ import { formatSoles } from '@/shared/lib/money';
 import { beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
 import { listenToScanner } from '@/shared/lib/scanner';
 import { showNotice } from '@/shared/state/notices';
+import { createUrlText } from '@/shared/lib/url-state';
 import { bumpCashRefresh } from '@/shared/state/cash-refresh';
 import { cashStatus } from '@/shared/state/cash-status';
 import type { ProductDto, TicketLine, UnitTicketLine, WeightProductDto, WeightTicketLine } from '@/shared/types';
 import { ConfirmModal } from '@/shared/ui/ConfirmModal';
+import { readRawStored, writeRawStored } from '@/shared/lib/storage';
 import { CategoryTabs } from './components/CategoryTabs';
 import { ChargeModal } from './components/ChargeModal';
 import { CreditChargeModal } from './components/CreditChargeModal';
@@ -56,11 +59,17 @@ import styles from './SaleView.module.css';
 
 type ChargeMethod = 'Efectivo' | 'Yape' | 'Tarjeta';
 
-const LEGEND_DISMISSED_KEY = 'mana-pos-leyenda-codigo-oculta';
+const LEGEND_DISMISSED_KEY = 'mana-pos-leyenda-codigo-oculta' as const;
 
-export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
+export const SaleView: Component = () => {
   const [query, setQuery] = createSignal('');
-  const [category, setCategory] = createSignal<string | null>('__mostrador');
+  // La categoría es el selector de vista de la pantalla y va en la URL: al
+  // volver a Vender o recargar, la cajera sigue en la misma. Lo demás de acá
+  // (búsqueda, multiplicador, método de pago) dura segundos y se queda en
+  // memoria; el ticket se guarda aparte.
+  const [categoryParam, setCategoryParam] = createUrlText('categoria', '__mostrador');
+  const category = (): string | null => (categoryParam() === '' ? null : categoryParam());
+  const setCategory = (value: string | null): void => setCategoryParam(value ?? '');
   const [payment, setPayment] = createSignal('Efectivo');
   const [weighing, setWeighing] = createSignal<WeightProductDto | null>(null);
   // Línea pesable en corrección: el mismo modal de balanza, pero reemplaza.
@@ -77,7 +86,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
   const [multiplier, setMultiplier] = createSignal(1);
   const [lastSale, setLastSale] = createSignal<{ id: string; number: number } | null>(null);
   const [legendDismissed, setLegendDismissed] = createSignal(
-    localStorage.getItem(LEGEND_DISMISSED_KEY) === '1',
+    readRawStored(LEGEND_DISMISSED_KEY) === '1',
   );
   let searchInput: HTMLInputElement | undefined;
 
@@ -475,9 +484,9 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
           <div class={styles.bloqueoCard}>
             <h2>La caja está cerrada</h2>
             <p>Abre la caja con su fondo inicial para empezar a vender.</p>
-            <button type="button" onClick={props.onGoToCash}>
+            <A href="/caja">
               Ir a abrir la caja
-            </button>
+            </A>
           </div>
         </div>
       </Show>
@@ -521,7 +530,7 @@ export const SaleView: Component<{ onGoToCash: () => void }> = (props) => {
               title="Ocultar (no vuelve a aparecer)"
               onClick={() => {
                 setLegendDismissed(true);
-                localStorage.setItem(LEGEND_DISMISSED_KEY, '1');
+                writeRawStored(LEGEND_DISMISSED_KEY, '1');
               }}
             >
               ✕

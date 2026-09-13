@@ -1,4 +1,7 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
+
+import { entityAction, subPath } from '@/shared/lib/modal-route';
 
 import {
   createCategory,
@@ -23,15 +26,37 @@ import styles from './CategoriesTab.module.css';
 // Colores elegibles (tokens --cat-* del theme).
 const COLOR_KEYS = ['verde', 'marron', 'azul', 'morado', 'ambar', 'rojo', 'turquesa', 'rosado'];
 
+const CATEGORIAS_PATH = '/productos/categorias';
+
 export const CategoriesTab: Component = () => {
   const [items, { refetch }] = createResource(() => listCategories(true));
-  const [creating, setCreating] = createSignal(false);
-  const [editing, setEditing] = createSignal<CategoryDto | null>(null);
+  // Crear y editar son rutas; borrar no: es una confirmación, y un link que la
+  // reabre invita a repetir algo ya hecho. Las categorías se identifican por
+  // su slug, que es su id en el servidor.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const cola = () => subPath(CATEGORIAS_PATH, location.pathname);
+  const creating = (): boolean => cola()[0] === 'nueva' && cola().length === 1;
+  const editandoSlug = (): string | undefined =>
+    entityAction(cola(), ['editar'] as const)?.id;
+  const editing = (): CategoryDto | undefined => {
+    const slug = editandoSlug();
+    if (slug === undefined) return undefined;
+    return (items() ?? []).find((item) => item.slug === slug);
+  };
+  const abrir = (path: string): void => navigate(path);
+  const cerrar = (): void => navigate(CATEGORIAS_PATH);
   const [deleting, setDeleting] = createSignal<CategoryDto | null>(null);
 
+  createEffect(() => {
+    if (editandoSlug() === undefined || items.loading) return;
+    if (editing() !== undefined) return;
+    showNotice('Esa categoría ya no está');
+    navigate(CATEGORIAS_PATH, { replace: true });
+  });
+
   function done(message: string): void {
-    setCreating(false);
-    setEditing(null);
+    cerrar();
     setDeleting(null);
     beepSuccess();
     showNotice(message);
@@ -80,7 +105,7 @@ export const CategoriesTab: Component = () => {
           El orden de esta lista es el orden de las pestañas de Vender. El ícono y el color visten
           los productos que no tienen foto.
         </p>
-        <button type="button" class={tabla.nuevo} onClick={() => setCreating(true)}>
+        <button type="button" class={tabla.nuevo} onClick={() => abrir(`${CATEGORIAS_PATH}/nueva`)}>
           + Nueva categoría
         </button>
       </div>
@@ -139,7 +164,7 @@ export const CategoriesTab: Component = () => {
                     </Chip>
                   </td>
                   <td class={tabla.acciones}>
-                    <button type="button" onClick={() => setEditing(category)}>
+                    <button type="button" onClick={() => abrir(`${CATEGORIAS_PATH}/${category.slug}/editar`)}>
                       Editar
                     </button>
                     <button type="button" onClick={() => void toggleActive(category)}>
@@ -182,7 +207,7 @@ export const CategoriesTab: Component = () => {
             }
             done(`Categoría «${created.name}» creada`);
           }}
-          onClose={() => setCreating(false)}
+          onClose={cerrar}
         />
       </Show>
 
@@ -195,7 +220,7 @@ export const CategoriesTab: Component = () => {
               await updateCategory(category().slug, { name, icon, color });
               done(`Categoría «${name}» actualizada`);
             }}
-            onClose={() => setEditing(null)}
+            onClose={cerrar}
           />
         )}
       </Show>
@@ -226,7 +251,6 @@ const CategoryFormModal: Component<{
   const [error, setError] = createSignal('');
 
   const [saving, setSaving] = createSignal(false);
-
   async function save(): Promise<void> {
     if (saving() || name().trim() === '') return;
     setSaving(true);

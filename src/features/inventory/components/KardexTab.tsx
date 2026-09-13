@@ -1,4 +1,5 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createResource, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
 import { focusOnMount } from '@/shared/lib/focus';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import { DateField } from '@/shared/ui/DateField';
@@ -22,6 +23,8 @@ import { MOVEMENT_KIND_LABELS } from '@/shared/lib/labels';
 import { formatDateTime } from '@/shared/lib/dates';
 import styles from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
+import { createUrlNumber, createUrlText } from '@/shared/lib/url-state';
+import { subPath, withSearch } from '@/shared/lib/modal-route';
 
 const PER_PAGE = 25;
 
@@ -32,20 +35,37 @@ function localISODate(daysAgo = 0): string {
 }
 
 export const KardexTab: Component = () => {
-  const [query, setQuery] = createSignal('');
-  const [kind, setKind] = createSignal('');
+  const [query, setQuery] = createUrlText('q');
+  const [kindRaw, setKind] = createUrlText('tipo');
+  // Un tipo que no existe (URL vieja o escrita a mano) se ignora: antes se
+  // mandaba tal cual al servidor, que respondía 400 y la pantalla quedaba
+  // vacía sin decir por qué.
+  const kind = (): string =>
+    kindRaw() in MOVEMENT_KIND_LABELS ? kindRaw() : '';
   // Con la tienda en marcha el historial completo son miles de filas: se
   // abre en los últimos 7 días y las fechas abren el resto (vacías = todo).
-  const [from, setFrom] = createSignal(localISODate(6));
-  const [to, setTo] = createSignal(localISODate());
-  const [page, setPage] = createSignal(1);
-  const [ticketId, setTicketId] = createSignal<string | null>(null);
+  const [from, setFrom] = createUrlText('desde', localISODate(6));
+  const [to, setTo] = createUrlText('hasta', localISODate());
+  const [page, setPage] = createUrlNumber('pagina', 1);
+  // El ticket abierto es una ruta hija: `/inventario/kardex/<id>` se recarga y
+  // se comparte con los filtros puestos.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const KARDEX_PATH = '/inventario/kardex';
+  const ticketId = (): string | undefined => subPath(KARDEX_PATH, location.pathname)[0];
+  const abrirTicket = (id: string): void =>
+    navigate(withSearch(`${KARDEX_PATH}/${id}`, location.search));
+  const cerrarTicket = (): void => navigate(withSearch(KARDEX_PATH, location.search));
   const [ticket] = createResource(ticketId, (id) =>
     getTicketDetail(id).catch(() => {
       showNotice('No se pudo cargar el ticket.');
       return null;
     }),
   );
+  const ticketDeLaRuta = () => {
+    const cargado = ticket();
+    return cargado !== null && cargado !== undefined && cargado.id === ticketId() ? cargado : undefined;
+  };
 
   const [result] = createResource(
     () => ({ query: query(), kind: kind(), from: from(), to: to(), page: page(), perPage: PER_PAGE }),
@@ -152,7 +172,7 @@ export const KardexTab: Component = () => {
                   <td class={styles.sub}>
                     <Show when={item.ticketId} fallback={item.reason ?? '—'}>
                       {(id) => (
-                        <button type="button" onClick={() => setTicketId(id())}>
+                        <button type="button" onClick={() => abrirTicket(id())}>
                           Ver ticket
                         </button>
                       )}
@@ -168,24 +188,26 @@ export const KardexTab: Component = () => {
         </Show>
       </div>
 
-      <Show when={ticketId() !== null}>
+      <Show when={ticketId() !== undefined}>
         <Modal
           size="md"
           title="Ticket del movimiento"
-          onClose={() => setTicketId(null)}
+          onClose={cerrarTicket}
           footer={
             <div class={forms.acciones}>
               <button
                 type="button"
                 class={forms.secundario}
-                onClick={() => setTicketId(null)}
+                onClick={cerrarTicket}
               >
                 Cerrar
               </button>
             </div>
           }
         >
-          <Show when={ticket()} fallback={<p class={forms.nota}>Cargando…</p>}>
+          {/* Con el id de la ruta: si no, al abrir otro ticket se ve el
+              anterior mientras carga. */}
+          <Show when={ticketDeLaRuta()} fallback={<p class={forms.nota}>Cargando…</p>}>
             {(detail) => <KardexTicketDetail ticket={detail()} />}
           </Show>
         </Modal>

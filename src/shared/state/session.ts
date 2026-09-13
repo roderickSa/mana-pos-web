@@ -1,5 +1,7 @@
 import { createSignal } from 'solid-js';
 
+import { readRawStored, removeStored, writeRawStored } from '@/shared/lib/storage';
+
 export interface SessionUser {
   id: string;
   name: string;
@@ -11,12 +13,15 @@ const TOKEN_KEY = 'mana-pos-token';
 
 function loadInitial(): SessionUser | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === null) return null;
-    const parsed = JSON.parse(raw);
+    const raw = readRawStored(STORAGE_KEY);
+    if (raw === undefined) return null;
+    const parsed: unknown = JSON.parse(raw);
     if (
       typeof parsed === 'object' &&
       parsed !== null &&
+      'id' in parsed &&
+      'name' in parsed &&
+      'role' in parsed &&
       typeof parsed.id === 'string' &&
       typeof parsed.name === 'string' &&
       (parsed.role === 'owner' || parsed.role === 'manager' || parsed.role === 'cashier')
@@ -52,15 +57,15 @@ export function isOwner(): boolean {
 
 // Token opaco de la sesión del API: viaja como Bearer en cada request.
 export function sessionToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return readRawStored(TOKEN_KEY) ?? null;
 }
 
 export function startSession(sessionUser: SessionUser, token: string): void {
   // El token va a storage ANTES de anunciar el usuario: Solid propaga la
   // señal sincrónicamente y la app dispara sus primeros fetch en ese mismo
   // instante — si el token aún no está, salen sin Bearer y el 401 expulsa.
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
-  localStorage.setItem(TOKEN_KEY, token);
+  writeRawStored(STORAGE_KEY, JSON.stringify(sessionUser));
+  writeRawStored(TOKEN_KEY, token);
   setUser(sessionUser);
 }
 
@@ -68,6 +73,6 @@ export function startSession(sessionUser: SessionUser, token: string): void {
 // La revocación en el API la dispara quien llama (TopBar) — aquí solo estado.
 export function endSession(): void {
   setUser(null);
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(TOKEN_KEY);
+  removeStored(STORAGE_KEY);
+  removeStored(TOKEN_KEY);
 }

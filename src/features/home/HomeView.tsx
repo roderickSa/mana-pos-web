@@ -1,4 +1,5 @@
 import { createResource, Show, type Component } from 'solid-js';
+import { A } from '@solidjs/router';
 
 import { searchSales } from '@/shared/api/sales';
 import { getCashStatus } from '@/shared/api/cash';
@@ -7,7 +8,6 @@ import { getExpiring } from '@/shared/api/inventory';
 import { listCustomers } from '@/shared/api/customers';
 import { formatSoles } from '@/shared/lib/money';
 import { currentUserName } from '@/shared/state/session';
-import type { View } from '@/app/components/TopBar';
 import styles from './HomeView.module.css';
 
 function todayIso(): string {
@@ -19,7 +19,7 @@ function todayIso(): string {
 
 // El pulso del negocio en una pantalla: lo que antes exigía recorrer Caja,
 // Ventas, Inventario y Fiado. Solo la ve el dueño (App la monta con isOwner).
-export const HomeView: Component<{ onNavigate: (view: View) => void }> = (props) => {
+export const HomeView: Component = () => {
   const hoy = todayIso();
   const [ventas] = createResource(() =>
     searchSales({ from: hoy, to: hoy, method: '', status: '' }, 1, 1),
@@ -49,15 +49,15 @@ export const HomeView: Component<{ onNavigate: (view: View) => void }> = (props)
       </header>
 
       <div class={styles.grilla}>
-        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('reportes')}>
+        <A href="/reportes/resumen" class={styles.tarjeta}>
           <span class={styles.etiqueta}>Venta de hoy</span>
           <span class={styles.cifra}>
             {formatSoles(ventas()?.summary.chargedTotalCents ?? 0)}
           </span>
           <span class={styles.detalle}>{ventas()?.summary.chargedCount ?? 0} tickets cobrados</span>
-        </button>
+        </A>
 
-        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('caja')}>
+        <A href="/caja" class={styles.tarjeta}>
           <span class={styles.etiqueta}>Caja</span>
           <Show
             when={efectivoTurno() !== null}
@@ -71,41 +71,39 @@ export const HomeView: Component<{ onNavigate: (view: View) => void }> = (props)
             <span class={styles.cifra}>{formatSoles(efectivoTurno() ?? 0)}</span>
             <span class={styles.detalle}>efectivo del turno abierto</span>
           </Show>
-        </button>
+        </A>
 
-        <button
-          type="button"
+        <A
           class={styles.tarjeta}
           classList={{ [styles.alerta]: (bajoMinimo()?.total ?? 0) > 0 }}
-          onClick={() => props.onNavigate('productos')}
+          href="/productos"
         >
           <span class={styles.etiqueta}>Bajo mínimo</span>
           <span class={styles.cifra}>{bajoMinimo()?.total ?? 0}</span>
           <span class={styles.detalle}>productos por reponer</span>
-        </button>
+        </A>
 
-        <button
-          type="button"
+        <A
           class={styles.tarjeta}
           classList={{ [styles.alerta]: (porVencer()?.items.length ?? 0) > 0 }}
-          onClick={() => props.onNavigate('inventario')}
+          href="/inventario/por-vencer"
         >
           <span class={styles.etiqueta}>Por vencer</span>
           <span class={styles.cifra}>{porVencer()?.items.length ?? 0}</span>
           <span class={styles.detalle}>productos cerca de su fecha</span>
-        </button>
+        </A>
 
-        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('clientes')}>
+        <A href="/clientes/directorio" class={styles.tarjeta}>
           <span class={styles.etiqueta}>Fiado por cobrar</span>
           <span class={styles.cifra}>{formatSoles(deudaTotal())}</span>
           <span class={styles.detalle}>{cantidadDeudores()} clientes deben</span>
-        </button>
+        </A>
 
-        <button type="button" class={styles.tarjeta} onClick={() => props.onNavigate('venta')}>
+        <A href="/vender" class={styles.tarjeta}>
           <span class={styles.etiqueta}>Mostrador</span>
           <span class={styles.cifraChica}>Ir a Vender →</span>
           <span class={styles.detalle}>F1 muestra los atajos</span>
-        </button>
+        </A>
       </div>
     </section>
   );

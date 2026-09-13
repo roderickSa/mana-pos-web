@@ -1,4 +1,14 @@
-import { createUniqueId, onCleanup, onMount, Show, type JSX, type Component } from 'solid-js';
+import {
+  createSignal,
+  createUniqueId,
+  onCleanup,
+  onMount,
+  Show,
+  type Component,
+  type JSX,
+} from 'solid-js';
+
+import { UnsavedChanges } from './UnsavedChanges';
 
 import styles from './Modal.module.css';
 
@@ -43,10 +53,19 @@ export const Modal: Component<{
   // Formularios largos: un toque accidental fuera del cuadro NO debe
   // descartar lo tecleado — esos modales se cierran solo con ✕ o Esc.
   dismissOnBackdrop?: boolean;
+  // Si devuelve true, cerrar (✕, Esc o velo) pide confirmación en vez de
+  // descartar lo tecleado. El aviso lo dibuja el propio modal.
+  dirty?: () => boolean;
+  // Cómo nombra esta pantalla lo que se perdería: «el producto», «la orden».
+  dirtyLabel?: string;
+  // Descartar es descartar: el que guarda borrador lo tira acá, si no al
+  // reabrir le ofreceríamos recuperar justo lo que acaba de tirar.
+  onDiscard?: () => void;
   onClose: () => void;
   children: JSX.Element;
 }> = (props) => {
   const modalToken = Symbol('modal');
+  const [confirmingDiscard, setConfirmingDiscard] = createSignal(false);
   let modalRef: HTMLDivElement | undefined;
   let pieRef: HTMLElement | undefined;
   const titleId = createUniqueId();
@@ -64,6 +83,23 @@ export const Modal: Component<{
     ];
   }
 
+  // Todo intento de cerrar pasa por acá: con cambios sin guardar se pregunta
+  // antes, y si no, se cierra derecho.
+  function requestClose(): void {
+    if (props.dirty?.() === true) {
+      setConfirmingDiscard(true);
+      return;
+    }
+    props.onClose();
+  }
+
+  // El navegador avisa por su cuenta al recargar o cerrar la pestaña mientras
+  // haya algo sin guardar. El texto lo pone el navegador, no se puede elegir.
+  function onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (props.dirty?.() !== true) return;
+    event.preventDefault();
+  }
+
   // Ctrl+Enter dispara el botón primario del footer desde cualquier campo.
   function clickFooterPrimary(): void {
     if (pieRef === undefined) return;
@@ -78,7 +114,7 @@ export const Modal: Component<{
     // Esc cierra cualquier modal de la app, siempre.
     if (event.key === 'Escape') {
       event.stopPropagation();
-      props.onClose();
+      requestClose();
       return;
     }
     if (event.key === 'Enter' && event.ctrlKey) {
@@ -106,6 +142,7 @@ export const Modal: Component<{
   onMount(() => {
     openModals.push(modalToken);
     document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('beforeunload', onBeforeUnload);
     // autofocus no dispara en montaje dinámico: foco manual al primer campo
     // relevante (o al primer control si no hay ninguno marcado).
     setTimeout(() => {
@@ -120,6 +157,7 @@ export const Modal: Component<{
     const at = openModals.indexOf(modalToken);
     if (at >= 0) openModals.splice(at, 1);
     document.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('beforeunload', onBeforeUnload);
     if (openedByKeyboard && opener instanceof HTMLElement && opener.isConnected) {
       opener.focus({ preventScroll: true });
     }
@@ -129,7 +167,7 @@ export const Modal: Component<{
     <div
       class={styles.fondo}
       onClick={() => {
-        if (props.dismissOnBackdrop !== false) props.onClose();
+        if (props.dismissOnBackdrop !== false) requestClose();
       }}
     >
       <div
@@ -148,7 +186,7 @@ export const Modal: Component<{
             </Show>
           </div>
           {props.headerActions}
-          <button type="button" class={styles.cerrar} aria-label="Cerrar" onClick={props.onClose}>
+          <button type="button" class={styles.cerrar} aria-label="Cerrar" onClick={requestClose}>
             ✕
           </button>
         </header>
@@ -159,6 +197,18 @@ export const Modal: Component<{
           </footer>
         </Show>
       </div>
+
+      <Show when={confirmingDiscard()}>
+        <UnsavedChanges
+          what={props.dirtyLabel ?? 'este formulario'}
+          onDiscard={() => {
+            setConfirmingDiscard(false);
+            props.onDiscard?.();
+            props.onClose();
+          }}
+          onKeepEditing={() => setConfirmingDiscard(false)}
+        />
+      </Show>
     </div>
   );
 };

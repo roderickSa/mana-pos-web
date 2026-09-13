@@ -11,7 +11,18 @@ export const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
   partial: 'parcial',
   received: 'recibida',
   cancelled: 'cancelada',
-  closed: 'cerrada',
+  closed: 'cerrada incompleta',
+};
+
+// Qué significa cada estado en la tienda. Va como tooltip del chip: son seis
+// palabras que nadie tiene por qué adivinar.
+export const STATUS_HINT: Record<PurchaseOrderStatus, string> = {
+  draft: 'Se está armando; el proveedor todavía no la vio',
+  open: 'Pedida al proveedor, esperando que llegue',
+  partial: 'Llegó una parte; falta el resto',
+  received: 'Llegó todo lo que se pidió',
+  cancelled: 'Se anuló sin recibir nada',
+  closed: 'Se recibió lo que llegó y el resto ya no viene',
 };
 
 export function statusTone(status: PurchaseOrderStatus): ChipTone {
@@ -20,8 +31,11 @@ export function statusTone(status: PurchaseOrderStatus): ChipTone {
     open: 'info',
     partial: 'alerta',
     received: 'exito',
+    // Rojo solo para lo que salió mal: una orden cancelada nunca trajo nada.
     cancelled: 'peligro',
-    closed: 'peligro',
+    // Cerrar incompleta no es un fracaso: la mercadería entró. Pero algo quedó
+    // sin traer y eso se mira. Amarillo de «ojo con esto», no rojo de alarma.
+    closed: 'alerta',
   };
   return byStatus[status];
 }

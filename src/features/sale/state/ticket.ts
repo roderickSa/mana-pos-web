@@ -2,6 +2,7 @@ import { createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
 import { roundToDimeCents } from '@/shared/lib/money';
+import { readRawStored, writeRawStored } from '@/shared/lib/storage';
 import type {
   ProductDto,
   TicketLine,
@@ -122,8 +123,8 @@ function normalizeLines(raw: unknown[]): TicketLine[] {
 
 function loadInitialState(): TicketState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === null) return freshState();
+    const raw = readRawStored(STORAGE_KEY);
+    if (raw === undefined) return freshState();
     const parsed = JSON.parse(raw);
     if (
       typeof parsed === 'object' &&
@@ -170,7 +171,7 @@ const [lastRemoved, setLastRemoved] = createSignal<{ line: TicketLine; index: nu
 );
 
 function persist(): void {
-  localStorage.setItem(
+  writeRawStored(
     STORAGE_KEY,
     JSON.stringify({
       ticketId: ticket.ticketId,
@@ -282,11 +283,48 @@ export function addUnitProduct(product: UnitProductDto, quantity = 1): void {
   persist();
 }
 
+// Dos bolsas del mismo producto son UNA línea con los kilos sumados, igual que
+// tocar dos veces un producto por unidad suma cantidad. Tres renglones de
+// «Naranja 0.5 kg» en el voucher son ruido para el cliente y tres movimientos
+// en el kardex por una sola compra.
+//
+// No se fusiona cuando hacerlo perdería información:
+//   · la línea ya tiene descuento (el descuento se pactó sobre ESE peso);
+//   · el peso vino de otra fuente (uno de la balanza, otro tecleado) — la
+//     diferencia importa para revisar después qué se pesó y qué se digitó.
+// En esos casos la línea nueva va aparte, que es lo que había antes.
+function mergeableWeightLine(
+  product: WeightProductDto,
+  weightSource: 'scale' | 'manual',
+): number {
+  for (let index = ticket.lines.length - 1; index >= 0; index -= 1) {
+    const line = ticket.lines[index];
+    if (line === undefined || line.kind !== 'weight') continue;
+    if (line.product.id !== product.id) continue;
+    if (line.discountCents > 0 || line.weightSource !== weightSource) return -1;
+    return index;
+  }
+  return -1;
+}
+
 export function addWeightProduct(
   product: WeightProductDto,
   grams: number,
   weightSource: 'scale' | 'manual',
 ): void {
+  const index = mergeableWeightLine(product, weightSource);
+  if (index >= 0) {
+    const line = ticket.lines[index];
+    if (line === undefined || line.kind !== 'weight') return;
+    const total = line.grams + grams;
+    setTicket('lines', index, {
+      grams: total,
+      totalCents: weightGrossCents(total, product.pricePerKgCents),
+    });
+    setSelectedIndex(index);
+    persist();
+    return;
+  }
   setTicket('lines', (lines) => [
     ...lines,
     {

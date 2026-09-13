@@ -1,4 +1,7 @@
 import { createResource, createSignal, Match, Show, Switch, type Component } from 'solid-js';
+import { useLocation } from '@solidjs/router';
+
+import { activeTabPath, SubTabs, type SubTab } from '@/shared/ui/SubTabs';
 
 import { getIgvConfig, getReceiptConfig, updateIgvConfig, updateReceiptConfig } from '@/shared/api/settings';
 import { getPrinterConfig } from '@/shared/api/devices';
@@ -192,56 +195,40 @@ const IgvTab: Component = () => {
 
 // Todo lo que se configura una vez y se toca poco vive aquí: usuarios,
 // equipos, voucher, IGV y los catálogos maestros (categorías, proveedores).
-type SettingsTab =
-  | 'usuarios'
-  | 'equipos'
-  | 'voucher'
-  | 'igv'
-  | 'respaldo';
 
 // Espejo de la política del API (route-policy.ts): encargado y dueño ven lo
 // mismo; lo técnico/sensible (Respaldo) es solo del dueño.
-const TABS: Array<{ key: SettingsTab; label: string; ownerOnly: boolean }> = [
-  { key: 'usuarios', label: 'Usuarios', ownerOnly: false },
-  { key: 'equipos', label: 'Equipos', ownerOnly: false },
-  { key: 'voucher', label: 'Voucher', ownerOnly: false },
-  { key: 'igv', label: 'IGV', ownerOnly: false },
-  { key: 'respaldo', label: 'Respaldo', ownerOnly: true },
+const TABS: ReadonlyArray<SubTab & { ownerOnly: boolean }> = [
+  { path: '/ajustes/usuarios', label: 'Usuarios', ownerOnly: false },
+  { path: '/ajustes/equipos', label: 'Equipos', ownerOnly: false },
+  { path: '/ajustes/voucher', label: 'Voucher', ownerOnly: false },
+  { path: '/ajustes/igv', label: 'IGV', ownerOnly: false },
+  { path: '/ajustes/respaldo', label: 'Respaldo', ownerOnly: true },
 ];
 
 export const SettingsView: Component = () => {
+  const location = useLocation();
   const visibleTabs = () => TABS.filter((item) => !item.ownerOnly || isOwner());
-  const [tab, setTab] = createSignal<SettingsTab>('usuarios');
+  const tab = () => activeTabPath(visibleTabs(), location.pathname);
 
   return (
     <section class={tabs.contenedorTabs}>
-      <nav class={tabs.subnav} aria-label="Ajustes">
-        {visibleTabs().map((item) => (
-          <button
-            type="button"
-            class={tabs.subtab}
-            classList={{ [tabs.subtabActiva]: tab() === item.key }}
-            onClick={() => setTab(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+      <SubTabs tabs={visibleTabs()} label="Ajustes" />
 
       <Switch>
-        <Match when={tab() === 'usuarios'}>
+        <Match when={tab() === '/ajustes/usuarios'}>
           <UsersView />
         </Match>
-        <Match when={tab() === 'equipos'}>
+        <Match when={tab() === '/ajustes/equipos'}>
           <DevicesView />
         </Match>
-        <Match when={tab() === 'voucher'}>
+        <Match when={tab() === '/ajustes/voucher'}>
           <VoucherTab />
         </Match>
-        <Match when={tab() === 'igv'}>
+        <Match when={tab() === '/ajustes/igv'}>
           <IgvTab />
         </Match>
-        <Match when={tab() === 'respaldo' && isOwner()}>
+        <Match when={tab() === '/ajustes/respaldo' && isOwner()}>
           <BackupTab />
         </Match>
       </Switch>

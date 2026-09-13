@@ -1,42 +1,32 @@
-import { createSignal, Match, Switch, type Component } from 'solid-js';
+import { Match, Switch, type Component } from 'solid-js';
+import { useLocation } from '@solidjs/router';
 
+import { activeTabPath, SubTabs, type SubTab } from '@/shared/ui/SubTabs';
 import { CategoriesTab } from './components/CategoriesTab';
 import { ProductsTab } from './components/ProductsTab';
 import styles from '@/shared/ui/tabla.module.css';
 
 // Catálogo (qué vendemos y a cuánto) separado del stock (cuánto hay): son
 // dos tareas distintas del encargado y dos módulos distintos del API.
-type CatalogTab = 'productos' | 'categorias';
-
-const TABS: Array<{ key: CatalogTab; label: string }> = [
-  { key: 'productos', label: 'Productos' },
-  { key: 'categorias', label: 'Categorías' },
+const TABS: readonly SubTab[] = [
+  { path: '/productos', label: 'Productos' },
+  { path: '/productos/categorias', label: 'Categorías' },
 ];
 
 export const CatalogView: Component = () => {
-  const [tab, setTab] = createSignal<CatalogTab>('productos');
+  const location = useLocation();
+  const tab = () => activeTabPath(TABS, location.pathname);
 
   return (
     <section class={styles.contenedorTabs}>
-      <nav class={styles.subnav} aria-label="Secciones de productos">
-        {TABS.map((item) => (
-          <button
-            type="button"
-            class={styles.subtab}
-            classList={{ [styles.subtabActiva]: tab() === item.key }}
-            onClick={() => setTab(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+      <SubTabs tabs={TABS} label="Secciones de productos" />
 
       <Switch>
-        <Match when={tab() === 'productos'}>
-          <ProductsTab />
-        </Match>
-        <Match when={tab() === 'categorias'}>
+        <Match when={tab() === '/productos/categorias'}>
           <CategoriesTab />
+        </Match>
+        <Match when={tab() === '/productos'}>
+          <ProductsTab />
         </Match>
       </Switch>
     </section>

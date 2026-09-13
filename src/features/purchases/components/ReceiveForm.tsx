@@ -1,4 +1,4 @@
-import {createSignal, For, Show, type Component } from 'solid-js';
+import {createEffect, createSignal, For, onCleanup, Show, type Component } from 'solid-js';
 
 
 import {receivePurchaseOrder, type PurchaseOrderDto, type PurchaseOrderLineDto, type ReceiveOrderLinePayload } from '@/shared/api/purchases';
@@ -8,15 +8,19 @@ import {showNotice } from '@/shared/state/notices';
 import {DateField } from '@/shared/ui/DateField';
 import formStyles from '@/shared/ui/forms.module.css';
 import styles from '../PurchasesView.module.css';
+import { readStored, removeStored, writeStored } from '@/shared/lib/storage';
 import {quantityText, type ReceiveDraft } from './purchase-lines';
+import {
+  decodeReceptionDraft,
+  linesOfReceptionDraft,
+  receptionDraftOf,
+} from './reception-draft';
 
 export const ReceiveForm: Component<{
   order: PurchaseOrderDto;
   onCancel: () => void;
   onReceived: (order: PurchaseOrderDto) => void;
 }> = (props) => {
-  // Fijo mientras el formulario vive: un reintento tras un error no duplica la recepción.
-  const [receptionId] = createSignal(crypto.randomUUID());
   const pendingLines = props.order.lines.filter((line) => line.pendingQuantity > 0);
   const initialDrafts = new Map<string, ReceiveDraft>(
     pendingLines.map((line) => [
@@ -31,11 +35,42 @@ export const ReceiveForm: Component<{
       },
     ]),
   );
-  const [drafts, setDrafts] = createSignal(initialDrafts);
+  // Lo tecleado sobrevive a una recarga, y con ello el `receptionId`: es lo
+  // que hace que reintentar no meta la mercadería dos veces. Ver
+  // reception-draft.ts.
+  const clave = (): `mana-pos:recepcion:${string}` => `mana-pos:recepcion:${props.order.id}`;
+  const guardado = readStored(clave(), decodeReceptionDraft);
+
+  // Fijo mientras dure la recepción, incluso entre recargas.
+  const receptionId = guardado?.receptionId ?? crypto.randomUUID();
+  const [drafts, setDrafts] = createSignal(
+    guardado === undefined ? initialDrafts : linesOfReceptionDraft(guardado),
+  );
   const [error, setError] = createSignal('');
   const [saving, setSaving] = createSignal(false);
-  const [documentNumber, setDocumentNumber] = createSignal('');
-  const [paymentTerms, setPaymentTerms] = createSignal('');
+  const [documentNumber, setDocumentNumber] = createSignal(guardado?.documentNumber ?? '');
+  const [paymentTerms, setPaymentTerms] = createSignal(guardado?.paymentTerms ?? '');
+
+  // El id se guarda ya, antes de que nadie teclee nada: si la recarga pasa en
+  // el medio, el reintento tiene que salir con este mismo id.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(() => {
+    const actual = receptionDraftOf(receptionId, documentNumber(), paymentTerms(), drafts());
+    if (timer !== undefined) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = undefined;
+      writeStored(clave(), actual);
+    }, 300);
+  });
+  onCleanup(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+
+  function olvidarBorrador(): void {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+    removeStored(clave());
+  }
 
   function draftOf(line: PurchaseOrderLineDto): ReceiveDraft {
     return drafts().get(line.id) ?? { quantity: '', cost: '', expiry: '' };
@@ -88,11 +123,12 @@ export const ReceiveForm: Component<{
     try {
       const updated = await receivePurchaseOrder(
         props.order.id,
-        receptionId(),
+        receptionId,
         payload,
         documentNumber().trim() === '' ? null : documentNumber().trim(),
         paymentTerms().trim() === '' ? null : paymentTerms().trim(),
       );
+      olvidarBorrador();
       beepSuccess();
       showNotice(
         updated.status === 'received' ? 'Orden recibida completa' : 'Recepción parcial registrada',

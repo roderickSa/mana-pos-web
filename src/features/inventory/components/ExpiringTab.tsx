@@ -1,4 +1,7 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
+
+import { entityAction, subPath } from '@/shared/lib/modal-route';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import { DateField } from '@/shared/ui/DateField';
 import { ConfirmModal } from '@/shared/ui/ConfirmModal';
@@ -25,13 +28,35 @@ import { formatDateOnly } from '@/shared/lib/dates';
 import styles from './ExpiringTab.module.css';
 
 
+const POR_VENCER_PATH = '/inventario/por-vencer';
+
 export const ExpiringTab: Component = () => {
   const [list, { refetch }] = createResource(getExpiring);
+  // La merma de un lote es una ruta: `/inventario/por-vencer/<lote>/merma`.
+  // Los días de aviso NO van a la URL: no son un filtro de la pantalla sino
+  // una preferencia guardada en el servidor.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const mermaLote = (): string | undefined =>
+    entityAction(subPath(POR_VENCER_PATH, location.pathname), ['merma'] as const)?.id;
+  const abrirMerma = (lotId: string): void => navigate(`${POR_VENCER_PATH}/${lotId}/merma`);
+  const cerrarMerma = (): void => navigate(POR_VENCER_PATH);
+  const merma = (): ExpiringItemDto | undefined => {
+    const lotId = mermaLote();
+    if (lotId === undefined) return undefined;
+    return (list()?.items ?? []).find((item) => item.lotId === lotId);
+  };
+
+  createEffect(() => {
+    if (mermaLote() === undefined || list.loading) return;
+    if (merma() !== undefined) return;
+    showNotice('Ese lote ya no está por vencer');
+    navigate(POR_VENCER_PATH, { replace: true });
+  });
   const [alertDays] = createResource(getExpiryAlertDays);
   const [days, setDays] = createSignal('');
   const [editing, setEditing] = createSignal<string | null>(null);
   const [newDate, setNewDate] = createSignal('');
-  const [merma, setMerma] = createSignal<ExpiringItemDto | null>(null);
   const [mermaQty, setMermaQty] = createSignal('');
 
   // La alerta lleva directo a la acción que la resuelve: merma del LOTE en
@@ -42,7 +67,7 @@ export const ExpiringTab: Component = () => {
   async function saveMerma(): Promise<void> {
     if (savingMerma()) return;
     const item = merma();
-    if (item === null) return;
+    if (item === undefined) return;
     const parsed = Number.parseFloat(mermaQty());
     const quantity = item.saleType === 'weight' ? Math.round(parsed * 1000) : Math.round(parsed);
     if (Number.isNaN(quantity) || quantity <= 0) return;
@@ -51,7 +76,7 @@ export const ExpiringTab: Component = () => {
       await registerLotWaste(item.lotId, quantity);
       beepSuccess();
       showNotice('Merma registrada — quedó en el kardex');
-      setMerma(null);
+      cerrarMerma();
       setMermaQty('');
       void refetch();
     } catch (cause) {
@@ -172,7 +197,7 @@ export const ExpiringTab: Component = () => {
                             type="button"
                             onClick={() => {
                               setMermaQty('');
-                              setMerma(item);
+                              abrirMerma(item.lotId);
                             }}
                           >
                             Registrar merma
@@ -226,10 +251,10 @@ export const ExpiringTab: Component = () => {
           <Modal
             size="sm"
             title={`Merma de ${item().name}`}
-            onClose={() => setMerma(null)}
+            onClose={cerrarMerma}
             footer={
               <div class={forms.acciones}>
-                <button type="button" class={forms.secundario} onClick={() => setMerma(null)}>
+                <button type="button" class={forms.secundario} onClick={cerrarMerma}>
                   Volver
                 </button>
                 <button

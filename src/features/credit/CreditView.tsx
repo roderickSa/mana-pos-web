@@ -1,4 +1,7 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
+
+import { activeTabPath, SubTabs, type SubTab } from '@/shared/ui/SubTabs';
 import { focusOnMount } from '@/shared/lib/focus';
 import { StatTile, StatTiles } from '@/shared/ui/StatTile';
 import { TableFooter } from '@/shared/ui/TableFooter';
@@ -6,6 +9,7 @@ import { Keypad } from '@/shared/ui/Keypad';
 
 import {
   createCustomer,
+  getCustomer,
   getStatement,
   listCustomersPage,
   registerAbono,
@@ -22,13 +26,12 @@ import { Modal } from '@/shared/ui/Modal';
 import tabla from '@/shared/ui/tabla.module.css';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import forms from '@/shared/ui/forms.module.css';
+import { createUrlBoolean, createUrlNumber, createUrlText } from '@/shared/lib/url-state';
+import { entityAction, subPath, withSearch } from '@/shared/lib/modal-route';
 
-type ModalState =
-  | { kind: 'none' }
-  | { kind: 'create' }
-  | { kind: 'edit'; account: CustomerAccountDto }
-  | { kind: 'abono'; account: CustomerAccountDto }
-  | { kind: 'statement'; account: CustomerAccountDto };
+// Los modales cuelgan de la subpestaña, no de `/clientes`: así abrir un abono
+// desde Fiado no deja Directorio detrás al cerrarlo.
+const ACCIONES = ['editar', 'abonar', 'estado-de-cuenta'] as const;
 
 // "debe desde hace N días" legible, sin que la cajera calcule fechas.
 function debtSinceLabel(iso: string): string {
@@ -318,12 +321,25 @@ const StatementModal: Component<{ account: CustomerAccountDto; onClose: () => vo
 // libreta completa (crear, editar, contacto); Fiado = solo la cobranza.
 const PER_PAGE = 25;
 
+const TABS: readonly SubTab[] = [
+  { path: '/clientes/directorio', label: 'Directorio' },
+  { path: '/clientes/fiado', label: 'Fiado' },
+];
+
 export const ClientesView: Component = () => {
-  const [tab, setTab] = createSignal<'directorio' | 'fiado'>('directorio');
-  const [query, setQuery] = createSignal('');
-  const [onlyDebtors, setOnlyDebtors] = createSignal(true);
-  const [page, setPage] = createSignal(1);
-  const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
+  const location = useLocation();
+  const tab = (): 'directorio' | 'fiado' =>
+    activeTabPath(TABS, location.pathname) === '/clientes/fiado' ? 'fiado' : 'directorio';
+  const [query, setQuery] = createUrlText('q');
+  const [onlyDebtors, setOnlyDebtors] = createUrlBoolean('solo-deudores', true);
+  const [page, setPage] = createUrlNumber('pagina', 1);
+  const navigate = useNavigate();
+  const base = (): string => activeTabPath(TABS, location.pathname);
+  const cola = () => subPath(base(), location.pathname);
+  const creando = (): boolean => cola()[0] === 'nuevo' && cola().length === 1;
+  const abierto = () => entityAction(cola(), ACCIONES);
+  const abrir = (path: string): void => navigate(withSearch(path, location.search));
+  const cerrar = (): void => navigate(withSearch(base(), location.search));
 
   const [result, { refetch }] = createResource(
     () => ({ query: query(), onlyDebtors: tab() === 'fiado' && onlyDebtors(), page: page() }),
@@ -331,11 +347,38 @@ export const ClientesView: Component = () => {
   );
 
   const accounts = () => result()?.items ?? [];
+
+  // La cuenta sale de la página cargada, o del servidor si se entró por la URL.
+  const enLista = (id: string): CustomerAccountDto | undefined =>
+    accounts().find((account) => account.id === id);
+  const [buscada] = createResource(
+    () => {
+      const modal = abierto();
+      return modal === undefined || enLista(modal.id) !== undefined ? undefined : modal.id;
+    },
+    (id) => getCustomer(id),
+  );
+  const cuenta = (): CustomerAccountDto | undefined => {
+    const modal = abierto();
+    if (modal === undefined) return undefined;
+    // El id tiene que calzar: mientras se busca el siguiente cliente, el
+    // recurso sigue devolviendo el anterior.
+    const encontrada = enLista(modal.id) ?? buscada();
+    return encontrada?.id === modal.id ? encontrada : undefined;
+  };
+
+  createEffect(() => {
+    if (abierto() === undefined) return;
+    if (result.loading || buscada.loading) return;
+    if (cuenta() !== undefined) return;
+    showNotice('Ese cliente ya no está');
+    navigate(withSearch(base(), location.search), { replace: true });
+  });
   const total = () => result()?.total ?? 0;
   const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
 
   function closeAndRefresh(message: string): void {
-    setModal({ kind: 'none' });
+    cerrar();
     showNotice(message);
     void refetch();
   }
@@ -348,24 +391,7 @@ export const ClientesView: Component = () => {
 
   return (
     <div class={tabla.contenedorTabs}>
-      <nav class={tabla.subnav} aria-label="Secciones de clientes">
-        <button
-          type="button"
-          class={tabla.subtab}
-          classList={{ [tabla.subtabActiva]: tab() === 'directorio' }}
-          onClick={() => { setTab('directorio'); setPage(1); }}
-        >
-          Directorio
-        </button>
-        <button
-          type="button"
-          class={tabla.subtab}
-          classList={{ [tabla.subtabActiva]: tab() === 'fiado' }}
-          onClick={() => { setTab('fiado'); setPage(1); }}
-        >
-          Fiado
-        </button>
-      </nav>
+      <SubTabs tabs={TABS} label="Secciones de clientes" />
 
       <section class={tabla.vista}>
         <div class={tabla.encabezado}>
@@ -391,7 +417,7 @@ export const ClientesView: Component = () => {
               <span class={tabla.positivo}>{formatSoles(totalInFavor())} a favor de clientes</span>
             </Show>
           </Show>
-          <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
+          <button type="button" class={tabla.nuevo} onClick={() => abrir(`${base()}/nuevo`)}>
             + Nuevo cliente
           </button>
         </div>
@@ -466,7 +492,7 @@ export const ClientesView: Component = () => {
                         <button
                           type="button"
                           disabled={account.balanceCents <= 0}
-                          onClick={() => setModal({ kind: 'abono', account })}
+                          onClick={() => abrir(`${base()}/${account.id}/abonar`)}
                         >
                           Abonar
                         </button>
@@ -485,10 +511,10 @@ export const ClientesView: Component = () => {
                           </a>
                         </Show>
                       </Show>
-                      <button type="button" onClick={() => setModal({ kind: 'statement', account })}>
+                      <button type="button" onClick={() => abrir(`${base()}/${account.id}/estado-de-cuenta`)}>
                         Estado de cuenta
                       </button>
-                      <button type="button" onClick={() => setModal({ kind: 'edit', account })}>
+                      <button type="button" onClick={() => abrir(`${base()}/${account.id}/editar`)}>
                         Editar
                       </button>
                     </td>
@@ -508,7 +534,7 @@ export const ClientesView: Component = () => {
                   <button
                     type="button"
                     class={tabla.nuevo}
-                    onClick={() => setModal({ kind: 'create' })}
+                    onClick={() => abrir(`${base()}/nuevo`)}
                   >
                     + Crear el primer cliente
                   </button>
@@ -527,23 +553,29 @@ export const ClientesView: Component = () => {
           onPage={setPage}
         />
 
-        {renderModal(modal(), closeAndRefresh, () => setModal({ kind: 'none' }))}
+        {renderModal(creando(), abierto()?.action, cuenta(), closeAndRefresh, cerrar)}
       </section>
     </div>
   );
 };
 
-function renderModal(state: ModalState, onDone: (message: string) => void, onClose: () => void) {
-  switch (state.kind) {
-    case 'none':
-      return null;
-    case 'create':
-      return <CustomerFormModal mode={{ kind: 'create' }} onDone={onDone} onClose={onClose} />;
-    case 'edit':
-      return <CustomerFormModal mode={state} onDone={onDone} onClose={onClose} />;
-    case 'abono':
-      return <AbonoModal account={state.account} onDone={onDone} onClose={onClose} />;
-    case 'statement':
-      return <StatementModal account={state.account} onClose={onClose} />;
+// `account` llega sin resolver mientras se busca por id: ahí no hay nada que
+// dibujar todavía.
+function renderModal(
+  creando: boolean,
+  accion: (typeof ACCIONES)[number] | undefined,
+  account: CustomerAccountDto | undefined,
+  onDone: (message: string) => void,
+  onClose: () => void,
+) {
+  if (creando) return <CustomerFormModal mode={{ kind: 'create' }} onDone={onDone} onClose={onClose} />;
+  if (accion === undefined || account === undefined) return null;
+  switch (accion) {
+    case 'editar':
+      return <CustomerFormModal mode={{ kind: 'edit', account }} onDone={onDone} onClose={onClose} />;
+    case 'abonar':
+      return <AbonoModal account={account} onDone={onDone} onClose={onClose} />;
+    case 'estado-de-cuenta':
+      return <StatementModal account={account} onClose={onClose} />;
   }
 }

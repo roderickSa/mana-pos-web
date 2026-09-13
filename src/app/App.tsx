@@ -1,4 +1,13 @@
-import { createSignal, Match, Show, Switch, type Component } from 'solid-js';
+import {
+  createEffect,
+  createResource,
+  onCleanup,
+  onMount,
+  Show,
+  type Component,
+  type ParentProps,
+} from 'solid-js';
+import { Navigate, Route, Router, useLocation, useNavigate } from '@solidjs/router';
 
 import { CatalogView } from '@/features/catalog/CatalogView';
 import { InventoryView } from '@/features/inventory/InventoryView';
@@ -11,15 +20,16 @@ import { CashView } from '@/features/cash/CashView';
 import { LoginView } from '@/features/login/LoginView';
 import { SettingsView } from '@/features/settings/SettingsView';
 import { HomeView } from '@/features/home/HomeView';
-import { currentUser, endSession, isManager, isOwner } from '@/shared/state/session';
+import { currentUser, endSession } from '@/shared/state/session';
 import { logoutSession } from '@/shared/api/users';
 import { clearPreferences, loadPreferencesFor } from '@/shared/state/preferences';
 import { showNotice } from '@/shared/state/notices';
-import { createEffect, createResource, onCleanup, onMount } from 'solid-js';
+import { removeExpiredDrafts, readStored, writeStored } from '@/shared/lib/storage';
+import { canAccess, homeFor } from './routes';
 import { StaleShiftBanner } from './components/StaleShiftBanner';
 import { NoticeToast } from './components/NoticeToast';
 import { StatusBar } from './components/StatusBar';
-import { TopBar, type View } from './components/TopBar';
+import { TopBar } from './components/TopBar';
 import styles from './App.module.css';
 
 async function isTraining(): Promise<boolean> {
@@ -32,26 +42,54 @@ async function isTraining(): Promise<boolean> {
   }
 }
 
-const App: Component = () => {
-  const [view, setView] = createSignal<View>('venta');
-  const [training] = createResource(isTraining);
+const decodeText = (data: unknown): string | undefined =>
+  typeof data === 'string' && data !== '' ? data : undefined;
 
-  // Las preferencias (texto grande) siguen al usuario que inició sesión.
+// La ruta donde quedó cada persona. Es un respaldo de la URL, no su reemplazo:
+// sirve para el arranque en frío (la PC de la tienda se apaga y el navegador no
+// siempre restaura la pestaña).
+function rememberRoute(userId: string, path: string): void {
+  writeStored(`mana-pos:ruta:${userId}`, path);
+}
+
+function rememberedRoute(userId: string): string | undefined {
+  return readStored(`mana-pos:ruta:${userId}`, decodeText);
+}
+
+// El login NO es una ruta: es una compuerta delante de todo. La URL no cambia
+// al bloquear, así que al volver a entrar la app muestra lo que había. Eso es
+// lo que hace que F10 devuelva a la pantalla donde estabas.
+const AppShell: Component<ParentProps> = (props) => {
+  const [training] = createResource(isTraining);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Al cambiar de persona (no al desbloquear), la pantalla vuelve al inicio de
+  // SU rol: la cajera no hereda los Ajustes del dueño.
   createEffect(() => {
     const user = currentUser();
     if (user === null) {
       clearPreferences();
-    } else {
-      loadPreferencesFor(user.id);
+      return;
     }
-    // Cambio de sesión: nadie hereda la vista del usuario anterior (p. ej.
-    // el dueño en Ajustes → Respaldo). El dueño arranca en su panel de
-    // inicio; encargado y cajera, en Vender.
-    setView(user !== null && user.role === 'owner' ? 'inicio' : 'venta');
+    loadPreferencesFor(user.id);
+    removeExpiredDrafts();
+    const previous = readStored('mana-pos:ultimo-usuario', decodeText);
+    writeStored('mana-pos:ultimo-usuario', user.id);
+    if (previous !== user.id || !canAccess(location.pathname, user.role)) {
+      navigate(homeFor(user.role), { replace: true });
+    }
   });
 
-  // F10 = bloquear pantalla: vuelve al login sin perder el ticket en curso
-  // (queda guardado en el navegador hasta que alguien entre con su PIN).
+  // Cada movimiento queda anotado para el arranque en frío.
+  createEffect(() => {
+    const user = currentUser();
+    if (user === null) return;
+    rememberRoute(user.id, `${location.pathname}${location.search}`);
+  });
+
+  // F10 = bloquear pantalla: vuelve al login sin perder el ticket en curso ni
+  // la ruta (queda guardado en el navegador hasta que alguien entre con su PIN).
   function onKeyDown(event: KeyboardEvent): void {
     // F5 es "Yape" en Vender y "recargar" en el navegador: nunca recargar.
     if (event.key === 'F5') event.preventDefault();
@@ -73,51 +111,65 @@ const App: Component = () => {
             MODO ENTRENAMIENTO — práctica con datos falsos, nada de esto es real
           </div>
         </Show>
-        <TopBar view={view()} onNavigate={setView} />
+        <TopBar />
         <NoticeToast />
-        <StaleShiftBanner onGoToCash={() => setView('caja')} />
+        <StaleShiftBanner />
 
-      <main class={styles.contenido}>
-      <Switch>
-        <Match when={view() === 'inicio' && isOwner()}>
-          <HomeView onNavigate={setView} />
-        </Match>
-        <Match when={view() === 'venta'}>
-          <SaleView onGoToCash={() => setView('caja')} />
-        </Match>
-        <Match when={view() === 'caja'}>
-          <CashView />
-        </Match>
-        <Match when={view() === 'ventas'}>
-          <SalesHistoryView />
-        </Match>
-        <Match when={view() === 'clientes'}>
-          <ClientesView />
-        </Match>
-        {/* Doble candado: aunque la vista quedara apuntando aquí, sin rol
-            de encargado no se monta (el API además rechaza los datos). */}
-        <Match when={view() === 'productos' && isManager()}>
-          <CatalogView />
-        </Match>
-        <Match when={view() === 'inventario' && isManager()}>
-          <InventoryView />
-        </Match>
-        <Match when={view() === 'compras' && isManager()}>
-          <PurchasesView />
-        </Match>
-        <Match when={view() === 'reportes' && isManager()}>
-          <ReportsView />
-        </Match>
-        <Match when={view() === 'ajustes' && isManager()}>
-          <SettingsView />
-        </Match>
-      </Switch>
-      </main>
+        <main class={styles.contenido}>{props.children}</main>
 
-      <StatusBar />
+        <StatusBar />
       </div>
     </Show>
   );
 };
+
+// Doble candado: el API además rechaza los datos. Sin permiso se redirige, no
+// se deja la pantalla en blanco.
+const RequireRole: Component<ParentProps> = (props) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  createEffect(() => {
+    const user = currentUser();
+    if (user === null) return;
+    if (canAccess(location.pathname, user.role)) return;
+    showNotice('Esa pantalla es del encargado');
+    navigate(homeFor(user.role), { replace: true });
+  });
+
+  return <>{props.children}</>;
+};
+
+// La raíz resuelve adónde entrar: la última ruta si sigue valiendo, si no el
+// inicio del rol.
+const Redirector: Component = () => {
+  const user = currentUser();
+  if (user === null) return null;
+  const remembered = rememberedRoute(user.id);
+  const target =
+    remembered !== undefined && canAccess(remembered.split('?')[0] ?? '', user.role)
+      ? remembered
+      : homeFor(user.role);
+  return <Navigate href={target} />;
+};
+
+const App: Component = () => (
+  <Router root={AppShell}>
+    <Route path="/" component={Redirector} />
+    <Route path="/vender" component={SaleView} />
+    <Route path="/caja/*" component={CashView} />
+    <Route path="/historial/*" component={SalesHistoryView} />
+    <Route path="/clientes/*" component={ClientesView} />
+
+    <Route path="/inicio" component={() => <RequireRole><HomeView /></RequireRole>} />
+    <Route path="/productos/*" component={() => <RequireRole><CatalogView /></RequireRole>} />
+    <Route path="/inventario/*" component={() => <RequireRole><InventoryView /></RequireRole>} />
+    <Route path="/compras/*" component={() => <RequireRole><PurchasesView /></RequireRole>} />
+    <Route path="/reportes/*" component={() => <RequireRole><ReportsView /></RequireRole>} />
+    <Route path="/ajustes/*" component={() => <RequireRole><SettingsView /></RequireRole>} />
+
+    <Route path="*" component={() => <Navigate href="/" />} />
+  </Router>
+);
 
 export default App;

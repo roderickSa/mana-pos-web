@@ -7,7 +7,7 @@ import {formatDateTime } from '@/shared/lib/dates';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import formStyles from '@/shared/ui/forms.module.css';
 import tabla from '@/shared/ui/tabla.module.css';
-import {STATUS_LABEL, statusTone } from './purchase-lines';
+import {STATUS_HINT, STATUS_LABEL, statusTone } from './purchase-lines';
 import { Chip } from '@/shared/ui/Chip';
 import { EmptyState } from '@/shared/ui/EmptyState';
 
@@ -18,12 +18,25 @@ export const OrdersList: Component<{
   lastPage: number;
   onPage: (page: number) => void;
   loading: boolean;
+  soloBorradores: boolean;
+  onSoloBorradores: (valor: boolean) => void;
   onNew: () => void;
   onOpen: (order: PurchaseOrderSummaryDto) => void;
+  onDiscard: (order: PurchaseOrderSummaryDto) => void;
 }> = (props) => (
   <>
     <div class={tabla.encabezado}>
       <h2>Órdenes de compra</h2>
+      {/* Los borradores se mezclan con las órdenes de verdad y confunden.
+          Este filtro los junta para revisarlos o tirarlos de una. */}
+      <label class={formStyles.check}>
+        <input
+          type="checkbox"
+          checked={props.soloBorradores}
+          onChange={(event) => props.onSoloBorradores(event.currentTarget.checked)}
+        />
+        Solo borradores
+      </label>
       <button type="button" class={tabla.nuevo} onClick={props.onNew}>
         + Nueva orden
       </button>
@@ -57,12 +70,25 @@ export const OrdersList: Component<{
                 <td class={tabla.num}>{order.linesCount}</td>
                 <td class={tabla.num}>{formatSoles(order.totalCents)}</td>
                 <td>
-                  <Chip tone={statusTone(order.status)}>{STATUS_LABEL[order.status]}</Chip>
+                  <Chip tone={statusTone(order.status)} title={STATUS_HINT[order.status]}>
+                    {STATUS_LABEL[order.status]}
+                  </Chip>
                 </td>
                 <td class={tabla.acciones}>
                   <button type="button" class={formStyles.secundario} onClick={() => props.onOpen(order)}>
                     Ver
                   </button>
+                  {/* Un borrador se tira de verdad; una orden ya enviada se
+                      cancela desde su detalle y queda en la historia. */}
+                  <Show when={order.status === 'draft'}>
+                    <button
+                      type="button"
+                      class={formStyles.secundario}
+                      onClick={() => props.onDiscard(order)}
+                    >
+                      Descartar
+                    </button>
+                  </Show>
                 </td>
               </tr>
             )}
@@ -71,7 +97,11 @@ export const OrdersList: Component<{
       </table>
       <Show when={!props.loading && props.orders.length === 0}>
         <EmptyState
-          message="Todavía no hay órdenes de compra."
+          message={
+            props.soloBorradores
+              ? 'No hay borradores sin terminar.'
+              : 'Todavía no hay órdenes de compra.'
+          }
           action={
             <button type="button" class={tabla.nuevo} onClick={props.onNew}>
               + Crear la primera orden

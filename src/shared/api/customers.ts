@@ -60,6 +60,12 @@ export async function listCustomersPage(
   return getJson(`/customers?${params.toString()}`);
 }
 
+// Un cliente por id: el listado es paginado, así que abrir
+// `/clientes/<id>/editar` de frente no lo encuentra en la página cargada.
+export async function getCustomer(id: string): Promise<CustomerAccountDto> {
+  return getJson(`/customers/${id}`);
+}
+
 export async function createCustomer(payload: CustomerPayload): Promise<{ id: string }> {
   return sendJson('POST', '/customers', payload);
 }

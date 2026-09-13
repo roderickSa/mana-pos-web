@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, onCleanup, Show, type Component } from 'solid-js';
 
 import { apiErrorMessage } from '@/shared/api/client';
 import {
@@ -19,6 +19,8 @@ import { formatKg, formatSoles } from '@/shared/lib/money';
 import { beepError, beepOk, beepSuccess } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
 import type { ProductDto } from '@/shared/types';
+import { readStored, removeStored, writeStored } from '@/shared/lib/storage';
+import { decodeCountDraft, isEmptyCountDraft, type CountDraft } from './count-draft';
 import { ConfirmModal } from '@/shared/ui/ConfirmModal';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Modal } from '@/shared/ui/Modal';
@@ -26,6 +28,7 @@ import { StatTile, StatTiles } from '@/shared/ui/StatTile';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import forms from '@/shared/ui/forms.module.css';
 import tabla from '@/shared/ui/tabla.module.css';
+import { createUrlNumber, createUrlText } from '@/shared/lib/url-state';
 import styles from './CountTab.module.css';
 
 const PER_PAGE = 50;
@@ -175,7 +178,7 @@ export const CountTab: Component = () => {
   const [session, { refetch: refetchSession }] = createResource(refresh, () =>
     getOpenCountSession(),
   );
-  const [historyPage, setHistoryPage] = createSignal(1);
+  const [historyPage, setHistoryPage] = createUrlNumber('historial', 1);
   const [history, { refetch: refetchHistory }] = createResource(
     () => ({ refresh: refresh(), page: historyPage() }),
     (params) => listClosedCountSessions(params.page, HISTORY_PER_PAGE),
@@ -183,15 +186,75 @@ export const CountTab: Component = () => {
   const closedCounts = () => history()?.items ?? [];
   const closedTotal = () => history()?.total ?? 0;
   const closedLastPage = () => Math.max(1, Math.ceil(closedTotal() / HISTORY_PER_PAGE));
+  // Lo tecleado y todavía sin anotar. Solo vive acá: «Anotar» lo manda al
+  // servidor, que es donde el conteo existe de verdad.
   const [drafts, setDrafts] = createSignal<Record<string, string>>({});
+
+  // Un campo vacío no es un borrador. Sin esto, cada producto anotado dejaba
+  // su entrada vacía para siempre: con un catálogo de 50 000 productos son 2 MB
+  // de nada en el navegador.
+  function setDraft(productId: string, value: string): void {
+    const next = { ...drafts() };
+    if (value.trim() === '') delete next[productId];
+    else next[productId] = value;
+    setDrafts(next);
+  }
   const [saving, setSaving] = createSignal<string | null>(null);
   const [confirmingClose, setConfirmingClose] = createSignal(false);
   const [closeNote, setCloseNote] = createSignal('');
   const [justClosed, setJustClosed] = createSignal<ClosedCountSessionDto | null>(null);
   const [error, setError] = createSignal('');
-  const [query, setQuery] = createSignal('');
-  const [page, setPage] = createSignal(1);
+  const [query, setQuery] = createUrlText('q');
+  const [page, setPage] = createUrlNumber('pagina', 1);
   const [confirmingDiscard, setConfirmingDiscard] = createSignal(false);
+
+  // Contar un anaquel lleva horas: lo tecleado y sin anotar sobrevive a una
+  // recarga o a un corte de luz, guardado por sesión de conteo en el navegador
+  // de quien cuenta. Se borra al cerrar o descartar el conteo.
+  const claveConteo = (): `mana-pos:conteo:${string}` | undefined => {
+    const current = session();
+    return current == null ? undefined : `mana-pos:conteo:${current.id}`;
+  };
+
+  let cargadaPara: string | undefined;
+  createEffect(() => {
+    const current = session();
+    const key = claveConteo();
+    if (current == null || key === undefined || cargadaPara === current.id) return;
+    cargadaPara = current.id;
+    const guardado = readStored(key, decodeCountDraft);
+    if (guardado === undefined) return;
+    setDrafts(guardado.quantities);
+    setCloseNote(guardado.closeNote);
+  });
+
+  // Con debounce: contando se teclea sin parar y no hace falta escribir el
+  // borrador entero en cada tecla.
+  let guardarTimer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(() => {
+    const key = claveConteo();
+    const borrador: CountDraft = { quantities: drafts(), closeNote: closeNote() };
+    if (key === undefined) return;
+    if (guardarTimer !== undefined) clearTimeout(guardarTimer);
+    guardarTimer = setTimeout(() => {
+      guardarTimer = undefined;
+      if (isEmptyCountDraft(borrador)) removeStored(key);
+      else writeStored(key, borrador);
+    }, 300);
+  });
+  onCleanup(() => {
+    if (guardarTimer !== undefined) clearTimeout(guardarTimer);
+  });
+
+  // El conteo se acabó: lo tecleado ya no sirve para nada.
+  function olvidarBorrador(): void {
+    const key = claveConteo();
+    if (guardarTimer !== undefined) clearTimeout(guardarTimer);
+    guardarTimer = undefined;
+    if (key !== undefined) removeStored(key);
+    setDrafts({});
+    setCloseNote('');
+  }
 
   // Se cuenta caminando el anaquel: se busca o se escanea el producto y se
   // anota. Traer las mil filas de golpe no sirve para eso y además no cabe.
@@ -230,7 +293,7 @@ export const CountTab: Component = () => {
     try {
       await recordCount(current.id, product.id, quantity);
       beepOk();
-      setDrafts({ ...drafts(), [product.id]: '' });
+      setDraft(product.id, '');
       await refetchSession();
     } catch (cause) {
       beepError();
@@ -258,6 +321,7 @@ export const CountTab: Component = () => {
     try {
       await discardCountSession(current.id);
       beepOk();
+      olvidarBorrador();
       setConfirmingDiscard(false);
       showNotice('Conteo descartado — el stock quedó como estaba');
       setRefresh((value) => value + 1);
@@ -277,8 +341,8 @@ export const CountTab: Component = () => {
         closeNote().trim() === '' ? null : closeNote().trim(),
       );
       beepSuccess();
+      olvidarBorrador();
       setConfirmingClose(false);
-      setCloseNote('');
       setJustClosed(closed);
       showNotice(
         `Conteo cerrado: ${closed.productsMatched} de ${closed.productsCounted} cuadraron`,
@@ -397,7 +461,7 @@ export const CountTab: Component = () => {
                                 aria-label={`Cantidad contada de ${product.name}`}
                                 value={drafts()[product.id] ?? ''}
                                 onInput={(event) =>
-                                  setDrafts({ ...drafts(), [product.id]: event.currentTarget.value })
+                                  setDraft(product.id, event.currentTarget.value)
                                 }
                                 onKeyDown={(event) => {
                                   if (event.key === 'Enter') void saveCount(product);

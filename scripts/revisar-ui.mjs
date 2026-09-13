@@ -83,7 +83,21 @@ for (const ruta of archivos(RAIZ, '.css')) {
   }
 }
 
-// 4. Un componente por idea: el chip, el menú de fila y el estado vacío.
+// 4. localStorage vive en un solo archivo. Con los borradores de formulario
+//    serían diez claves sueltas y nadie sabría cuál se puede borrar.
+const GUARDADO = join('src', 'shared', 'lib', 'storage.ts');
+for (const ruta of archivos(RAIZ, '.ts').concat(archivos(RAIZ, '.tsx'))) {
+  // Los tests del propio guardado sí miran el storage de verdad: es lo que
+  // están probando.
+  if (ruta === GUARDADO || ruta.endsWith('.spec.ts') || ruta.endsWith('.spec.tsx')) continue;
+  const texto = readFileSync(ruta, 'utf8');
+  const encontrado = /localStorage\s*\.\s*\w/.exec(texto);
+  if (encontrado !== null) {
+    anotar(ruta, lineaDe(texto, encontrado.index), 'localStorage fuera de shared/lib/storage.ts');
+  }
+}
+
+// 5. Un componente por idea: el chip, el menú de fila y el estado vacío.
 const COMPARTIDOS = [
   [/aria-haspopup="menu"/, 'menú propio: usa RowMenu de shared/ui'],
   [/border-radius:\s*999px/, 'chip propio: usa Chip de shared/ui'],

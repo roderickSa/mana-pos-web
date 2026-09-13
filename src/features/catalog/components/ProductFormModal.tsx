@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
 
 import { ApiError } from '@/shared/api/client';
 import {
@@ -21,6 +21,10 @@ import { Modal } from '@/shared/ui/Modal';
 import { activeCategories } from '@/shared/state/categories';
 import { ProductSuppliersTab } from './ProductSuppliersTab';
 import styles from '@/shared/ui/forms.module.css';
+import { createFormDraft } from '@/shared/lib/form-draft';
+import { currentUser } from '@/shared/state/session';
+import { DraftBanner } from '@/shared/ui/DraftBanner';
+import { decodeProductDraft, sameDraft, type ProductFormDraft } from './product-draft';
 
 // Crear (con código pre-cargado si vino de un escaneo desconocido) o editar.
 export type ProductFormMode =
@@ -71,6 +75,59 @@ export const ProductFormModal: Component<{
   const [barcodeWarning, setBarcodeWarning] = createSignal('');
   const [newAlias, setNewAlias] = createSignal('');
   const [tab, setTab] = createSignal<'datos' | 'proveedores'>('datos');
+
+  // Lo que la persona escribió y no guardó. Doce campos son demasiados para
+  // perderlos por un toque fuera del cuadro o una recarga.
+  const inicial: ProductFormDraft = {
+    saleType: editing?.saleType ?? 'unit',
+    name: editing?.name ?? '',
+    category: editing?.category ?? 'abarrotes',
+    barcode: editing?.barcode ?? initialBarcode ?? '',
+    shortCode: editing?.shortCode ?? '',
+    price: price(),
+    cost: cost(),
+    minimum: minimum(),
+    initialStock: '',
+    quickAccess: editing?.quickAccess ?? false,
+    active: editing?.active ?? true,
+  };
+  const actual = (): ProductFormDraft => ({
+    saleType: saleType(),
+    name: name(),
+    category: category(),
+    barcode: barcode(),
+    shortCode: shortCode(),
+    price: price(),
+    cost: cost(),
+    minimum: minimum(),
+    initialStock: initialStock(),
+    quickAccess: quickAccess(),
+    active: active(),
+  });
+  const sinGuardar = (): boolean => !sameDraft(actual(), inicial);
+
+  const draft = createFormDraft<ProductFormDraft>(
+    `mana-pos:borrador:producto:${editing?.id ?? 'nuevo'}:${currentUser()?.id ?? 'anonimo'}`,
+    decodeProductDraft,
+    (value) => sameDraft(value, inicial),
+  );
+  // La imagen no entra en el borrador: una foto en base64 no cabe en el
+  // navegador junto a todo lo demás, y se vuelve a elegir en dos toques.
+  createEffect(() => draft.track(actual()));
+
+  function aplicarBorrador(value: ProductFormDraft): void {
+    setSaleType(value.saleType);
+    setName(value.name);
+    setCategory(value.category);
+    setBarcode(value.barcode);
+    setShortCode(value.shortCode);
+    setPrice(value.price);
+    setCost(value.cost);
+    setMinimum(value.minimum);
+    setInitialStock(value.initialStock);
+    setQuickAccess(value.quickAccess);
+    setActive(value.active);
+  }
 
   const [aliases, { refetch: refetchAliases }] = createResource(async () =>
     editing === null ? null : listProductBarcodes(editing.id),
@@ -199,6 +256,7 @@ export const ProductFormModal: Component<{
         if (stockValue > 0) {
           await registerEntry(created.id, stockValue, effectiveCost(), null);
         }
+        draft.discard();
         props.onDone(
           `Producto «${payload.name}» creado${stockValue > 0 ? ` con ${stockValue} de stock` : ''}`,
         );
@@ -210,6 +268,7 @@ export const ProductFormModal: Component<{
         } else if (removeImage() && editing.imagePath !== null) {
           await removeProductImage(editing.id);
         }
+        draft.discard();
         props.onDone(`Producto «${payload.name}» actualizado`);
       }
     } catch (cause) {
@@ -278,9 +337,23 @@ export const ProductFormModal: Component<{
       size="lg"
       title={editing === null ? 'Nuevo producto' : `Editar — ${editing.name}`}
       dismissOnBackdrop={false}
+      dirty={sinGuardar}
+      dirtyLabel={editing === null ? 'el producto nuevo' : 'este producto'}
+      onDiscard={draft.discard}
       onClose={props.onClose}
       footer={tab() === 'datos' ? footer : null}
     >
+      <Show when={tab() === 'datos'}>
+        <DraftBanner
+          savedAt={draft.savedAt()}
+          onRecover={() => {
+            const value = draft.saved();
+            if (value !== undefined) aplicarBorrador(value);
+            draft.discard();
+          }}
+          onDiscard={draft.discard}
+        />
+      </Show>
       {/* Proveedores solo al editar: hace falta el producto para asociarlo. */}
       <Show when={editing !== null}>
         <nav class={styles.pestanas} aria-label="Secciones del producto">

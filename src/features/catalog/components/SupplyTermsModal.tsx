@@ -1,12 +1,16 @@
-import { createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createSignal, For, Show, type Component } from 'solid-js';
 
 import { apiErrorMessage } from '@/shared/api/client';
 import { saveProductSupply, type ProductSupplyDto } from '@/shared/api/products';
+import { createFormDraft } from '@/shared/lib/form-draft';
 import { centsToSolesInput, formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
 import { beepError, beepOk } from '@/shared/lib/sounds';
 import { showNotice } from '@/shared/state/notices';
+import { currentUser } from '@/shared/state/session';
+import { DraftBanner } from '@/shared/ui/DraftBanner';
 import { Modal } from '@/shared/ui/Modal';
 import forms from '@/shared/ui/forms.module.css';
+import { decodeSupplyDraft, sameSupplyDraft, type SupplyFormDraft } from './supply-draft';
 
 // Presentaciones típicas de un proveedor de bodega. El campo igual es libre.
 const PRESENTACIONES = ['caja', 'paquete', 'saco', 'docena', 'plancha', 'fardo', 'bolsa'];
@@ -21,25 +25,58 @@ export const SupplyTermsModal: Component<{
   onClose: () => void;
 }> = (props) => {
   const isWeight = (): boolean => props.saleType === 'weight';
-  const [cost, setCost] = createSignal(
-    props.supply.unitCostCents === null ? '' : centsToSolesInput(props.supply.unitCostCents),
-  );
-  const [presentation, setPresentation] = createSignal(props.supply.presentationName ?? '');
+  // Lo que había al abrir, para saber si la persona tocó algo.
+  const inicial: SupplyFormDraft = {
+    cost: props.supply.unitCostCents === null ? '' : centsToSolesInput(props.supply.unitCostCents),
+    presentation: props.supply.presentationName ?? '',
+    packQuantity:
+      props.supply.packSize === null
+        ? ''
+        : props.saleType === 'weight'
+          ? String(props.supply.packSize / 1000)
+          : String(props.supply.packSize),
+    packCost: props.supply.packCostCents === null ? '' : centsToSolesInput(props.supply.packCostCents),
+    sku: props.supply.supplierSku ?? '',
+    preferred: props.supply.preferred,
+  };
+  const [cost, setCost] = createSignal(inicial.cost);
+  const [presentation, setPresentation] = createSignal(inicial.presentation);
   // Para pesables se teclea en kilos; adentro todo va en gramos.
-  const [packQuantity, setPackQuantity] = createSignal(
-    props.supply.packSize === null
-      ? ''
-      : isWeight()
-        ? String(props.supply.packSize / 1000)
-        : String(props.supply.packSize),
-  );
-  const [packCost, setPackCost] = createSignal(
-    props.supply.packCostCents === null ? '' : centsToSolesInput(props.supply.packCostCents),
-  );
-  const [sku, setSku] = createSignal(props.supply.supplierSku ?? '');
-  const [preferred, setPreferred] = createSignal(props.supply.preferred);
+  const [packQuantity, setPackQuantity] = createSignal(inicial.packQuantity);
+  const [packCost, setPackCost] = createSignal(inicial.packCost);
+  const [sku, setSku] = createSignal(inicial.sku);
+  const [preferred, setPreferred] = createSignal(inicial.preferred);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
+
+  const actual = (): SupplyFormDraft => ({
+    cost: cost(),
+    presentation: presentation(),
+    packQuantity: packQuantity(),
+    packCost: packCost(),
+    sku: sku(),
+    preferred: preferred(),
+  });
+  // Seis campos de condiciones no se pierden por un toque fuera del cuadro.
+  const sinGuardar = (): boolean => !sameSupplyDraft(actual(), inicial);
+
+  // Las condiciones se copian de una lista de precios en papel: si el
+  // navegador se cierra a mitad, lo tecleado espera acá.
+  const draft = createFormDraft<SupplyFormDraft>(
+    `mana-pos:borrador:condiciones:${props.supply.productId}-${props.supply.supplierId}:${currentUser()?.id ?? 'anonimo'}`,
+    decodeSupplyDraft,
+    (value) => sameSupplyDraft(value, inicial),
+  );
+  createEffect(() => draft.track(actual()));
+
+  function aplicarBorrador(value: SupplyFormDraft): void {
+    setCost(value.cost);
+    setPresentation(value.presentation);
+    setPackQuantity(value.packQuantity);
+    setPackCost(value.packCost);
+    setSku(value.sku);
+    setPreferred(value.preferred);
+  }
 
   const costLabel = (): string => (isWeight() ? 'Costo por kilo S/' : 'Costo por unidad S/');
   const quantityLabel = (): string =>
@@ -93,6 +130,7 @@ export const SupplyTermsModal: Component<{
         preferred: preferred(),
       });
       beepOk();
+      draft.discard();
       showNotice(`Condiciones de ${props.supplierName} guardadas`);
       props.onSaved();
     } catch (cause) {
@@ -108,6 +146,9 @@ export const SupplyTermsModal: Component<{
       size="md"
       title={`${props.supplierName} — ${props.productName}`}
       subtitle={`Se vende a ${formatSoles(props.priceCents)}${isWeight() ? ' el kilo' : ''}`}
+      dirty={sinGuardar}
+      dirtyLabel="las condiciones"
+      onDiscard={draft.discard}
       onClose={props.onClose}
       footer={
         <div class={forms.acciones}>
@@ -121,6 +162,15 @@ export const SupplyTermsModal: Component<{
       }
     >
       <div class={forms.form}>
+        <DraftBanner
+          savedAt={draft.savedAt()}
+          onRecover={() => {
+            const value = draft.saved();
+            if (value !== undefined) aplicarBorrador(value);
+            draft.discard();
+          }}
+          onDiscard={draft.discard}
+        />
         <p class={forms.nota}>
           Cada proveedor tiene su propio costo y su propia presentación. Si cargas la
           presentación, el costo por {isWeight() ? 'kilo' : 'unidad'} se calcula solo.

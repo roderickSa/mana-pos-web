@@ -1,11 +1,14 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
+
+import { entityAction, subPath, withSearch } from '@/shared/lib/modal-route';
 
 import {
   linkProductSupplier,
   linkProductsToSupplier,
   listProductSupplies,
   saveProductSupply,
-  searchProducts,
+  supplierProducts,
   unlinkProductSupplier,
   type ProductSupplyDto,
 } from '@/shared/api/products';
@@ -58,6 +61,15 @@ const SupplierFormModal: Component<{
 
   const [saving, setSaving] = createSignal(false);
 
+  const sinGuardar = (): boolean =>
+    name() !== (editing?.name ?? '') ||
+    phone() !== (editing?.phone ?? '') ||
+    notes() !== (editing?.notes ?? '') ||
+    contactName() !== (editing?.contactName ?? '') ||
+    paymentTerms() !== (editing?.paymentTerms ?? '') ||
+    active() !== (editing?.active ?? true) ||
+    visitDays().join(',') !== (editing?.visitDays ?? []).join(',');
+
   async function save(): Promise<void> {
     if (saving() || name().trim() === '') return;
     setSaving(true);
@@ -93,6 +105,8 @@ const SupplierFormModal: Component<{
     <Modal
       size="md"
       title={editing === null ? 'Nuevo proveedor' : 'Editar proveedor'}
+      dirty={sinGuardar}
+      dirtyLabel={editing === null ? 'el proveedor nuevo' : 'este proveedor'}
       onClose={props.onClose}
       footer={
         <div class={forms.acciones}>
@@ -177,17 +191,38 @@ const SupplierFormModal: Component<{
   );
 };
 
+const PROVEEDORES_PATH = '/compras/proveedores';
+const ACCIONES = ['editar', 'productos'] as const;
+
 export const SuppliersTab: Component = () => {
   const [suppliers, { refetch }] = createResource(listSuppliers);
-  type ModalState =
-    | { kind: 'none' }
-    | { kind: 'create' }
-    | { kind: 'edit'; supplier: SupplierDto }
-    | { kind: 'products'; supplier: SupplierDto };
-  const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
+  // El modal abierto lo dice la URL: `/compras/proveedores/<id>/productos`.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const cola = () => subPath(PROVEEDORES_PATH, location.pathname);
+  const creando = (): boolean => cola()[0] === 'nuevo' && cola().length === 1;
+  const abierto = () => entityAction(cola(), ACCIONES);
+  const abrir = (path: string): void => navigate(withSearch(path, location.search));
+  const cerrar = (): void => navigate(withSearch(PROVEEDORES_PATH, location.search));
+
+  // La lista de proveedores viene entera, así que el del modal siempre está
+  // acá: no hace falta pedirlo por id.
+  const proveedor = (): SupplierDto | undefined => {
+    const modal = abierto();
+    if (modal === undefined) return undefined;
+    return (suppliers() ?? []).find((supplier) => supplier.id === modal.id);
+  };
+
+  createEffect(() => {
+    if (abierto() === undefined) return;
+    if (suppliers.loading) return;
+    if (proveedor() !== undefined) return;
+    showNotice('Ese proveedor ya no está');
+    navigate(withSearch(PROVEEDORES_PATH, location.search), { replace: true });
+  });
 
   function closeAndRefresh(message: string): void {
-    setModal({ kind: 'none' });
+    cerrar();
     showNotice(message);
     void refetch();
   }
@@ -199,7 +234,7 @@ export const SuppliersTab: Component = () => {
           Asocia productos desde el botón «Productos» de cada proveedor, o desde Productos →
           Editar.
         </span>
-        <button type="button" class={styles.nuevo} onClick={() => setModal({ kind: 'create' })}>
+        <button type="button" class={styles.nuevo} onClick={() => abrir(`${PROVEEDORES_PATH}/nuevo`)}>
           + Nuevo proveedor
         </button>
       </div>
@@ -234,13 +269,13 @@ export const SuppliersTab: Component = () => {
                     </Chip>
                   </td>
                   <td class={styles.acciones}>
-                    <button type="button" onClick={() => setModal({ kind: 'edit', supplier })}>
+                    <button type="button" onClick={() => abrir(`${PROVEEDORES_PATH}/${supplier.id}/editar`)}>
                       Editar
                     </button>
                     <button
                       type="button"
                       title="Qué productos se le compran a este proveedor"
-                      onClick={() => setModal({ kind: 'products', supplier })}
+                      onClick={() => abrir(`${PROVEEDORES_PATH}/${supplier.id}/productos`)}
                     >
                       Productos
                     </button>
@@ -257,7 +292,7 @@ export const SuppliersTab: Component = () => {
               <button
                 type="button"
                 class={styles.nuevo}
-                onClick={() => setModal({ kind: 'create' })}
+                onClick={() => abrir(`${PROVEEDORES_PATH}/nuevo`)}
               >
                 + Crear el primer proveedor
               </button>
@@ -271,26 +306,18 @@ export const SuppliersTab: Component = () => {
         plural="proveedores"
       />
 
-      <Show when={modal().kind !== 'none'}>
-        {(() => {
-          const state = modal();
-          if (state.kind === 'products') {
-            return (
-              <SupplierProductsModal
-                supplier={state.supplier}
-                onClose={() => setModal({ kind: 'none' })}
-              />
-            );
-          }
-          return (
-            <SupplierFormModal
-              supplier={state.kind === 'edit' ? state.supplier : null}
-              onDone={closeAndRefresh}
-              onClose={() => setModal({ kind: 'none' })}
-            />
-          );
-        })()}
-      </Show>
+      {(() => {
+        if (creando()) {
+          return <SupplierFormModal supplier={null} onDone={closeAndRefresh} onClose={cerrar} />;
+        }
+        const modal = abierto();
+        const supplier = proveedor();
+        if (modal === undefined || supplier === undefined) return null;
+        if (modal.action === 'productos') {
+          return <SupplierProductsModal supplier={supplier} onClose={cerrar} />;
+        }
+        return <SupplierFormModal supplier={supplier} onDone={closeAndRefresh} onClose={cerrar} />;
+      })()}
     </section>
   );
 };
@@ -306,7 +333,7 @@ const SupplierProductsModal: Component<{
   const [linkingBulk, setLinkingBulk] = createSignal(false);
 
   const [linked, { refetch }] = createResource(version, () =>
-    searchProducts('', null, true, false, props.supplier.id),
+    supplierProducts(props.supplier.id, { includeInactive: true }),
   );
 
   async function add(product: ProductDto): Promise<void> {

@@ -1,6 +1,9 @@
 import { createResource, createSignal, For, Match, Show, Switch, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
 
-import {getCashStatus, openCash } from '@/shared/api/cash';
+import { subPath, withSearch } from '@/shared/lib/modal-route';
+
+import {getCashStatus, openCash, type CloseResultDto } from '@/shared/api/cash';
 import {apiErrorMessage } from '@/shared/api/client';
 import { DIME_MESSAGE, formatSoles, isDimeCents, solesInputToCents } from '@/shared/lib/money';
 import { formatDateTime, formatTime } from '@/shared/lib/dates';
@@ -13,7 +16,14 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { StatTile, StatTiles } from '@/shared/ui/StatTile';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import tabla from '@/shared/ui/tabla.module.css';
-import { MOVEMENT_LABELS, type ModalState } from './components/cash.helpers';
+import {
+  MOVEMENT_LABELS,
+  MOVEMENT_SEGMENT,
+  parseCashModal,
+  type CashModalRoute,
+  type ClosedState,
+  type MovementKind,
+} from './components/cash.helpers';
 import { ClosingsHistory } from './components/ClosingsHistory';
 import { MovementModal } from './components/MovementModal';
 import { CloseModal } from './components/CloseModal';
@@ -23,7 +33,17 @@ export const CashView: Component = () => {
     () => cashRefreshVersion(),
     () => getCashStatus(),
   );
-  const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
+  // Movimientos y cierre son rutas (`/caja/gasto`, `/caja/cerrar`); el resumen
+  // del cierre se queda en memoria, ver cash.helpers.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const CAJA_PATH = '/caja';
+  const modal = (): CashModalRoute => parseCashModal(subPath(CAJA_PATH, location.pathname));
+  const abrirMovimiento = (kind: MovementKind): void =>
+    navigate(withSearch(`${CAJA_PATH}/${MOVEMENT_SEGMENT[kind]}`, location.search));
+  const abrirCierre = (): void => navigate(withSearch(`${CAJA_PATH}/cerrar`, location.search));
+  const cerrarModal = (): void => navigate(withSearch(CAJA_PATH, location.search));
+  const [closed, setClosed] = createSignal<ClosedState>(null);
 
   // Apertura
   const closedInfo = () => {
@@ -157,16 +177,16 @@ export const CashView: Component = () => {
                     </div>
 
                     <div class={styles.acciones}>
-                      <button type="button" onClick={() => setModal({ kind: 'movement', movementKind: 'deposit' })}>
+                      <button type="button" onClick={() => abrirMovimiento('deposit')}>
                         Ingreso de efectivo
                       </button>
-                      <button type="button" onClick={() => setModal({ kind: 'movement', movementKind: 'withdrawal' })}>
+                      <button type="button" onClick={() => abrirMovimiento('withdrawal')}>
                         Retiro de efectivo
                       </button>
-                      <button type="button" onClick={() => setModal({ kind: 'movement', movementKind: 'expense' })}>
+                      <button type="button" onClick={() => abrirMovimiento('expense')}>
                         Gasto desde caja
                       </button>
-                      <button type="button" class={styles.cerrar} onClick={() => setModal({ kind: 'close' })}>
+                      <button type="button" class={styles.cerrar} onClick={abrirCierre}>
                         Cerrar caja (corte)
                       </button>
                     </div>
@@ -228,18 +248,29 @@ export const CashView: Component = () => {
         </Match>
       </Switch>
 
-      {renderModal(modal(), setModal, () => {
-        bumpCashRefresh();
-        void refetch();
-      })}
+      {renderModal(
+        modal(),
+        cerrarModal,
+        (result) => setClosed({ result }),
+        () => {
+          bumpCashRefresh();
+          void refetch();
+        },
+      )}
+      <Show when={closed()}>
+        {(current) => (
+          <ClosedSummaryModal result={current().result} onClose={() => setClosed(null)} />
+        )}
+      </Show>
     </section>
   );
 };
 
 // Cortes anteriores: hoy sí se puede ver el cierre de ayer sin reimprimirlo.
 function renderModal(
-  state: ModalState,
-  setModal: (state: ModalState) => void,
+  state: CashModalRoute,
+  onClose: () => void,
+  onClosed: (result: CloseResultDto) => void,
   refresh: () => void,
 ) {
   switch (state.kind) {
@@ -250,23 +281,22 @@ function renderModal(
         <MovementModal
           movementKind={state.movementKind}
           onDone={() => {
-            setModal({ kind: 'none' });
+            onClose();
             refresh();
           }}
-          onClose={() => setModal({ kind: 'none' })}
+          onClose={onClose}
         />
       );
     case 'close':
       return (
         <CloseModal
           onClosed={(result) => {
-            setModal({ kind: 'closed', result });
+            onClose();
+            onClosed(result);
             refresh();
           }}
-          onClose={() => setModal({ kind: 'none' })}
+          onClose={onClose}
         />
       );
-    case 'closed':
-      return <ClosedSummaryModal result={state.result} onClose={() => setModal({ kind: 'none' })} />;
   }
 }

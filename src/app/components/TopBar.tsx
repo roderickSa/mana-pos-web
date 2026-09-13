@@ -1,9 +1,12 @@
 import { createSignal, For, onCleanup, Show, type Component } from 'solid-js';
+import { A, useLocation } from '@solidjs/router';
+
+import { sectionOf, sectionsFor, type Section } from '@/app/routes';
 
 import { formatSoles } from '@/shared/lib/money';
 import { cashInDrawerCents } from '@/shared/state/cash-status';
 import { devicesStatus } from '@/shared/state/devices-status';
-import { currentUser, endSession, isManager, isOwner } from '@/shared/state/session';
+import { currentUser, endSession, isManager, type SessionUser } from '@/shared/state/session';
 import { logoutSession } from '@/shared/api/users';
 import {
   bigTextEnabled,
@@ -28,43 +31,30 @@ const ROLE_LABEL: Record<'owner' | 'manager' | 'cashier', string> = {
   cashier: 'cajera',
 };
 
-export type View =
-  | 'inicio'
-  | 'venta'
-  | 'caja'
-  | 'ventas'
-  | 'clientes'
-  | 'productos'
-  | 'inventario'
-  | 'compras'
-  | 'reportes'
-  | 'ajustes';
-
 // La cajera solo ve lo operativo; lo administrativo (reportes, costos,
 // usuarios) es del encargado. Inicio (el pulso del negocio) es del dueño.
-// Ajustes (con Equipos, Voucher, IGV y los catálogos maestros) va como
-// engrane a la derecha: no es de uso diario.
-const VIEWS: Array<{ key: View; label: string; managerOnly: boolean; ownerOnly: boolean }> = [
-  { key: 'inicio', label: 'Inicio', managerOnly: false, ownerOnly: true },
-  { key: 'venta', label: 'Vender', managerOnly: false, ownerOnly: false },
-  { key: 'caja', label: 'Caja', managerOnly: false, ownerOnly: false },
-  // La cajera ve Ventas pero SOLO las de hoy (la vista se encarga de fijarlo).
-  { key: 'ventas', label: 'Historial', managerOnly: false, ownerOnly: false },
-  { key: 'clientes', label: 'Clientes', managerOnly: false, ownerOnly: false },
-  { key: 'productos', label: 'Productos', managerOnly: true, ownerOnly: false },
-  { key: 'inventario', label: 'Inventario', managerOnly: true, ownerOnly: false },
-  { key: 'compras', label: 'Compras', managerOnly: true, ownerOnly: false },
-  { key: 'reportes', label: 'Reportes', managerOnly: true, ownerOnly: false },
-];
+// Ajustes (con Equipos, Voucher, IGV y los catálogos maestros) va como engrane
+// a la derecha: no es de uso diario. El orden y el permiso de cada sección
+// viven en `app/routes.ts`; acá solo el nombre que se lee en pantalla.
+const SECTION_LABELS: Record<Section, string> = {
+  inicio: 'Inicio',
+  venta: 'Vender',
+  caja: 'Caja',
+  // La cajera ve Historial pero SOLO las ventas de hoy (la vista lo fija).
+  ventas: 'Historial',
+  clientes: 'Clientes',
+  productos: 'Productos',
+  inventario: 'Inventario',
+  compras: 'Compras',
+  reportes: 'Reportes',
+  ajustes: 'Ajustes',
+};
 
-export const TopBar: Component<{
-  view: View;
-  onNavigate: (view: View) => void;
-}> = (props) => {
-  const visibleViews = () =>
-    VIEWS.filter(
-      (item) => (!item.managerOnly || isManager()) && (!item.ownerOnly || isOwner()),
-    );
+export const TopBar: Component = () => {
+  const location = useLocation();
+  const role = (): SessionUser['role'] => currentUser()?.role ?? 'cashier';
+  const visibleSections = () => sectionsFor(role());
+  const activeSection = () => sectionOf(location.pathname);
   const [now, setNow] = createSignal(new Date());
   const cash = cashInDrawerCents;
   const alert = deviceAlert;
@@ -87,16 +77,15 @@ export const TopBar: Component<{
       </span>
 
       <nav class={styles.nav} aria-label="Secciones">
-        <For each={visibleViews()}>
+        <For each={visibleSections()}>
           {(item) => (
-            <button
-              type="button"
+            <A
+              href={item.home}
               class={styles.navBoton}
-              classList={{ [styles.navActiva]: props.view === item.key }}
-              onClick={() => props.onNavigate(item.key)}
+              classList={{ [styles.navActiva]: activeSection() === item.section }}
             >
-              {item.label}
-            </button>
+              {SECTION_LABELS[item.section]}
+            </A>
           )}
         </For>
       </nav>
@@ -114,16 +103,15 @@ export const TopBar: Component<{
         )}
       </Show>
       <Show when={isManager()}>
-        <button
-          type="button"
+        <A
+          href="/ajustes/usuarios"
           class={`${styles.chip} ${styles.salir}`}
-          classList={{ [styles.accesActivo]: props.view === 'ajustes' }}
+          classList={{ [styles.accesActivo]: activeSection() === 'ajustes' }}
           title="Ajustes: usuarios, equipos, voucher, IGV y respaldo"
           aria-label="Ajustes"
-          onClick={() => props.onNavigate('ajustes')}
         >
           ⚙︎
-        </button>
+        </A>
       </Show>
       <span
         class={`${styles.chip} ${styles.caja}`}

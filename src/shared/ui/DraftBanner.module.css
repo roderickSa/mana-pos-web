@@ -1,0 +1,41 @@
+/* Aviso dentro de un formulario, sobre los campos. Usa el amarillo de
+   advertencia de la app: no es un error, es algo que decidir. */
+.franja {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--advertencia-fondo);
+  border: 1px solid var(--advertencia-borde);
+  border-radius: var(--radio-chico);
+  padding: 8px 12px;
+}
+
+.texto {
+  flex: 1;
+  min-width: 180px;
+  font-size: 0.88rem;
+  color: var(--advertencia-tinta);
+}
+
+.accion,
+.descartar {
+  border: 1.5px solid var(--advertencia-borde);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  border-radius: var(--radio-boton);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-height: var(--alto-compacto);
+}
+
+.accion {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
+.descartar:hover {
+  border-color: var(--peligro);
+  color: var(--peligro);
+}

@@ -1,4 +1,5 @@
 import {createSignal, For, Show, type Component } from 'solid-js';
+import { useNavigate } from '@solidjs/router';
 
 
 import {
@@ -17,7 +18,7 @@ import {ConfirmModal } from '@/shared/ui/ConfirmModal';
 import { Modal } from '@/shared/ui/Modal';
 import formStyles from '@/shared/ui/forms.module.css';
 import tabla from '@/shared/ui/tabla.module.css';
-import {STATUS_LABEL, statusTone, quantityText } from './purchase-lines';
+import {STATUS_HINT, STATUS_LABEL, statusTone, quantityText } from './purchase-lines';
 import { Chip } from '@/shared/ui/Chip';
 import { RowMenu } from '@/shared/ui/RowMenu';
 import { TableFooter } from '@/shared/ui/TableFooter';
@@ -29,6 +30,7 @@ export const OrderDetailModal: Component<{
   onClose: () => void;
   onChanged: (order: PurchaseOrderDto) => void;
 }> = (props) => {
+  const navigate = useNavigate();
   const [error, setError] = createSignal('');
   const [receiving, setReceiving] = createSignal(false);
   const [confirmingCancel, setConfirmingCancel] = createSignal(false);
@@ -100,14 +102,16 @@ export const OrderDetailModal: Component<{
       title={`Orden #${props.order.number} — ${props.supplierName}`}
       subtitle={
         <>
-          <Chip tone={statusTone(props.order.status)}>{STATUS_LABEL[props.order.status]}</Chip>
+          <Chip tone={statusTone(props.order.status)} title={STATUS_HINT[props.order.status]}>
+            {STATUS_LABEL[props.order.status]}
+          </Chip>
           <span>
             {formatDateTime(props.order.createdAt)} · creada por {props.order.createdBy}
             {props.order.expectedAt === null
               ? ''
               : ` · entrega ${formatDateTime(props.order.expectedAt).split(',')[0] ?? ''}`}
             {props.order.notes === null ? '' : ` · ${props.order.notes}`}
-            {props.order.closedReason === null ? '' : ` · cerrada: ${props.order.closedReason}`}
+            {props.order.closedReason === null ? '' : ` · motivo: ${props.order.closedReason}`}
           </span>
         </>
       }
@@ -136,6 +140,15 @@ export const OrderDetailModal: Component<{
               </button>
             </Show>
             <Show when={props.order.status === 'draft'}>
+              {/* Un borrador se abre para terminarlo, no solo para confirmarlo
+                  a ciegas: es el mismo formulario donde se armó. */}
+              <button
+                type="button"
+                class={formStyles.secundario}
+                onClick={() => navigate(`/compras/ordenes/${props.order.id}/editar`)}
+              >
+                Seguir editando
+              </button>
               <button type="button" class={formStyles.primario} onClick={() => void confirmDraft()}>
                 Confirmar orden
               </button>

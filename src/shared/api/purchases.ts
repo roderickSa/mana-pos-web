@@ -88,13 +88,16 @@ export interface PurchaseOrdersPageDto {
 
 // `pending`: solo las que todavía deben mercadería (abiertas o parciales). Sin
 // esto, quien busca la orden de un producto tendría que recorrer las páginas.
+// `status`: un estado exacto, para preguntar «¿dejé algún borrador a medias?».
+// Los dos juntos el servidor los rechaza: se contradicen.
 export async function listPurchaseOrders(
   page: number,
   perPage: number,
-  pending = false,
+  filtro: { pending?: boolean; status?: PurchaseOrderStatus } = {},
 ): Promise<PurchaseOrdersPageDto> {
   const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
-  if (pending) params.set('pending', 'true');
+  if (filtro.pending === true) params.set('pending', 'true');
+  if (filtro.status !== undefined) params.set('status', filtro.status);
   return getJson(`/purchases/orders?${params.toString()}`);
 }
 
@@ -153,6 +156,12 @@ export async function supplierPurchaseContext(supplierId: string): Promise<Suppl
 
 export async function cancelPurchaseOrder(id: string): Promise<PurchaseOrderDto> {
   return sendJson('POST', `/purchases/orders/${id}/cancel`);
+}
+
+// Tirar un borrador lo BORRA: nunca salió al proveedor, así que no es historia.
+// Una orden ya enviada no se borra nunca, se cancela (el servidor devuelve 409).
+export async function discardDraftOrder(id: string): Promise<void> {
+  await sendJson('DELETE', `/purchases/orders/${id}`);
 }
 
 export interface ReceiveOrderLinePayload {

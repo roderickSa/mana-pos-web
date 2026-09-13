@@ -83,6 +83,32 @@ export async function searchProductsPage(
   return getJson(`/catalog/products?${params.toString()}`);
 }
 
+// Todo el catálogo de un proveedor, no la primera página: el listado sin
+// paginar corta en 50 y dejaba fuera productos que sí había que pedir.
+export interface SupplierProductsFilter {
+  onlyLowStock?: boolean;
+  includeInactive?: boolean;
+}
+
+export async function supplierProducts(
+  supplierId: string,
+  filter: SupplierProductsFilter = {},
+): Promise<ProductDto[]> {
+  const items: ProductDto[] = [];
+  for (let page = 1; ; page += 1) {
+    const params = new URLSearchParams();
+    params.set('supplier', supplierId);
+    if (filter.onlyLowStock === true) params.set('lowStock', 'true');
+    if (filter.includeInactive === true) params.set('includeInactive', 'true');
+    params.set('orderBy', 'name');
+    params.set('page', String(page));
+    params.set('perPage', '100');
+    const chunk: ProductsPageDto = await getJson(`/catalog/products?${params.toString()}`);
+    items.push(...chunk.items);
+    if (chunk.items.length === 0 || items.length >= chunk.total) return items;
+  }
+}
+
 export async function getProduct(id: string): Promise<ProductDto | null> {
   return getJsonOrNull(`/catalog/products/${id}`);
 }

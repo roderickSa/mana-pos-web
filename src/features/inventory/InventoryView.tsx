@@ -1,5 +1,7 @@
-import { createSignal, Match, Switch, type Component } from 'solid-js';
+import { Match, Switch, type Component } from 'solid-js';
+import { useLocation } from '@solidjs/router';
 
+import { activeTabPath, SubTabs, type SubTab } from '@/shared/ui/SubTabs';
 import { AdjustmentsTab } from './components/AdjustmentsTab';
 import { CountTab } from './components/CountTab';
 import { ExpiringTab } from './components/ExpiringTab';
@@ -8,45 +10,33 @@ import styles from '@/shared/ui/tabla.module.css';
 
 // Solo stock: entradas y mermas, vencimientos y kardex. El catálogo
 // (productos, precios, categorías) vive en Productos.
-type InventoryTab = 'ajustes' | 'conteo' | 'vencer' | 'kardex';
-
-const TABS: Array<{ key: InventoryTab; label: string }> = [
-  { key: 'ajustes', label: 'Entradas y mermas' },
-  { key: 'conteo', label: 'Conteo físico' },
-  { key: 'vencer', label: 'Por vencer' },
-  { key: 'kardex', label: 'Kardex' },
+const TABS: readonly SubTab[] = [
+  { path: '/inventario/entradas', label: 'Entradas y mermas' },
+  { path: '/inventario/conteo', label: 'Conteo físico' },
+  { path: '/inventario/por-vencer', label: 'Por vencer' },
+  { path: '/inventario/kardex', label: 'Kardex' },
 ];
 
 export const InventoryView: Component = () => {
-  const [tab, setTab] = createSignal<InventoryTab>('ajustes');
+  const location = useLocation();
+  const tab = () => activeTabPath(TABS, location.pathname);
 
   return (
     <section class={styles.contenedorTabs}>
-      <nav class={styles.subnav} aria-label="Secciones de inventario">
-        {TABS.map((item) => (
-          <button
-            type="button"
-            class={styles.subtab}
-            classList={{ [styles.subtabActiva]: tab() === item.key }}
-            onClick={() => setTab(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+      <SubTabs tabs={TABS} label="Secciones de inventario" />
 
       <Switch>
-        <Match when={tab() === 'ajustes'}>
-          <AdjustmentsTab onGoToKardex={() => setTab('kardex')} />
-        </Match>
-        <Match when={tab() === 'conteo'}>
+        <Match when={tab() === '/inventario/conteo'}>
           <CountTab />
         </Match>
-        <Match when={tab() === 'vencer'}>
+        <Match when={tab() === '/inventario/por-vencer'}>
           <ExpiringTab />
         </Match>
-        <Match when={tab() === 'kardex'}>
+        <Match when={tab() === '/inventario/kardex'}>
           <KardexTab />
+        </Match>
+        <Match when={tab() === '/inventario/entradas'}>
+          <AdjustmentsTab />
         </Match>
       </Switch>
     </section>

@@ -1,6 +1,7 @@
 import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
 
-import {getTicketDetail, reprintTicket, salesExportUrl, searchSales, voidTicketRequest, type TicketDetailDto, type TicketListItemDto } from '@/shared/api/sales';
+import {getTicketDetail, reprintTicket, salesExportUrl, searchSales, voidTicketRequest, type TicketListItemDto } from '@/shared/api/sales';
 import {formatSoles } from '@/shared/lib/money';
 import {METHOD_LABELS } from '@/shared/lib/labels';
 import { formatDateTime } from '@/shared/lib/dates';
@@ -18,6 +19,8 @@ import { StatTile, StatTiles } from '@/shared/ui/StatTile';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import tabla from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
+import { createUrlNumber, createUrlText } from '@/shared/lib/url-state';
+import { subPath, withSearch } from '@/shared/lib/modal-route';
 import styles from './SalesHistoryView.module.css';
 import {PER_PAGE, VOID_REASONS, toLocalISODate, refundChannelLabel } from './components/sales-history.helpers';
 import { RefundModal } from './components/RefundModal';
@@ -30,17 +33,29 @@ export const SalesHistoryView: Component = () => {
   // y borrar ambas fechas muestra el histórico completo.
   const todayOnly = !isManager();
   const today = toLocalISODate(new Date());
-  const [from, setFrom] = createSignal(today);
-  const [to, setTo] = createSignal(today);
-  const [method, setMethod] = createSignal('');
-  const [status, setStatus] = createSignal('');
-  const [page, setPage] = createSignal(1);
+  const [from, setFrom] = createUrlText('desde', today);
+  const [to, setTo] = createUrlText('hasta', today);
+  const [method, setMethod] = createUrlText('metodo');
+  const [status, setStatus] = createUrlText('estado');
+  const [page, setPage] = createUrlNumber('pagina', 1);
   const [voiding, setVoiding] = createSignal<TicketListItemDto | null>(null);
   const [voidReason, setVoidReason] = createSignal('');
   const [managerPin, setManagerPin] = createSignal('');
   const [voidError, setVoidError] = createSignal('');
-  const [detailId, setDetailId] = createSignal<string | null>(null);
-  const [refunding, setRefunding] = createSignal<TicketDetailDto | null>(null);
+  // La venta abierta es una ruta hija: `/historial/<id>` y, si se está
+  // devolviendo, `/historial/<id>/devolver`. Anular NO va a la URL: es una
+  // confirmación, y un link que la reabre invita a repetir algo ya hecho.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const HISTORIAL_PATH = '/historial';
+  const segmentos = () => subPath(HISTORIAL_PATH, location.pathname);
+  const detailId = (): string | undefined => segmentos()[0];
+  const devolviendo = (): boolean => segmentos()[1] === 'devolver';
+  const abrirVenta = (id: string): void =>
+    navigate(withSearch(`${HISTORIAL_PATH}/${id}`, location.search));
+  const abrirDevolucion = (id: string): void =>
+    navigate(withSearch(`${HISTORIAL_PATH}/${id}/devolver`, location.search));
+  const cerrarVenta = (): void => navigate(withSearch(HISTORIAL_PATH, location.search));
 
   const filters = () => ({ from: from(), to: to(), method: method(), status: status() });
 
@@ -55,6 +70,11 @@ export const SalesHistoryView: Component = () => {
       return null;
     }),
   );
+
+  const ticketDeLaRuta = () => {
+    const cargado = detail();
+    return cargado !== null && cargado !== undefined && cargado.id === detailId() ? cargado : undefined;
+  };
 
   const items = () => result()?.items ?? [];
   const total = () => result()?.total ?? 0;
@@ -334,7 +354,7 @@ export const SalesHistoryView: Component = () => {
                 <tr
                   class={styles.fila}
                   classList={{ [styles.filaAnulada]: item.status === 'voided' }}
-                  onClick={() => setDetailId(item.id)}
+                  onClick={() => abrirVenta(item.id)}
                 >
                   <td class={tabla.nombre}>#{item.number}</td>
                   <td class={tabla.sub}>
@@ -469,44 +489,36 @@ export const SalesHistoryView: Component = () => {
         )}
       </Show>
 
-      <Show when={detailId() !== null}>
+      <Show when={detailId() !== undefined && !devolviendo()}>
         <Modal
           size="lg"
           title="Detalle de la venta"
-          onClose={() => setDetailId(null)}
+          onClose={cerrarVenta}
           footer={
             <div class={forms.acciones}>
-              <button
-                type="button"
-                class={forms.secundario}
-                onClick={() => setDetailId(null)}
-              >
+              <button type="button" class={forms.secundario} onClick={cerrarVenta}>
                 Cerrar
               </button>
             </div>
           }
         >
-          <Show when={detail()} fallback={<p class={styles.cargando}>Cargando…</p>}>
+          {/* Comparar el id: mientras carga la siguiente venta, el recurso
+              todavía devuelve la anterior y se vería otra que la de la URL. */}
+          <Show when={ticketDeLaRuta()} fallback={<p class={styles.cargando}>Cargando…</p>}>
             {(ticket) => (
-              <TicketDetail
-                ticket={ticket()}
-                onRefund={() => {
-                  setRefunding(ticket());
-                  setDetailId(null);
-                }}
-              />
+              <TicketDetail ticket={ticket()} onRefund={() => abrirDevolucion(ticket().id)} />
             )}
           </Show>
         </Modal>
       </Show>
 
-      <Show when={refunding()}>
+      <Show when={devolviendo() ? ticketDeLaRuta() : undefined}>
         {(ticket) => (
           <RefundModal
             ticket={ticket()}
-            onClose={() => setRefunding(null)}
+            onClose={cerrarVenta}
             onDone={(refund, printerWarning) => {
-              setRefunding(null);
+              cerrarVenta();
               beepSuccess();
               const base = `Devolución de ${formatSoles(refund.totalCents)} ${refundChannelLabel(refund)} — el stock volvió`;
               showNotice(printerWarning === null ? base : `${base} · ${printerWarning}`);

@@ -163,6 +163,68 @@
   margin: 0;
 }
 
+/* El estado del guardado va a la izquierda del pie, lejos de los botones: es
+   información, no una acción. */
+.pieOrden .estadoGuardado {
+  margin-right: auto;
+  align-self: center;
+}
+
+/* Lo que quedó a medias otras veces. Mismo amarillo de advertencia que la
+   franja de borrador de los formularios: no hay nada roto, hay algo pendiente. */
+.avisoBorradores {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--advertencia-borde);
+  border-radius: var(--radio-chico);
+  background: var(--advertencia-fondo);
+  color: var(--advertencia-tinta);
+  font-size: 0.88rem;
+}
+
+.retomar {
+  min-height: var(--alto-compacto);
+  padding: 6px 14px;
+  border: 1.5px solid var(--advertencia-borde);
+  border-radius: var(--radio-boton);
+  background: var(--superficie-panel);
+  color: var(--tinta);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.borradorOfrecido {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* La ✕ de tirar un borrador: cuadrada y al lado, para que no compita con
+   «Retomar», que es lo que casi siempre se quiere. */
+.tirar {
+  min-height: var(--alto-compacto);
+  width: var(--alto-compacto);
+  border: 1.5px solid var(--advertencia-borde);
+  border-radius: var(--radio-boton);
+  background: var(--superficie-panel);
+  color: var(--tinta-suave);
+  font-size: 0.85rem;
+}
+
+.tirar:hover {
+  border-color: var(--peligro);
+  color: var(--peligro);
+}
+
+.retomar:hover {
+  border-color: var(--mana-verde);
+  color: var(--mana-verde);
+}
+
 /* Buscador y atajo en la misma línea: cada bloque suelto le quita alto a la
    lista de productos, que es donde de verdad se trabaja. */
 .agregar {

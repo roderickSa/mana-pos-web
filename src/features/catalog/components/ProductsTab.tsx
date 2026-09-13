@@ -1,7 +1,8 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
 import { focusOnMount } from '@/shared/lib/focus';
 
-import { searchProductsPage, updateProduct } from '@/shared/api/products';
+import { getProduct, searchProductsPage, updateProduct } from '@/shared/api/products';
 import { downloadFile } from '@/shared/api/client';
 import { listSuppliers } from '@/shared/api/suppliers';
 import { formatKg, formatSoles, solesInputToCents } from '@/shared/lib/money';
@@ -11,7 +12,7 @@ import type { ProductDto } from '@/shared/types';
 import { allCategories } from '@/shared/state/categories';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
-import { ActionsMenu, type ProductAction } from './ActionsMenu';
+import { ActionsMenu } from './ActionsMenu';
 import { CountModal } from '@/shared/ui/CountModal';
 import { ImportModal } from './ImportModal';
 import { MergeModal } from './MergeModal';
@@ -22,31 +23,51 @@ import { costOf, minimumOf, priceOf, stockOf } from '@/shared/lib/product-units'
 import styles from '@/shared/ui/tabla.module.css';
 import forms from '@/shared/ui/forms.module.css';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import {
+  createUrlBoolean,
+  createUrlNumber,
+  createUrlOption,
+  createUrlText,
+} from '@/shared/lib/url-state';
+import { subPath, withSearch, withSearchParam } from '@/shared/lib/modal-route';
+import {
+  openProductId,
+  parseProductModal,
+  productActionPath,
+  PRODUCTS_PATH,
+  type ProductModalRoute,
+} from './products-route';
 
 const PER_PAGE = 50;
-
-type ModalState =
-  | { kind: 'none' }
-  | { kind: 'create'; initialBarcode: string | null }
-  | { kind: 'import' }
-  | { kind: 'bulk-prices' }
-  | { kind: ProductAction; product: ProductDto };
 
 function stockLabel(product: ProductDto): string {
   return product.saleType === 'unit' ? `${product.stockUnits} unid.` : formatKg(product.stockGrams);
 }
 
-type SortColumn = 'name' | 'price' | 'stock' | 'margin';
+const SORT_COLUMNS = ['name', 'price', 'stock', 'margin'] as const;
+type SortColumn = (typeof SORT_COLUMNS)[number];
 
 export const ProductsTab: Component = () => {
-  const [query, setQuery] = createSignal('');
-  const [page, setPage] = createSignal(1);
-  const [lowOnly, setLowOnly] = createSignal(false);
-  const [noCostOnly, setNoCostOnly] = createSignal(false);
-  const [category, setCategory] = createSignal('');
-  const [sortBy, setSortBy] = createSignal<SortColumn | null>(null);
-  const [sortDir, setSortDir] = createSignal<'asc' | 'desc'>('asc');
-  const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
+  // Búsqueda, filtros y página van en la URL: la pantalla se recarga y se
+  // comparte tal como quedó.
+  const [query, setQuery] = createUrlText('q');
+  const [page, setPage] = createUrlNumber('pagina', 1);
+  const [lowOnly, setLowOnly] = createUrlBoolean('bajo', false);
+  const [noCostOnly, setNoCostOnly] = createUrlBoolean('sin-costo', false);
+  const [category, setCategory] = createUrlText('categoria');
+  const [sortByRaw, setSortByRaw] = createUrlText('orden');
+  const [sortDir, setSortDir] = createUrlOption('dir', ['asc', 'desc'] as const, 'asc');
+  const sortBy = (): SortColumn | null =>
+    SORT_COLUMNS.find((column) => column === sortByRaw()) ?? null;
+  const setSortBy = (column: SortColumn | null): void => setSortByRaw(column ?? '');
+  // Qué modal está abierto lo dice la URL, no una señal: `/productos/p-1/editar`
+  // se puede recargar, compartir y cerrar con el botón Atrás.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const modal = (): ProductModalRoute => parseProductModal(subPath(PRODUCTS_PATH, location.pathname));
+  const [initialBarcode] = createUrlText('codigo');
+  const abrir = (path: string): void => navigate(withSearch(path, location.search));
+  const cerrar = (): void => navigate(withSearch(PRODUCTS_PATH, location.search));
   // Captura de costos en línea: id del producto en edición y su valor.
   const [costEditing, setCostEditing] = createSignal<string | null>(null);
   const [costDraft, setCostDraft] = createSignal('');
@@ -122,6 +143,38 @@ export const ProductsTab: Component = () => {
   const [suppliers, { refetch: refetchSuppliers }] = createResource(listSuppliers);
 
   const items = () => result()?.items ?? [];
+
+  // El producto del modal sale de la página cargada si está ahí (abrir desde
+  // una fila es instantáneo) y se pide al servidor si no (entrar por la URL de
+  // frente, o volver a una página que ya no lo trae).
+  const enLista = (id: string): ProductDto | undefined =>
+    items().find((product) => product.id === id);
+  const [buscado] = createResource(
+    () => {
+      const id = openProductId(modal());
+      return id === undefined || enLista(id) !== undefined ? undefined : id;
+    },
+    (id) => getProduct(id),
+  );
+  const abierto = (): ProductDto | undefined => {
+    const id = openProductId(modal());
+    if (id === undefined) return undefined;
+    // Comparar el id importa: mientras se busca el siguiente, el recurso
+    // todavía devuelve el anterior, y la pantalla mostraría un producto que
+    // no es el de la URL.
+    const encontrado = enLista(id) ?? buscado();
+    return encontrado?.id === id ? encontrado : undefined;
+  };
+
+  // Un id que ya no existe (producto borrado, link viejo) devuelve al listado
+  // en vez de dejar la pantalla a medias.
+  createEffect(() => {
+    if (openProductId(modal()) === undefined) return;
+    if (result.loading || buscado.loading) return;
+    if (abierto() !== undefined) return;
+    showNotice('Ese producto ya no está');
+    navigate(withSearch(PRODUCTS_PATH, location.search), { replace: true });
+  });
   const total = () => result()?.total ?? 0;
   const totalPages = () => Math.max(1, Math.ceil(total() / PER_PAGE));
   // Columna de proveedor solo cuando hay datos que mostrar.
@@ -136,7 +189,7 @@ export const ProductsTab: Component = () => {
   };
 
   function closeAndRefresh(message: string): void {
-    setModal({ kind: 'none' });
+    cerrar();
     beepSuccess();
     showNotice(message);
     void refetch();
@@ -151,7 +204,7 @@ export const ProductsTab: Component = () => {
     allCategories().find((item) => item.slug === slug)?.name ?? slug;
 
   function toggleLowOnly(): void {
-    setLowOnly((value) => !value);
+    setLowOnly(!lowOnly());
     setPage(1);
   }
 
@@ -199,7 +252,7 @@ export const ProductsTab: Component = () => {
                 : 'Ver solo productos sin costo y capturarlos desde la tabla'
             }
             onClick={() => {
-              setNoCostOnly((value) => !value);
+              setNoCostOnly(!noCostOnly());
               setPage(1);
             }}
           >
@@ -234,7 +287,7 @@ export const ProductsTab: Component = () => {
         <button
           type="button"
           class={styles.importar}
-          onClick={() => setModal({ kind: 'import' })}
+          onClick={() => abrir(`${PRODUCTS_PATH}/importar`)}
         >
           Importar Excel
         </button>
@@ -242,14 +295,16 @@ export const ProductsTab: Component = () => {
           type="button"
           class={styles.importar}
           title="Cambio masivo de precios y sugerencias por margen"
-          onClick={() => setModal({ kind: 'bulk-prices' })}
+          onClick={() => abrir(`${PRODUCTS_PATH}/precios`)}
         >
           Precios…
         </button>
         <button
           type="button"
           class={styles.nuevo}
-          onClick={() => setModal({ kind: 'create', initialBarcode: null })}
+          onClick={() =>
+            navigate(withSearchParam(`${PRODUCTS_PATH}/nuevo`, location.search, 'codigo', null))
+          }
         >
           + Nuevo producto
         </button>
@@ -404,7 +459,7 @@ export const ProductsTab: Component = () => {
                       </Show>
                     </td>
                     <td class={styles.acciones}>
-                      <ActionsMenu onSelect={(action) => setModal({ kind: action, product })} />
+                      <ActionsMenu onSelect={(action) => abrir(productActionPath(product.id, action))} />
                     </td>
                   </tr>
                 );
@@ -420,7 +475,16 @@ export const ProductsTab: Component = () => {
                 <button
                   type="button"
                   class={styles.nuevo}
-                  onClick={() => setModal({ kind: 'create', initialBarcode: query().trim() })}
+                  onClick={() =>
+                    navigate(
+                      withSearchParam(
+                        `${PRODUCTS_PATH}/nuevo`,
+                        location.search,
+                        'codigo',
+                        query().trim(),
+                      ),
+                    )
+                  }
                 >
                   Crear producto con el código {query().trim()}
                 </button>
@@ -439,19 +503,27 @@ export const ProductsTab: Component = () => {
         onPage={setPage}
       />
 
-      {renderModal(modal(), closeAndRefresh, () => setModal({ kind: 'none' }))}
+      {renderModal(modal(), abierto(), initialBarcode(), closeAndRefresh, cerrar)}
     </section>
   );
 };
 
-function renderModal(state: ModalState, onDone: (message: string) => void, onClose: () => void) {
+// `product` llega sin resolver mientras se busca por id (al abrir la URL de
+// frente, sin pasar por el listado): ahí todavía no hay nada que dibujar.
+function renderModal(
+  state: ProductModalRoute,
+  product: ProductDto | undefined,
+  initialBarcode: string,
+  onDone: (message: string) => void,
+  onClose: () => void,
+) {
   switch (state.kind) {
     case 'none':
       return null;
     case 'create':
       return (
         <ProductFormModal
-          mode={state}
+          mode={{ kind: 'create', initialBarcode: initialBarcode === '' ? null : initialBarcode }}
           onDone={onDone}
           onClose={onClose}
         />
@@ -466,14 +538,18 @@ function renderModal(state: ModalState, onDone: (message: string) => void, onClo
         />
       );
     case 'edit':
+      if (product === undefined) return null;
       return (
-        <ProductFormModal mode={{ kind: 'edit', product: state.product }} onDone={onDone} onClose={onClose} />
+        <ProductFormModal mode={{ kind: 'edit', product }} onDone={onDone} onClose={onClose} />
       );
     case 'price':
-      return <PriceModal product={state.product} onDone={onDone} onClose={onClose} />;
+      if (product === undefined) return null;
+      return <PriceModal product={product} onDone={onDone} onClose={onClose} />;
     case 'stock':
-      return <CountModal product={state.product} onDone={onDone} onClose={onClose} />;
+      if (product === undefined) return null;
+      return <CountModal product={product} onDone={onDone} onClose={onClose} />;
     case 'merge':
-      return <MergeModal product={state.product} onDone={onDone} onClose={onClose} />;
+      if (product === undefined) return null;
+      return <MergeModal product={product} onDone={onDone} onClose={onClose} />;
   }
 }

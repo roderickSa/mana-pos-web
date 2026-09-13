@@ -53,7 +53,7 @@ export const EntryModal: Component<{
   // entrada puede vincularse a ella (baja el pendiente en vez de quedar suelta).
   const [linkedOrder] = createResource<LinkedOrder | null>(async () => {
     try {
-      const orders = await listPurchaseOrders(1, PENDING_ORDERS_TO_SCAN, true);
+      const orders = await listPurchaseOrders(1, PENDING_ORDERS_TO_SCAN, { pending: true });
       for (const summary of orders.items) {
         const order = await getPurchaseOrder(summary.id);
         const line = order.lines.find(

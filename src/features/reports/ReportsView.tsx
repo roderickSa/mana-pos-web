@@ -1,4 +1,7 @@
-import { createResource, createSignal, For, Match, Show, Switch, type Component } from 'solid-js';
+import { createResource, For, Match, Show, Switch, type Component } from 'solid-js';
+import { useLocation } from '@solidjs/router';
+
+import { activeTabPath, SubTabs, type SubTab } from '@/shared/ui/SubTabs';
 
 import { apiErrorMessage } from '@/shared/api/client';
 import {
@@ -17,16 +20,15 @@ import { StatTile, StatTiles } from '@/shared/ui/StatTile';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import tabla from '@/shared/ui/tabla.module.css';
 import { categoryName } from '@/shared/state/categories';
+import { createUrlText } from '@/shared/lib/url-state';
 import styles from './ReportsView.module.css';
 
-type ReportsTab = 'resumen' | 'productos' | 'categorias' | 'horas' | 'mermas';
-
-const TABS: Array<{ key: ReportsTab; label: string }> = [
-  { key: 'resumen', label: 'Resumen' },
-  { key: 'productos', label: 'Más vendidos' },
-  { key: 'categorias', label: 'Por categoría' },
-  { key: 'horas', label: 'Por hora' },
-  { key: 'mermas', label: 'Mermas' },
+const TABS: readonly SubTab[] = [
+  { path: '/reportes/resumen', label: 'Resumen' },
+  { path: '/reportes/mas-vendidos', label: 'Más vendidos' },
+  { path: '/reportes/por-categoria', label: 'Por categoría' },
+  { path: '/reportes/por-hora', label: 'Por hora' },
+  { path: '/reportes/mermas', label: 'Mermas' },
 ];
 
 const QUICK: QuickRange[] = ['hoy', 'ayer', 'semana', 'mes'];
@@ -72,16 +74,17 @@ const BarCell: Component<{ value: number; max: number; label: string }> = (props
 
 export const ReportsView: Component = () => {
   const initial = quickRange('semana');
-  const [from, setFrom] = createSignal(initial.from);
-  const [to, setTo] = createSignal(initial.to);
-  const [tab, setTab] = createSignal<ReportsTab>('resumen');
+  const [from, setFrom] = createUrlText('desde', initial.from);
+  const [to, setTo] = createUrlText('hasta', initial.to);
+  const location = useLocation();
+  const tab = () => activeTabPath(TABS, location.pathname);
 
   const [sales] = createResource(
     () => ({ from: from(), to: to() }),
     (range) => getSalesReport(range.from, range.to),
   );
   const [waste] = createResource(
-    () => (tab() === 'mermas' ? { from: from(), to: to() } : null),
+    () => (tab() === '/reportes/mermas' ? { from: from(), to: to() } : null),
     (range) => getWasteReport(range.from, range.to),
   );
 
@@ -104,18 +107,7 @@ export const ReportsView: Component = () => {
 
   return (
     <section class={tabla.contenedorTabs}>
-      <nav class={tabla.subnav} aria-label="Reportes">
-        {TABS.map((item) => (
-          <button
-            type="button"
-            class={tabla.subtab}
-            classList={{ [tabla.subtabActiva]: tab() === item.key }}
-            onClick={() => setTab(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+      <SubTabs tabs={TABS} label="Reportes" />
 
       <div class={styles.vista}>
         <div class={styles.filtros}>
@@ -151,13 +143,13 @@ export const ReportsView: Component = () => {
         <Show when={sales()}>
           {(report) => (
             <Switch>
-              <Match when={tab() === 'resumen'}>
+              <Match when={tab() === '/reportes/resumen'}>
                 <Summary report={report()} maxDay={maxDayRevenue()} />
               </Match>
-              <Match when={tab() === 'productos'}>
+              <Match when={tab() === '/reportes/mas-vendidos'}>
                 <ProductsTable rows={report().byProduct} max={maxProductRevenue()} />
               </Match>
-              <Match when={tab() === 'categorias'}>
+              <Match when={tab() === '/reportes/por-categoria'}>
                 <div class={styles.panel}>
                   <h3 class={styles.panelTitulo}>Vendido por categoría</h3>
                   <Show when={report().byCategory.length > 0} fallback={<EmptyState message="Sin ventas en el período." />}>
@@ -199,7 +191,7 @@ export const ReportsView: Component = () => {
                   </Show>
                 </div>
               </Match>
-              <Match when={tab() === 'horas'}>
+              <Match when={tab() === '/reportes/por-hora'}>
                 <div class={styles.panel}>
                   <h3 class={styles.panelTitulo}>Vendido por hora del día</h3>
                   <Show when={maxHour() > 0} fallback={<EmptyState message="Sin ventas en el período." />}>
@@ -223,7 +215,7 @@ export const ReportsView: Component = () => {
                   </Show>
                 </div>
               </Match>
-              <Match when={tab() === 'mermas'}>
+              <Match when={tab() === '/reportes/mermas'}>
                 <WasteTable report={waste()} loading={waste.loading} error={waste.error} />
               </Match>
             </Switch>

@@ -1,4 +1,7 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
+
+import { entityAction, subPath, withSearch } from '@/shared/lib/modal-route';
 
 import { ApiError } from '@/shared/api/client';
 import { createUser, listUsers, updateUser, type UserDto } from '@/shared/api/users';
@@ -18,11 +21,8 @@ const ROLE_LABELS: Record<UserDto['role'], string> = {
   cashier: 'Cajera',
 };
 
-type ModalState =
-  | { kind: 'none' }
-  | { kind: 'create' }
-  | { kind: 'edit'; user: UserDto }
-  | { kind: 'pin'; user: UserDto };
+const USUARIOS_PATH = '/ajustes/usuarios';
+const ACCIONES = ['editar', 'pin'] as const;
 
 type UserFormMode = { kind: 'create' } | { kind: 'edit'; user: UserDto };
 
@@ -41,7 +41,6 @@ const UserFormModal: Component<{
   const pinValid = () => /^\d{4,6}$/.test(pin()) || (editing !== null && pin() === '');
 
   const [saving, setSaving] = createSignal(false);
-
   async function save(): Promise<void> {
     if (saving() || name().trim() === '' || !pinValid()) return;
     setSaving(true);
@@ -210,10 +209,31 @@ const ResetPinModal: Component<{
 
 export const UsersView: Component = () => {
   const [users, { refetch }] = createResource(listUsers);
-  const [modal, setModal] = createSignal<ModalState>({ kind: 'none' });
+  // Qué modal está abierto lo dice la URL: `/ajustes/usuarios/<id>/pin`.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const cola = () => subPath(USUARIOS_PATH, location.pathname);
+  const creando = (): boolean => cola()[0] === 'nuevo' && cola().length === 1;
+  const abierto = () => entityAction(cola(), ACCIONES);
+  const abrir = (path: string): void => navigate(withSearch(path, location.search));
+  const cerrar = (): void => navigate(withSearch(USUARIOS_PATH, location.search));
+
+  // Los usuarios se listan todos, así que el del modal ya está cargado.
+  const usuario = (): UserDto | undefined => {
+    const modal = abierto();
+    if (modal === undefined) return undefined;
+    return (users() ?? []).find((user) => user.id === modal.id);
+  };
+
+  createEffect(() => {
+    if (abierto() === undefined || users.loading) return;
+    if (usuario() !== undefined) return;
+    showNotice('Ese usuario ya no está');
+    navigate(withSearch(USUARIOS_PATH, location.search), { replace: true });
+  });
 
   function closeAndRefresh(message: string): void {
-    setModal({ kind: 'none' });
+    cerrar();
     showNotice(message);
     void refetch();
   }
@@ -224,7 +244,7 @@ export const UsersView: Component = () => {
         <span class={tabla.sub} style={{ flex: '1' }}>
           El PIN identifica a cada persona: con él entra al sistema y firma sus operaciones.
         </span>
-        <button type="button" class={tabla.nuevo} onClick={() => setModal({ kind: 'create' })}>
+        <button type="button" class={tabla.nuevo} onClick={() => abrir(`${USUARIOS_PATH}/nuevo`)}>
           + Nuevo usuario
         </button>
       </div>
@@ -266,13 +286,13 @@ export const UsersView: Component = () => {
                         </span>
                       }
                     >
-                      <button type="button" onClick={() => setModal({ kind: 'edit', user })}>
+                      <button type="button" onClick={() => abrir(`${USUARIOS_PATH}/${user.id}/editar`)}>
                         Editar
                       </button>
                       <button
                         type="button"
                         title="Cambiar el PIN sin tocar nada más del usuario"
-                        onClick={() => setModal({ kind: 'pin', user })}
+                        onClick={() => abrir(`${USUARIOS_PATH}/${user.id}/pin`)}
                       >
                         Resetear PIN
                       </button>
@@ -290,17 +310,16 @@ export const UsersView: Component = () => {
       <TableFooter total={(users() ?? []).length} singular="usuario" plural="usuarios" />
 
       {(() => {
-        const state = modal();
-        switch (state.kind) {
-          case 'none':
-            return null;
-          case 'create':
-            return <UserFormModal mode={{ kind: 'create' }} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
-          case 'edit':
-            return <UserFormModal mode={state} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
-          case 'pin':
-            return <ResetPinModal user={state.user} onDone={closeAndRefresh} onClose={() => setModal({ kind: 'none' })} />;
+        if (creando()) {
+          return <UserFormModal mode={{ kind: 'create' }} onDone={closeAndRefresh} onClose={cerrar} />;
         }
+        const modal = abierto();
+        const user = usuario();
+        if (modal === undefined || user === undefined) return null;
+        if (modal.action === 'pin') {
+          return <ResetPinModal user={user} onDone={closeAndRefresh} onClose={cerrar} />;
+        }
+        return <UserFormModal mode={{ kind: 'edit', user }} onDone={closeAndRefresh} onClose={cerrar} />;
       })()}
     </section>
   );

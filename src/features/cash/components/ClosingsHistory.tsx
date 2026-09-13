@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show, type Component } from 'solid-js';
+import { createResource, For, Show, type Component } from 'solid-js';
 
 import { type CashHistoryPageDto, type ClosedCashSessionDto, getCashHistory } from '@/shared/api/cash';
 import {formatSoles } from '@/shared/lib/money';
@@ -6,6 +6,7 @@ import {formatDateTime } from '@/shared/lib/dates';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { TableFooter } from '@/shared/ui/TableFooter';
 import tablaCss from '@/shared/ui/tabla.module.css';
+import { createUrlNumber } from '@/shared/lib/url-state';
 import styles from '../CashView.module.css';
 
 // Dos turnos por día son ~700 cierres al año: se piden de a página.
@@ -14,7 +15,7 @@ const PER_PAGE = 20;
 const VACIO: CashHistoryPageDto = { items: [], total: 0, page: 1, perPage: PER_PAGE };
 
 export const ClosingsHistory: Component<{ version: number }> = (props) => {
-  const [page, setPage] = createSignal(1);
+  const [page, setPage] = createUrlNumber('cierres', 1);
   const [history] = createResource(
     () => ({ version: props.version, page: page() }),
     (params) => getCashHistory(params.page, PER_PAGE).catch(() => VACIO),
